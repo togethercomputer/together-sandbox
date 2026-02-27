@@ -1,0 +1,40 @@
+{
+  "name": "@together-sandbox/cli",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "together-sandbox": "dist/together-sandbox.mjs"
+  },
+  "scripts": {
+    "build": "node esbuild.cjs",
+    "build:binary": "bun build --compile --minify src/main.tsx --outfile dist/together-sandbox",
+    "build:binary:all": "bun build --compile --minify src/main.tsx --target=bun-darwin-arm64 --outfile dist/together-sandbox-darwin-arm64 && bun build --compile --minify src/main.tsx --target=bun-darwin-x64 --outfile dist/together-sandbox-darwin-x64 && bun build --compile --minify src/main.tsx --target=bun-linux-x64 --outfile dist/together-sandbox-linux-x64 && bun build --compile --minify src/main.tsx --target=bun-linux-arm64 --outfile dist/together-sandbox-linux-arm64 && bun build --compile --minify src/main.tsx --target=bun-windows-x64 --outfile dist/together-sandbox-windows-x64.exe",
+    "dev": "node esbuild.cjs --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@together-sandbox/sdk": "^1.0.0",
+    "@codesandbox/sdk": "^2.4.1",
+    "@hey-api/client-fetch": "^0.13.1",
+    "@tanstack/react-query": "^5.76.1",
+    "@xterm/addon-serialize": "*",
+    "@xterm/headless": "*",
+    "chalk": "^5.4.1",
+    "cli-table3": "^0.6.3",
+    "date-fns": "^4.1.0",
+    "ignore": "^6.0.2",
+    "ora": "^8.2.0",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@parcel/watcher": "^2.5.1",
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.5",
+    "@types/yargs": "^17.0.33",
+    "esbuild": "^0.25.0",
+    "ink": "^6.1.0",
+    "react": "^19.1.1",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.2"
+  }
+}
