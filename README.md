@@ -95,44 +95,62 @@ npm install @together-sandbox/sdk
 ### Usage
 
 ```typescript
-import { API } from "@together-sandbox/sdk";
+import {
+  api,
+  sandbox,
+  createApiClient,
+  createApiConfig,
+  createSandboxClient,
+  createSandboxConfig,
+} from "@together-sandbox/sdk";
 
-const api = new API({ apiKey: process.env.TOGETHER_API_KEY });
+// Create the management API client
+const client = createApiClient(
+  createApiConfig({
+    baseUrl: "https://api.codesandbox.io",
+    headers: { Authorization: `Bearer ${process.env.TOGETHER_API_KEY}` },
+  }),
+);
 
-// List sandboxes
-const { sandboxes } = await api.listSandboxes();
-
-// Fork a sandbox
-const forked = await api.forkSandbox("sandbox-id");
-
-// Hibernate or shut down a sandbox
-await api.hibernate("sandbox-id");
-await api.shutdown("sandbox-id");
-
-// Preview tokens
-const { tokens } = await api.listPreviewTokens("sandbox-id");
-const { token } = await api.createPreviewToken("sandbox-id", {
-  expires_at: "2024-12-31T23:59:59Z",
+// Fork a sandbox from a template
+const forkResult = await api.sandboxFork({
+  client,
+  path: { id: "your-template-id" },
+  body: { privacy: 0, private_preview: false },
 });
-await api.revokeAllPreviewTokens("sandbox-id");
 
-// Preview hosts
-const { preview_hosts } = await api.listPreviewHosts();
-await api.updatePreviewHost({ hosts: ["example.com"] });
-```
+const sandboxId = forkResult.data.data.id;
 
-### Generated clients
+// Start the sandbox
+const startResult = await api.vmStart({
+  client,
+  path: { id: sandboxId },
+});
 
-Both OpenAPI clients are also exported as namespaces for lower-level access:
+const { pint_url, pint_token } = startResult.data.data;
 
-```typescript
-import { api, sandbox } from "@together-sandbox/sdk";
+// Connect to the running sandbox
+const sandboxClient = createSandboxClient(
+  createSandboxConfig({
+    baseUrl: pint_url,
+    headers: { Authorization: `Bearer ${pint_token}` },
+  }),
+);
 
-// Use raw generated functions from the API client
-const result = await api.sandboxList({ client: myClient });
+// Create an exec and stream its status via SSE
+const execResult = await sandbox.createExec({
+  client: sandboxClient,
+  body: { command: "bash", args: ["-c", "echo hello"] },
+});
 
-// Use raw generated functions from the Sandbox client
-const exec = await sandbox.createExec({ client: myClient });
+const { stream } = await sandbox.streamExecsList({ client: sandboxClient });
+for await (const event of stream) {
+  const exec = event.execs.find((e) => e.id === execResult.data.id);
+  if (exec?.status === "finished" || exec?.status === "stopped") break;
+}
+
+// Shut down the sandbox when done
+await api.vmShutdown({ client, path: { id: sandboxId } });
 ```
 
 ---
@@ -145,23 +163,53 @@ const exec = await sandbox.createExec({ client: myClient });
 pip install together-sandbox
 ```
 
+Requires Python 3.12+.
+
 ### Usage
 
 ```python
-from together_sandbox import ApiClient, SandboxClient
+import asyncio, os
+from together_sandbox.api import APIClient as ApiClient, ClientConfig, HttpxTransport
+from together_sandbox.sandbox import APIClient as SandboxClient
+from together_sandbox.sandbox import ClientConfig as SandboxConfig, HttpxTransport as SandboxTransport
+from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
 
-api_client = ApiClient(base_url="https://api.together.ai/csb/sdk", token="your_api_key")
-sandbox_client = SandboxClient(base_url="...", token="your_token")
+async def main():
+    api_key = os.environ["TOGETHER_API_KEY"]
+    base_url = os.environ.get("TOGETHER_BASE_URL", "https://api.codesandbox.io")
+
+    async with ApiClient(ClientConfig(base_url=base_url),
+                         transport=HttpxTransport(base_url, bearer_token=api_key)) as client:
+        # Fork a sandbox from a template
+        fork = await client.sandbox.sandbox_fork("your-template-id")
+        sandbox_id = fork.data_.id_
+
+        # Start the sandbox
+        start = await client.vm.vm_start(sandbox_id)
+        pint_url, pint_token = start.data_.pint_url, start.data_.pint_token
+
+        # Connect to the running sandbox via Pint
+        async with SandboxClient(SandboxConfig(base_url=pint_url),
+                                  transport=SandboxTransport(pint_url, bearer_token=pint_token)) as sb:
+            # Create an exec and stream its status via SSE
+            exec_item = await sb.execs.create_exec(
+                CreateExecRequest(command="bash", args=["-c", "echo hello"])
+            )
+            async for event in sb.execs.stream_execs_list():
+                our = next((e for e in event.get("execs", []) if e.get("id") == exec_item.id_), None)
+                if our and our["status"] in ("finished", "stopped"):
+                    break
+
+        # Shut down when done
+        await client.vm.vm_shutdown(sandbox_id)
+
+asyncio.run(main())
 ```
-
-`ApiClient` and `SandboxClient` are fully generated from the OpenAPI specs. Refer to the generated module docstrings for available methods.
 
 ### Regenerating clients
 
-If the OpenAPI specs change, regenerate the Python clients:
+If the OpenAPI specs change, regenerate all clients from the repo root:
 
 ```bash
-cd together-sandbox-python
-pip install openapi-python-client
 bash generate.sh
 ```
