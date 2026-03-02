@@ -1,69 +1,26 @@
-from __future__ import annotations
+from dataclasses import dataclass
 
-from collections.abc import Mapping
-from typing import Any, TypeVar
+__all__ = ["FileReadResponse"]
 
-from attrs import define as _attrs_define
-from attrs import field as _attrs_field
-
-T = TypeVar("T", bound="FileReadResponse")
-
-
-@_attrs_define
+@dataclass
 class FileReadResponse:
     """
-    Attributes:
-        path (str): File path
-        content (str): File content
+    FileReadResponse dataclass
+    
+    Args:
+        content (str)            : File content
+        path (str)               : File path
     """
-
-    path: str
-    content: str
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        path = self.path
-
-        content = self.content
-
-        field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
-        field_dict.update(
-            {
-                "path": path,
-                "content": content,
-            }
-        )
-
-        return field_dict
-
-    @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        d = dict(src_dict)
-        path = d.pop("path")
-
-        content = d.pop("content")
-
-        file_read_response = cls(
-            path=path,
-            content=content,
-        )
-
-        file_read_response.additional_properties = d
-        return file_read_response
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties
+    content: str  # File content
+    path: str  # File path
+    
+    class Meta:
+        """Configure field name mapping for JSON conversion."""
+        key_transform_with_load = {
+            "content": "content",
+            "path": "path",
+        }
+        key_transform_with_dump = {
+            "content": "content",
+            "path": "path",
+        }

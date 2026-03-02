@@ -1,10 +1,10 @@
 import type * as yargs from "yargs";
+import { api } from "@together-sandbox/sdk";
+import { createClient, handleResponse } from "../utils/api";
+import { getInferredApiKey } from "../utils/constants";
 
-import { API, getInferredApiKey } from "@together-sandbox/sdk";
-
-function getAPI() {
-  const apiKey = getInferredApiKey();
-  return new API({ apiKey });
+function getClient() {
+  return createClient(getInferredApiKey());
 }
 
 export const previewHostsCommand: yargs.CommandModule = {
@@ -17,8 +17,11 @@ export const previewHostsCommand: yargs.CommandModule = {
         command: "list",
         describe: "List current preview hosts",
         handler: async () => {
-          const api = getAPI();
-          const response = await api.listPreviewHosts();
+          const client = getClient();
+          const response = handleResponse(
+            await api.previewHostList({ client }),
+            "Failed to list preview hosts"
+          );
           const hosts = response.preview_hosts.map(({ host }) => host);
           if (hosts.length) {
             console.log(hosts.join("\n"));
@@ -37,8 +40,11 @@ export const previewHostsCommand: yargs.CommandModule = {
             demandOption: true,
           }),
         handler: async (argv) => {
-          const api = getAPI();
-          const response = await api.listPreviewHosts();
+          const client = getClient();
+          const response = handleResponse(
+            await api.previewHostList({ client }),
+            "Failed to list preview hosts"
+          );
           let hosts = response.preview_hosts.map(({ host }) => host);
           const hostToAdd = (argv.host as string).trim();
           if (hosts.includes(hostToAdd)) {
@@ -46,7 +52,10 @@ export const previewHostsCommand: yargs.CommandModule = {
             return;
           }
           hosts.push(hostToAdd);
-          await api.updatePreviewHost({ hosts });
+          handleResponse(
+            await api.previewHostUpdate({ client, body: { hosts } }),
+            "Failed to update preview hosts"
+          );
           console.log(`Added preview host: ${hostToAdd}`);
         },
       })
@@ -60,8 +69,11 @@ export const previewHostsCommand: yargs.CommandModule = {
             demandOption: true,
           }),
         handler: async (argv) => {
-          const api = getAPI();
-          const response = await api.listPreviewHosts();
+          const client = getClient();
+          const response = handleResponse(
+            await api.previewHostList({ client }),
+            "Failed to list preview hosts"
+          );
           let hosts = response.preview_hosts.map(({ host }) => host);
           const hostToRemove = (argv.host as string).trim();
           if (!hosts.includes(hostToRemove)) {
@@ -69,7 +81,10 @@ export const previewHostsCommand: yargs.CommandModule = {
             return;
           }
           hosts = hosts.filter((h) => h !== hostToRemove);
-          await api.updatePreviewHost({ hosts });
+          handleResponse(
+            await api.previewHostUpdate({ client, body: { hosts } }),
+            "Failed to update preview hosts"
+          );
           console.log(`Removed preview host: ${hostToRemove}`);
         },
       })
@@ -77,14 +92,20 @@ export const previewHostsCommand: yargs.CommandModule = {
         command: "clear",
         describe: "Clear all preview hosts",
         handler: async () => {
-          const api = getAPI();
-          const response = await api.listPreviewHosts();
+          const client = getClient();
+          const response = handleResponse(
+            await api.previewHostList({ client }),
+            "Failed to list preview hosts"
+          );
           const hosts = response.preview_hosts.map(({ host }) => host);
           if (hosts.length === 0) {
             console.log("Preview host list is already empty.");
             return;
           }
-          await api.updatePreviewHost({ hosts: [] });
+          handleResponse(
+            await api.previewHostUpdate({ client, body: { hosts: [] } }),
+            "Failed to update preview hosts"
+          );
           console.log("Cleared all preview hosts.");
         },
       });

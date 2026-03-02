@@ -1,9 +1,15 @@
-from enum import Enum
+from enum import Enum, unique
 
+__all__ = ["VmCreateSessionRequestPermission"]
 
-class VMCreateSessionRequestPermission(str, Enum):
+@unique
+class VmCreateSessionRequestPermission(str, Enum):
+    """
+    Permission level for the session
+    
+    Args:
+        read (str)               : Value for READ
+        write (str)              : Value for WRITE
+    """
     READ = "read"
     WRITE = "write"
-
-    def __str__(self) -> str:
-        return str(self.value)

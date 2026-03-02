@@ -1,5 +1,7 @@
 import ora from "ora";
-import { API, getInferredApiKey } from "@together-sandbox/sdk";
+import { api } from "@together-sandbox/sdk";
+import { createClient, handleResponse } from "../../utils/api";
+import { getInferredApiKey } from "../../utils/constants";
 
 type CommandResult = {
   success: boolean;
@@ -11,7 +13,11 @@ async function hibernateSingleSandbox(
   spinner: ReturnType<typeof ora>
 ): Promise<CommandResult> {
   try {
-    await new API({ apiKey: getInferredApiKey() }).hibernate(id);
+    const client = createClient(getInferredApiKey());
+    handleResponse(
+      await api.vmHibernate({ client, path: { id } }),
+      `Failed to hibernate VM ${id}`
+    );
     const message = `✔ Sandbox ${id} hibernated successfully`;
     // eslint-disable-next-line no-console
     console.log(message);

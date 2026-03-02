@@ -1,17 +1,22 @@
 import ora from "ora";
 import Table from "cli-table3";
-import { API, getInferredApiKey } from "@together-sandbox/sdk";
+import { api } from "@together-sandbox/sdk";
+import { createClient, handleResponse } from "../../utils/api";
+import { getInferredApiKey } from "../../utils/constants";
 
 function formatDate(date: Date): string {
   return date.toLocaleString();
 }
 
 export async function listPreviewTokens(sandboxId: string) {
-  const api = new API({ apiKey: getInferredApiKey() });
+  const client = createClient(getInferredApiKey());
   const spinner = ora("Fetching preview tokens...").start();
 
   try {
-    const result = await api.listPreviewTokens(sandboxId);
+    const result = handleResponse(
+      await api.previewTokenList({ client, path: { id: sandboxId } }),
+      `Failed to list preview tokens for ${sandboxId}`
+    );
     spinner.stop();
 
     const tokens = result.tokens;
@@ -63,13 +68,18 @@ export async function listPreviewTokens(sandboxId: string) {
 }
 
 export async function createPreviewToken(sandboxId: string, expiresAt: string) {
-  const api = new API({ apiKey: getInferredApiKey() });
+  const client = createClient(getInferredApiKey());
   const spinner = ora("Creating preview token...").start();
 
   try {
-    const result = await api.createPreviewToken(sandboxId, {
-      expires_at: new Date(expiresAt).toISOString(),
-    });
+    const result = handleResponse(
+      await api.previewTokenCreate({
+        client,
+        path: { id: sandboxId },
+        body: { expires_at: new Date(expiresAt).toISOString() },
+      }),
+      `Failed to create preview token for ${sandboxId}`
+    );
     spinner.stop();
 
     const token = result.token;
@@ -118,13 +128,16 @@ export async function revokePreviewToken(
   sandboxId: string,
   previewTokenId: string
 ) {
-  const api = new API({ apiKey: getInferredApiKey() });
+  const client = createClient(getInferredApiKey());
   const spinner = ora("Revoking preview token...").start();
 
   try {
     // The API only supports revoking all tokens; for individual revocation
     // we revoke all and note this limitation
-    await api.revokeAllPreviewTokens(sandboxId);
+    handleResponse(
+      await api.previewTokenRevokeAll({ client, path: { id: sandboxId } }),
+      `Failed to revoke preview tokens for ${sandboxId}`
+    );
     spinner.stop();
     console.log("Preview tokens revoked successfully");
   } catch (error) {
@@ -138,13 +151,18 @@ export async function updatePreviewToken(
   previewTokenId: string,
   expiresAt?: string
 ) {
-  const api = new API({ apiKey: getInferredApiKey() });
+  const client = createClient(getInferredApiKey());
   const spinner = ora("Updating preview token...").start();
 
   try {
-    await api.updatePreviewToken(sandboxId, previewTokenId, {
-      expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
-    });
+    handleResponse(
+      await api.previewTokenUpdate({
+        client,
+        path: { id: sandboxId, token_id: previewTokenId },
+        body: { expires_at: expiresAt ? new Date(expiresAt).toISOString() : null },
+      }),
+      `Failed to update preview token ${previewTokenId}`
+    );
     spinner.stop();
     console.log("Preview token updated successfully");
   } catch (error) {
@@ -154,11 +172,14 @@ export async function updatePreviewToken(
 }
 
 export async function revokeAllPreviewTokens(sandboxId: string) {
-  const api = new API({ apiKey: getInferredApiKey() });
+  const client = createClient(getInferredApiKey());
   const spinner = ora("Revoking all preview tokens...").start();
 
   try {
-    await api.revokeAllPreviewTokens(sandboxId);
+    handleResponse(
+      await api.previewTokenRevokeAll({ client, path: { id: sandboxId } }),
+      `Failed to revoke preview tokens for ${sandboxId}`
+    );
     spinner.stop();
     console.log("All preview tokens have been revoked");
   } catch (error) {

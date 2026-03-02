@@ -1,9 +1,15 @@
-from enum import Enum
+from enum import Enum, unique
 
+__all__ = ["FileActionRequestAction"]
 
+@unique
 class FileActionRequestAction(str, Enum):
-    COPY = "copy"
+    """
+    Type of action to perform on the file
+    
+    Args:
+        move (str)               : Value for MOVE
+        copy (str)               : Value for COPY
+    """
     MOVE = "move"
-
-    def __str__(self) -> str:
-        return str(self.value)
+    COPY = "copy"

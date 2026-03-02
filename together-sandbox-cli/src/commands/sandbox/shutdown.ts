@@ -1,5 +1,7 @@
 import ora from "ora";
-import { API, getInferredApiKey } from "@together-sandbox/sdk";
+import { api } from "@together-sandbox/sdk";
+import { createClient, handleResponse } from "../../utils/api";
+import { getInferredApiKey } from "../../utils/constants";
 
 type CommandResult = {
   success: boolean;
@@ -11,7 +13,11 @@ async function shutdownSingleSandbox(
   spinner: ReturnType<typeof ora>
 ): Promise<CommandResult> {
   try {
-    await new API({ apiKey: getInferredApiKey() }).shutdown(id);
+    const client = createClient(getInferredApiKey());
+    handleResponse(
+      await api.vmShutdown({ client, path: { id } }),
+      `Failed to shutdown VM ${id}`
+    );
     const message = `✔ Sandbox ${id} shutdown successfully`;
     // eslint-disable-next-line no-console
     console.log(message);

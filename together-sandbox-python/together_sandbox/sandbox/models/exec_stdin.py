@@ -1,71 +1,28 @@
-from __future__ import annotations
+from dataclasses import dataclass
 
-from collections.abc import Mapping
-from typing import Any, TypeVar
+from .type__2 import Type2
 
-from attrs import define as _attrs_define
-from attrs import field as _attrs_field
+__all__ = ["ExecStdin"]
 
-from ..models.exec_stdin_type import ExecStdinType
-
-T = TypeVar("T", bound="ExecStdin")
-
-
-@_attrs_define
+@dataclass
 class ExecStdin:
     """
-    Attributes:
-        type_ (ExecStdinType): Type of the exec input
-        input_ (str): Data associated with the exec input
+    ExecStdin dataclass
+    
+    Args:
+        input_ (str)             : Data associated with the exec input (maps from 'input')
+        type_ (Type2)            : Type of the exec input (maps from 'type')
     """
-
-    type_: ExecStdinType
-    input_: str
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        type_ = self.type_.value
-
-        input_ = self.input_
-
-        field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
-        field_dict.update(
-            {
-                "type": type_,
-                "input": input_,
-            }
-        )
-
-        return field_dict
-
-    @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        d = dict(src_dict)
-        type_ = ExecStdinType(d.pop("type"))
-
-        input_ = d.pop("input")
-
-        exec_stdin = cls(
-            type_=type_,
-            input_=input_,
-        )
-
-        exec_stdin.additional_properties = d
-        return exec_stdin
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties
+    input_: str  # Data associated with the exec input (maps from 'input')
+    type_: Type2  # Type of the exec input (maps from 'type')
+    
+    class Meta:
+        """Configure field name mapping for JSON conversion."""
+        key_transform_with_load = {
+            "input": "input_",
+            "type": "type_",
+        }
+        key_transform_with_dump = {
+            "input_": "input",
+            "type_": "type",
+        }

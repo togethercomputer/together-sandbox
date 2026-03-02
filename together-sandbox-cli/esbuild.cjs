@@ -2,6 +2,16 @@ const esbuild = require("esbuild");
 const path = require("path");
 const fs = require("fs");
 
+const devtoolsStubPlugin = {
+  name: "stub-react-devtools",
+  setup(build) {
+    build.onResolve({ filter: /^react-devtools-core$/ }, () => ({
+      path: path.join(__dirname, "build/fakeReactDevtoolsCore.js"),
+      namespace: "file",
+    }));
+  },
+};
+
 const isWatch = process.argv.includes("--watch");
 
 // External modules that should NOT be bundled
@@ -28,25 +38,16 @@ const externalModules = [
 ];
 
 const buildOptions = {
-  entryPoints: ["src/main.tsx"],
+  entryPoints: ["src/main.ts"],
   outfile: "dist/together-sandbox.mjs",
   bundle: true,
   format: "esm",
   platform: "node",
   banner: {
-    js: `#!/usr/bin/env node\n\nimport { createRequire } from "module";\nconst require = createRequire(import.meta.url);\n`,
+    js: `#!/usr/bin/env node\nimport { createRequire as __createRequire } from "module";\nconst require = __createRequire(import.meta.url);`,
   },
-  // React, Ink, and react-query are bundled to avoid version conflicts
-  external: [
-    ...externalModules.filter(
-      (mod) =>
-        mod !== "react" &&
-        mod !== "ink" &&
-        mod !== "@tanstack/react-query"
-    ),
-    "@together-sandbox/sdk",
-    "react-devtools-core",
-  ],
+  external: externalModules,
+  plugins: [devtoolsStubPlugin],
 };
 
 if (isWatch) {
@@ -67,5 +68,8 @@ if (isWatch) {
     build();
   });
 } else {
-  esbuild.build(buildOptions).catch(() => process.exit(1));
+  esbuild
+    .build(buildOptions)
+    .then(() => fs.chmodSync(buildOptions.outfile, 0o755))
+    .catch(() => process.exit(1));
 }

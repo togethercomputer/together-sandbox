@@ -2,21 +2,17 @@ import path from "path";
 import ora from "ora";
 import type * as yargs from "yargs";
 import { instrumentedFetch } from "../utils/sentry";
+import { api } from "@together-sandbox/sdk";
+import { createClient, handleResponse, getDefaultTemplateId } from "../utils/api";
 import {
-  VMTier,
-  CodeSandbox,
-  SandboxClient,
-} from "@codesandbox/sdk";
-import {
-  API,
-  api,
-  getDefaultTemplateId,
   getInferredApiKey,
   getInferredRegistryUrl,
   isLocalEnvironment,
-  sleep,
-  base32Encode,
-} from "@together-sandbox/sdk";
+} from "../utils/constants";
+import { sleep, base32Encode } from "../utils/misc";
+
+const VM_TIERS = ['Pico', 'Nano', 'Micro', 'Small', 'Medium', 'Large', 'XLarge'] as const;
+type VmTier = typeof VM_TIERS[number];
 import {
   buildDockerImage,
   prepareDockerBuild,
@@ -28,12 +24,10 @@ import { randomUUID } from "crypto";
 export type BuildCommandArgs = {
   directory: string;
   name?: string;
-  path?: string;
   alias?: string;
-  ports?: number[];
   ci: boolean;
   fromSandbox?: string;
-  vmTier?: api.VmUpdateSpecsRequest["tier"];
+  vmTier?: VmTier;
   logPath?: string;
 };
 
@@ -65,20 +59,10 @@ export const buildCommand: yargs.CommandModule<
         describe: "Name for the resulting sandbox that will serve as snapshot",
         type: "string",
       })
-      .option("ports", {
-        describe: "Ports to wait for to open before creating snapshot",
-        type: "number",
-        array: true,
-      })
       .option("vm-tier", {
         describe: "Base specs to use for the template sandbox",
         type: "string",
-        choices: VMTier.All.map((t) => t.name),
-      })
-      .option("vm-build-tier", {
-        describe: "Specs to use for building the template sandbox.",
-        type: "string",
-        choices: VMTier.All.map((t) => t.name),
+        choices: VM_TIERS,
       })
       .option("alias", {
         describe:
@@ -98,48 +82,6 @@ export const buildCommand: yargs.CommandModule<
         describe: "Path to the project that we'll create a snapshot from",
         type: "string",
         demandOption: "Path to the project is required",
-      })
-      .check((argv) => {
-        // Validate ports parameter - ensure all values are valid numbers
-        if (argv.ports && argv.ports.length > 0) {
-          const invalidPortsWithOriginal: string[] = [];
-
-          // Get the original arguments to show what the user actually typed
-          const originalArgs = process.argv;
-          const portArgIndices: number[] = [];
-
-          // Find all --ports arguments in the original command
-          originalArgs.forEach((arg, i) => {
-            if (arg === "--ports" && i + 1 < originalArgs.length) {
-              portArgIndices.push(i + 1);
-            }
-          });
-
-          argv.ports.forEach((port, i) => {
-            const isInvalid =
-              !Number.isInteger(port) ||
-              port <= 0 ||
-              port > 65535 ||
-              !Number.isFinite(port);
-
-            if (isInvalid) {
-              // Try to get the original input, fallback to the parsed value
-              const originalInput = portArgIndices[i]
-                ? originalArgs[portArgIndices[i]]
-                : String(port);
-              invalidPortsWithOriginal.push(originalInput);
-            }
-          });
-
-          if (invalidPortsWithOriginal.length > 0) {
-            throw new Error(
-              `Invalid port value(s): ${invalidPortsWithOriginal.join(
-                ", "
-              )}. Ports must be integers between 1 and 65535.`
-            );
-          }
-        }
-        return true;
       }),
 
   handler: async (argv) => {
@@ -187,24 +129,20 @@ export async function betaCodeSandboxBuild(
   argv: yargs.ArgumentsCamelCase<BuildCommandArgs>
 ): Promise<void> {
   let dockerFileCleanupFn: (() => Promise<void>) | undefined;
-  let client: SandboxClient | undefined;
 
   try {
     const apiKey = getInferredApiKey();
-    const api = new API({ apiKey, instrumentation: instrumentedFetch });
-    const sdk = new CodeSandbox(apiKey);
-    const sandboxTier = argv.vmTier
-      ? VMTier.fromName(argv.vmTier)
-      : VMTier.Micro;
+    const apiClient = createClient(apiKey, instrumentedFetch);
+    const sandboxTier: VmTier = argv.vmTier ?? 'Micro';
 
     const resolvedDirectory = path.resolve(argv.directory);
 
-    const metaInfo = await api.getMetaInfo();
-    const teamId = metaInfo.data?.auth?.team;
+    const metaInfoResult = await api.metaInfo({ client: apiClient });
+    const teamId = metaInfoResult.data?.auth?.team;
 
     if (!teamId) {
       throw new Error(
-        "Failed to fetch team information for the provided CSB_API_KEY. Please ensure your API key is correct and has access to a team."
+        "Failed to fetch team information for the provided API key. Please ensure your TOGETHER_API_KEY is correct and has access to a team."
       );
     }
 
@@ -313,20 +251,26 @@ export async function betaCodeSandboxBuild(
     const templateCreateSpinner = ora({ stream: process.stdout });
     templateCreateSpinner.start("Creating template with Docker image...");
     // Create Template with Docker Image
-    const templateData = await api.createTemplate({
-      forkOf: argv.fromSandbox || getDefaultTemplateId(api.getClient()),
-      title: argv.name,
-      // We filter out sdk-templates on the dashboard
-      tags: ["sdk-template"],
-      // @ts-ignore
-      image: {
-        registry: registry,
-        repository: repository,
-        name: imageName,
-        tag: "latest",
-        architecture: architecture,
-      },
-    });
+    const templateData = handleResponse(
+      await api.templatesCreate({
+        client: apiClient,
+        body: {
+          forkOf: argv.fromSandbox || getDefaultTemplateId(apiClient),
+          title: argv.name,
+          // We filter out sdk-templates on the dashboard
+          tags: ["sdk-template"],
+          // @ts-ignore
+          image: {
+            registry: registry,
+            repository: repository,
+            name: imageName,
+            tag: "latest",
+            architecture: architecture,
+          },
+        },
+      }),
+      "Failed to create template"
+    );
     templateCreateSpinner.succeed("Template created with Docker image.");
 
     // Create a memory snapshot from the template sandboxes
@@ -337,41 +281,21 @@ export async function betaCodeSandboxBuild(
     try {
       templateBuildSpinner.text =
         "Preparing template snapshot: Starting sandbox to create snapshot...";
-      const sandbox = await sdk.sandboxes.resume(sandboxId);
+      await api.vmStart({ client: apiClient, path: { id: sandboxId } });
 
       templateBuildSpinner.text =
-        "Preparing template snapshot: Connecting to sandbox...";
-      client = await sandbox.connect();
-
-      if (argv.ports && argv.ports.length > 0) {
-        templateBuildSpinner.text = `Preparing template snapshot: Waiting for ports ${argv.ports.join(
-          ", "
-        )} to be ready...`;
-        await Promise.all(
-          argv.ports.map(async (port) => {
-            if (!client)
-              throw new Error("Failed to connect to sandbox to wait for ports");
-            const portInfo = await client.ports.waitForPort(port, {
-              timeoutMs: 30_000,
-            });
-          })
-        );
-      } else {
-        templateBuildSpinner.text = `Preparing template snapshot: No ports specified, waiting 0 seconds for tasks to run...`;
-        await sleep(10000);
-      }
+        "Preparing template snapshot: Waiting for sandbox to initialize...";
+      await sleep(10000);
 
       templateBuildSpinner.text =
         "Preparing template snapshot: Sandbox is ready. Creating snapshot...";
-      // TODO: Change back to hibernate once we fix hibernate resume with nydus
-      // await sdk.sandboxes.hibernate(sandboxId);
-      await sdk.sandboxes.shutdown(sandboxId);
+      await api.vmShutdown({ client: apiClient, path: { id: sandboxId } });
 
       templateBuildSpinner.succeed("Template snapshot created.");
     } catch (error) {
       templateBuildSpinner.text =
         "Preparing template snapshot: Failed to create snapshot. Cleaning up...";
-      await sdk.sandboxes.shutdown(sandboxId);
+      await api.vmShutdown({ client: apiClient, path: { id: sandboxId } });
       templateBuildSpinner.fail(
         `Failed to create template reference and example: ${
           (error as Error).message
@@ -391,8 +315,10 @@ export async function betaCodeSandboxBuild(
     // Create alias if needed
     if (argv.alias) {
       const alias = createAlias(resolvedDirectory, argv.alias);
-      await api.assignVmTagAlias(alias.namespace, alias.alias, {
-        tag_id: templateData.tag,
+      await api.vmAssignTagAlias({
+        client: apiClient,
+        path: { namespace: alias.namespace, alias: alias.alias },
+        body: { tag_id: templateData.tag },
       });
 
       id = `${alias.namespace}@${alias.alias}`;
@@ -420,14 +346,8 @@ export async function betaCodeSandboxBuild(
     console.error(error);
     process.exit(1);
   } finally {
-    // Cleanup temporary Dockerfile if created
     if (dockerFileCleanupFn) {
       await dockerFileCleanupFn();
-    }
-    if (client) {
-      await client.disconnect();
-      client.dispose();
-      client = undefined;
     }
   }
 }

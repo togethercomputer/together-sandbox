@@ -1,6 +1,7 @@
 # Node
 node_modules/
 npm-debug.log*
+test-template
 
 # TypeScript SDK build output
 together-sandbox-typescript/dist/

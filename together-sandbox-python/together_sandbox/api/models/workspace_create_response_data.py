@@ -1,69 +1,26 @@
-from __future__ import annotations
+from dataclasses import dataclass
 
-from collections.abc import Mapping
-from typing import Any, TypeVar
+__all__ = ["WorkspaceCreateResponseData"]
 
-from attrs import define as _attrs_define
-from attrs import field as _attrs_field
-
-T = TypeVar("T", bound="WorkspaceCreateResponseData")
-
-
-@_attrs_define
+@dataclass
 class WorkspaceCreateResponseData:
     """
-    Attributes:
-        id (str):
-        name (str):
+    WorkspaceCreateResponseData dataclass
+    
+    Args:
+        id_ (str)                : Maps from 'id'
+        name (str)               : 
     """
-
-    id: str
+    id_: str  # Maps from 'id'
     name: str
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        id = self.id
-
-        name = self.name
-
-        field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
-        field_dict.update(
-            {
-                "id": id,
-                "name": name,
-            }
-        )
-
-        return field_dict
-
-    @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        d = dict(src_dict)
-        id = d.pop("id")
-
-        name = d.pop("name")
-
-        workspace_create_response_data = cls(
-            id=id,
-            name=name,
-        )
-
-        workspace_create_response_data.additional_properties = d
-        return workspace_create_response_data
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties
+    
+    class Meta:
+        """Configure field name mapping for JSON conversion."""
+        key_transform_with_load = {
+            "id": "id_",
+            "name": "name",
+        }
+        key_transform_with_dump = {
+            "id_": "id",
+            "name": "name",
+        }

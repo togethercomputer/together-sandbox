@@ -14,11 +14,7 @@
   },
   "dependencies": {
     "@together-sandbox/sdk": "^1.0.0",
-    "@codesandbox/sdk": "^2.4.1",
     "@hey-api/client-fetch": "^0.13.1",
-    "@tanstack/react-query": "^5.76.1",
-    "@xterm/addon-serialize": "*",
-    "@xterm/headless": "*",
     "chalk": "^5.4.1",
     "cli-table3": "^0.6.3",
     "date-fns": "^4.1.0",
@@ -29,11 +25,8 @@
   "devDependencies": {
     "@parcel/watcher": "^2.5.1",
     "@types/node": "^22.15.30",
-    "@types/react": "^19.1.5",
     "@types/yargs": "^17.0.33",
     "esbuild": "^0.25.0",
-    "ink": "^6.1.0",
-    "react": "^19.1.1",
     "rimraf": "^6.0.1",
     "typescript": "^5.7.2"
   }

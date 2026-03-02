@@ -1,6 +1,8 @@
 import ora from "ora";
 import Table from "cli-table3";
-import { API, api, getInferredApiKey } from "@together-sandbox/sdk";
+import { api } from "@together-sandbox/sdk";
+import { createClient, handleResponse } from "../../utils/api";
+import { getInferredApiKey } from "../../utils/constants";
 
 type SandboxListOpts = {
   tags?: string[];
@@ -51,7 +53,7 @@ export async function listSandboxes(
   showHeaders = true,
   limit?: number
 ) {
-  const api = new API({ apiKey: getInferredApiKey() });
+  const client = createClient(getInferredApiKey());
   const spinner = ora("Fetching sandboxes...").start();
 
   try {
@@ -80,14 +82,20 @@ export async function listSandboxes(
     }
 
     while (true) {
-      const result = await api.listSandboxes({
-        tags: listOpts.tags?.join(","),
-        order_by: listOpts.orderBy,
-        direction: listOpts.direction,
-        status: listOpts.status,
-        page: currentPage,
-        page_size: pageSize,
-      });
+      const result = handleResponse(
+        await api.sandboxList({
+          client,
+          query: {
+            tags: listOpts.tags?.join(","),
+            order_by: listOpts.orderBy,
+            direction: listOpts.direction,
+            status: listOpts.status,
+            page: currentPage,
+            page_size: pageSize,
+          },
+        }),
+        "Failed to list sandboxes"
+      );
 
       const { sandboxes, pagination } = result;
 

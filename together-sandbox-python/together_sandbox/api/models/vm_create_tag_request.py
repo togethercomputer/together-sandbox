@@ -1,62 +1,23 @@
-from __future__ import annotations
+from dataclasses import dataclass
+from typing import List
 
-from collections.abc import Mapping
-from typing import Any, TypeVar, cast
+__all__ = ["VmCreateTagRequest"]
 
-from attrs import define as _attrs_define
-from attrs import field as _attrs_field
-
-T = TypeVar("T", bound="VMCreateTagRequest")
-
-
-@_attrs_define
-class VMCreateTagRequest:
-    """Create a tag for a list of VM IDs
-
-    Attributes:
-        vm_ids (list[str]):
+@dataclass
+class VmCreateTagRequest:
     """
-
-    vm_ids: list[str]
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        vm_ids = self.vm_ids
-
-        field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
-        field_dict.update(
-            {
-                "vm_ids": vm_ids,
-            }
-        )
-
-        return field_dict
-
-    @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        d = dict(src_dict)
-        vm_ids = cast(list[str], d.pop("vm_ids"))
-
-        vm_create_tag_request = cls(
-            vm_ids=vm_ids,
-        )
-
-        vm_create_tag_request.additional_properties = d
-        return vm_create_tag_request
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties
+    Create a tag for a list of VM IDs
+    
+    Args:
+        vm_ids (List[str])       : 
+    """
+    vm_ids: List[str]
+    
+    class Meta:
+        """Configure field name mapping for JSON conversion."""
+        key_transform_with_load = {
+            "vm_ids": "vm_ids",
+        }
+        key_transform_with_dump = {
+            "vm_ids": "vm_ids",
+        }

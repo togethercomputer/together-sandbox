@@ -260,7 +260,7 @@ export const updateExec = <ThrowOnError extends boolean = false>(options: Option
  * Retrieves the plain text output from a exec's buffer.
  */
 export const getExecOutput = <ThrowOnError extends boolean = false>(options: Options<GetExecOutputData, ThrowOnError>) => {
-    return (options.client ?? client).sse.get<GetExecOutputResponses, GetExecOutputErrors, ThrowOnError>({
+    return (options.client ?? client).get<GetExecOutputResponses, GetExecOutputErrors, ThrowOnError>({
         security: [
             {
                 scheme: 'bearer',

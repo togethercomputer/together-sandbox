@@ -1,75 +1,26 @@
-from __future__ import annotations
+from dataclasses import dataclass
+from typing import List
 
-from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from .setup_task_item import SetupTaskItem
 
-from attrs import define as _attrs_define
-from attrs import field as _attrs_field
+__all__ = ["SetupTaskListResponse"]
 
-if TYPE_CHECKING:
-    from ..models.setup_task_item import SetupTaskItem
-
-
-T = TypeVar("T", bound="SetupTaskListResponse")
-
-
-@_attrs_define
+@dataclass
 class SetupTaskListResponse:
     """
-    Attributes:
-        setup_tasks (list[SetupTaskItem]):
+    SetupTaskListResponse dataclass
+    
+    Args:
+        setup_tasks (List[SetupTaskItem])
+                                 : Maps from 'setupTasks'
     """
-
-    setup_tasks: list[SetupTaskItem]
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        setup_tasks = []
-        for setup_tasks_item_data in self.setup_tasks:
-            setup_tasks_item = setup_tasks_item_data.to_dict()
-            setup_tasks.append(setup_tasks_item)
-
-        field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
-        field_dict.update(
-            {
-                "setupTasks": setup_tasks,
-            }
-        )
-
-        return field_dict
-
-    @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.setup_task_item import SetupTaskItem
-
-        d = dict(src_dict)
-        setup_tasks = []
-        _setup_tasks = d.pop("setupTasks")
-        for setup_tasks_item_data in _setup_tasks:
-            setup_tasks_item = SetupTaskItem.from_dict(setup_tasks_item_data)
-
-            setup_tasks.append(setup_tasks_item)
-
-        setup_task_list_response = cls(
-            setup_tasks=setup_tasks,
-        )
-
-        setup_task_list_response.additional_properties = d
-        return setup_task_list_response
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties
+    setup_tasks: List[SetupTaskItem]  # Maps from 'setupTasks'
+    
+    class Meta:
+        """Configure field name mapping for JSON conversion."""
+        key_transform_with_load = {
+            "setupTasks": "setup_tasks",
+        }
+        key_transform_with_dump = {
+            "setup_tasks": "setupTasks",
+        }

@@ -21,7 +21,7 @@ Example::
                        headers={"Authorization": "Bearer <pint-token>"})
 """
 
-from .api.client import AuthenticatedClient as ApiClient
-from .sandbox.client import AuthenticatedClient as SandboxClient
+from .api.client import APIClient as ApiClient
+from .sandbox.client import APIClient as SandboxClient
 
 __all__ = ["ApiClient", "SandboxClient"]

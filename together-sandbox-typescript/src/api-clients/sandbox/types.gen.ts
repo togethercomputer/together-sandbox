@@ -47,6 +47,10 @@ export type FileActionRequest = {
      * Destination path for move operation
      */
     destination: string;
+    /**
+     * Whether to perform the action recursively for directories
+     */
+    recursive?: boolean;
 };
 
 export type FileActionResponse = {
@@ -161,6 +165,16 @@ export type CreateExecRequest = {
      * Whether to start pty shell session or not (defaults to false)
      */
     pty?: boolean;
+    /**
+     * Working directory for the command (defaults to workspace directory if not specified)
+     */
+    cwd?: string;
+    /**
+     * Environment variables to set for the command (key-value pairs)
+     */
+    env?: {
+        [key: string]: string;
+    };
 };
 
 export type UpdateExecRequest = {
@@ -327,6 +341,21 @@ export type PortsListResponse = {
      * List of open ports
      */
     ports: Array<PortInfo>;
+};
+
+export type WatcherEvent = {
+    /**
+     * File paths affected by the event
+     */
+    paths: Array<string>;
+    /**
+     * Type of file system event
+     */
+    type: 'ADD' | 'REMOVE' | 'CHANGE' | 'connected' | 'error';
+    /**
+     * Timestamp of when the event occurred
+     */
+    timestamp: string;
 };
 
 export type Task = TaskItem;
@@ -927,9 +956,9 @@ export type GetExecOutputError = GetExecOutputErrors[keyof GetExecOutputErrors];
 
 export type GetExecOutputResponses = {
     /**
-     * Server-Sent Events stream of exec updates with same format as ExecStdout
+     * Exec output retrieved successfully
      */
-    200: string;
+    200: ExecStdout;
 };
 
 export type GetExecOutputResponse = GetExecOutputResponses[keyof GetExecOutputResponses];
@@ -1239,9 +1268,9 @@ export type StreamExecsListError = StreamExecsListErrors[keyof StreamExecsListEr
 
 export type StreamExecsListResponses = {
     /**
-     * Server-Sent Events stream of exec updates
+     * Execs retrieved successfully
      */
-    200: string;
+    200: ExecListResponse;
 };
 
 export type StreamExecsListResponse = StreamExecsListResponses[keyof StreamExecsListResponses];
@@ -1272,9 +1301,9 @@ export type StreamPortsListError = StreamPortsListErrors[keyof StreamPortsListEr
 
 export type StreamPortsListResponses = {
     /**
-     * Server-Sent Events stream of ports list updates
+     * Open ports retrieved successfully
      */
-    200: string;
+    200: PortsListResponse;
 };
 
 export type StreamPortsListResponse = StreamPortsListResponses[keyof StreamPortsListResponses];
@@ -1323,9 +1352,9 @@ export type CreateWatcherError = CreateWatcherErrors[keyof CreateWatcherErrors];
 
 export type CreateWatcherResponses = {
     /**
-     * Server-Sent Events stream of directory files updates
+     * Directory watcher stream started successfully
      */
-    200: string;
+    200: WatcherEvent;
 };
 
 export type CreateWatcherResponse = CreateWatcherResponses[keyof CreateWatcherResponses];

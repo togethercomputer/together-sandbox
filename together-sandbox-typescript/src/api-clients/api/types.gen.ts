@@ -29,10 +29,7 @@ export type PreviewTokenListResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        sandbox_id: string;
-        tokens: Array<PreviewToken>;
-    };
+    data?: PreviewTokenListResponseData;
 };
 
 /**
@@ -60,13 +57,7 @@ export type VmAssignTagAliasResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        alias: string;
-        namespace: string;
-        tag_alias_id: string;
-        tag_id: string;
-        team_id: string;
-    };
+    data?: VmAssignTagAliasResponseData;
 };
 
 /**
@@ -91,9 +82,7 @@ export type VmShutdownResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        [key: string]: unknown;
-    };
+    data?: VmShutdownResponseData;
 };
 
 /**
@@ -108,9 +97,7 @@ export type PreviewTokenRevokeAllResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        [key: string]: unknown;
-    };
+    data?: PreviewTokenRevokeAllResponseData;
 };
 
 /**
@@ -213,9 +200,7 @@ export type VmCreateTagResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        tag_id: string;
-    };
+    data?: VmCreateTagResponseData;
 };
 
 /**
@@ -230,21 +215,7 @@ export type VmListRunningVmsResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        concurrent_vm_count: number;
-        concurrent_vm_limit: number;
-        vms: Array<{
-            credit_basis?: string;
-            id?: string;
-            last_active_at?: string;
-            session_started_at?: string;
-            specs?: {
-                cpu?: number;
-                memory?: number;
-                storage?: number;
-            };
-        }>;
-    };
+    data?: VmListRunningVmsResponseData;
 };
 
 /**
@@ -346,17 +317,7 @@ export type SandboxListResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        pagination: {
-            current_page: number;
-            /**
-             * The number of the next page, if any. If `null`, the current page is the last page of records.
-             */
-            next_page: number | null;
-            total_records: number;
-        };
-        sandboxes: Array<Sandbox>;
-    };
+    data?: SandboxListResponseData;
 };
 
 /**
@@ -442,9 +403,7 @@ export type VmHibernateResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        [key: string]: unknown;
-    };
+    data?: VmHibernateResponseData;
 };
 
 /**
@@ -459,10 +418,7 @@ export type PreviewTokenUpdateResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        sandbox_id: string;
-        token: PreviewToken;
-    };
+    data?: PreviewTokenUpdateResponseData;
 };
 
 /**
@@ -477,11 +433,7 @@ export type SandboxCreateResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        alias: string;
-        id: string;
-        title: string | null;
-    };
+    data?: SandboxCreateResponseData;
 };
 
 /**
@@ -545,12 +497,7 @@ export type PreviewHostListResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        preview_hosts: Array<{
-            host: string;
-            inserted_at: string;
-        }>;
-    };
+    data?: PreviewHostListResponseData;
 };
 
 /**
@@ -610,23 +557,7 @@ export type VmStartResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        bootup_type: string;
-        cluster: string;
-        id: string;
-        latest_pitcher_version: string;
-        pint_token?: string;
-        pint_url?: string;
-        pitcher_manager_version: string;
-        pitcher_token: string;
-        pitcher_url: string;
-        pitcher_version: string;
-        reconnect_token: string;
-        use_pint: boolean;
-        user_workspace_path: string;
-        vm_agent_type: string;
-        workspace_path: string;
-    };
+    data?: VmStartResponseData;
 };
 
 /**
@@ -641,10 +572,7 @@ export type VmUpdateSpecsResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        id: string;
-        tier: string;
-    };
+    data?: VmUpdateSpecsResponseData;
 };
 
 /**
@@ -743,12 +671,7 @@ export type VmListClustersResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        clusters: Array<{
-            host: string;
-            slug: string;
-        }>;
-    };
+    data?: VmListClustersResponseData;
 };
 
 /**
@@ -763,13 +686,7 @@ export type TokenUpdateResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        description: string | null;
-        expires_at?: string | null;
-        scopes: Array<string>;
-        team_id: string;
-        token_id: string;
-    };
+    data?: TokenUpdateResponseData;
 };
 
 /**
@@ -784,14 +701,7 @@ export type TokenCreateResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        description: string | null;
-        expires_at: string | null;
-        scopes: Array<string>;
-        team_id: string;
-        token: string;
-        token_id: string;
-    };
+    data?: TokenCreateResponseData;
 };
 
 /**
@@ -806,9 +716,7 @@ export type VmDeleteResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        [key: string]: unknown;
-    };
+    data?: VmDeleteResponseData;
 };
 
 /**
@@ -823,13 +731,7 @@ export type TemplateCreateResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        sandboxes: Array<{
-            cluster: string;
-            id: string;
-        }>;
-        tag: string;
-    };
+    data?: TemplateCreateResponseData;
 };
 
 /**
@@ -892,34 +794,7 @@ export type VmCreateSessionResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        /**
-         * List of capabilities that Pitcher has
-         */
-        capabilities: Array<string>;
-        /**
-         * The permissions of the current session
-         */
-        permissions: {
-            [key: string]: unknown;
-        };
-        /**
-         * Token to authenticate with Pitcher (the agent running inside the VM)
-         */
-        pitcher_token: string;
-        /**
-         * WebSocket URL to connect to Pitcher
-         */
-        pitcher_url: string;
-        /**
-         * Path to the user's workspace in the VM
-         */
-        user_workspace_path: string;
-        /**
-         * The Linux username created for this session
-         */
-        username: string;
-    };
+    data?: VmCreateSessionResponseData;
 };
 
 /**
@@ -934,10 +809,7 @@ export type WorkspaceCreateResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        id: string;
-        name: string;
-    };
+    data?: WorkspaceCreateResponseData;
 };
 
 /**
@@ -952,10 +824,7 @@ export type VmUpdateHibernationTimeoutResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        hibernation_timeout_seconds: number;
-        id: string;
-    };
+    data?: VmUpdateHibernationTimeoutResponseData;
 };
 
 /**
@@ -970,31 +839,7 @@ export type SandboxForkResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        alias: string;
-        id: string;
-        /**
-         * VM start response. Only present when start_options were provided in the request.
-         */
-        start_response?: {
-            bootup_type: string;
-            cluster: string;
-            id: string;
-            latest_pitcher_version: string;
-            pint_token?: string;
-            pint_url?: string;
-            pitcher_manager_version: string;
-            pitcher_token: string;
-            pitcher_url: string;
-            pitcher_version: string;
-            reconnect_token: string;
-            use_pint: boolean;
-            user_workspace_path: string;
-            vm_agent_type: string;
-            workspace_path: string;
-        } | null;
-        title: string | null;
-    };
+    data?: SandboxForkResponseData;
 };
 
 /**
@@ -1009,16 +854,217 @@ export type PreviewTokenCreateResponse = {
     }>;
     success?: boolean;
 } & {
-    data?: {
-        sandbox_id: string;
-        token: {
-            expires_at: string | null;
-            last_used_at: string | null;
-            token_id: string;
-            token_prefix: string;
-        } & {
-            token: string;
+    data?: PreviewTokenCreateResponseData;
+};
+
+export type PreviewTokenListResponseData = {
+    sandbox_id: string;
+    tokens: Array<PreviewToken>;
+};
+
+export type VmAssignTagAliasResponseData = {
+    alias: string;
+    namespace: string;
+    tag_alias_id: string;
+    tag_id: string;
+    team_id: string;
+};
+
+export type VmShutdownResponseData = {
+    [key: string]: unknown;
+};
+
+export type PreviewTokenRevokeAllResponseData = {
+    [key: string]: unknown;
+};
+
+export type VmCreateTagResponseData = {
+    tag_id: string;
+};
+
+export type VmListRunningVmsResponseData = {
+    concurrent_vm_count: number;
+    concurrent_vm_limit: number;
+    vms: Array<{
+        credit_basis?: string;
+        id?: string;
+        last_active_at?: string;
+        session_started_at?: string;
+        specs?: {
+            cpu?: number;
+            memory?: number;
+            storage?: number;
         };
+    }>;
+};
+
+export type SandboxListResponseData = {
+    pagination: {
+        current_page: number;
+        /**
+         * The number of the next page, if any. If `null`, the current page is the last page of records.
+         */
+        next_page: number | null;
+        total_records: number;
+    };
+    sandboxes: Array<Sandbox>;
+};
+
+export type VmHibernateResponseData = {
+    [key: string]: unknown;
+};
+
+export type PreviewTokenUpdateResponseData = {
+    sandbox_id: string;
+    token: PreviewToken;
+};
+
+export type SandboxCreateResponseData = {
+    alias: string;
+    id: string;
+    title: string | null;
+};
+
+export type PreviewHostListResponseData = {
+    preview_hosts: Array<{
+        host: string;
+        inserted_at: string;
+    }>;
+};
+
+export type VmStartResponseData = {
+    bootup_type: string;
+    cluster: string;
+    id: string;
+    latest_pitcher_version: string;
+    pint_token?: string;
+    pint_url?: string;
+    pitcher_manager_version: string;
+    pitcher_token: string;
+    pitcher_url: string;
+    pitcher_version: string;
+    reconnect_token: string;
+    use_pint: boolean;
+    user_workspace_path: string;
+    vm_agent_type: string;
+    workspace_path: string;
+};
+
+export type VmUpdateSpecsResponseData = {
+    id: string;
+    tier: string;
+};
+
+export type VmListClustersResponseData = {
+    clusters: Array<{
+        host: string;
+        slug: string;
+    }>;
+};
+
+export type TokenUpdateResponseData = {
+    description: string | null;
+    expires_at?: string | null;
+    scopes: Array<string>;
+    team_id: string;
+    token_id: string;
+};
+
+export type TokenCreateResponseData = {
+    description: string | null;
+    expires_at: string | null;
+    scopes: Array<string>;
+    team_id: string;
+    token: string;
+    token_id: string;
+};
+
+export type VmDeleteResponseData = {
+    [key: string]: unknown;
+};
+
+export type TemplateCreateResponseData = {
+    sandboxes: Array<{
+        cluster: string;
+        id: string;
+    }>;
+    tag: string;
+};
+
+export type VmCreateSessionResponseData = {
+    /**
+     * List of capabilities that Pitcher has
+     */
+    capabilities: Array<string>;
+    /**
+     * The permissions of the current session
+     */
+    permissions: {
+        [key: string]: unknown;
+    };
+    /**
+     * Token to authenticate with Pitcher (the agent running inside the VM)
+     */
+    pitcher_token: string;
+    /**
+     * WebSocket URL to connect to Pitcher
+     */
+    pitcher_url: string;
+    /**
+     * Path to the user's workspace in the VM
+     */
+    user_workspace_path: string;
+    /**
+     * The Linux username created for this session
+     */
+    username: string;
+};
+
+export type WorkspaceCreateResponseData = {
+    id: string;
+    name: string;
+};
+
+export type VmUpdateHibernationTimeoutResponseData = {
+    hibernation_timeout_seconds: number;
+    id: string;
+};
+
+export type SandboxForkResponseData = {
+    alias: string;
+    id: string;
+    /**
+     * VM start response. Only present when start_options were provided in the request.
+     */
+    start_response?: {
+        bootup_type: string;
+        cluster: string;
+        id: string;
+        latest_pitcher_version: string;
+        pint_token?: string;
+        pint_url?: string;
+        pitcher_manager_version: string;
+        pitcher_token: string;
+        pitcher_url: string;
+        pitcher_version: string;
+        reconnect_token: string;
+        use_pint: boolean;
+        user_workspace_path: string;
+        vm_agent_type: string;
+        workspace_path: string;
+    } | null;
+    title: string | null;
+};
+
+export type PreviewTokenCreateResponseData = {
+    sandbox_id: string;
+    token: {
+        expires_at: string | null;
+        last_used_at: string | null;
+        token_id: string;
+        token_prefix: string;
+    } & {
+        token: string;
     };
 };
 
