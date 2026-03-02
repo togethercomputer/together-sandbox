@@ -3678,7 +3678,11 @@
       }
     }
   },
-  "security": [],
+  "security": [
+    {
+      "authorization": []
+    }
+  ],
   "servers": [
     {
       "url": "https://api.codesandbox.io",

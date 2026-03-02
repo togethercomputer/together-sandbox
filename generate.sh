@@ -53,6 +53,13 @@ for schema_name, schema in schemas.items():
 added = [n for n in new_schemas if n not in schemas]
 schemas.update(new_schemas)
 
+# Fix global security: replace empty [] with a reference to the defined scheme.
+# An empty security array means "no global default", which triggers security linters.
+# The authorization scheme is defined in components/securitySchemes.
+if spec.get("security") == []:
+    spec["security"] = [{"authorization": []}]
+    print("  Fixed global security: set to [{authorization: []}]")
+
 with open(path, "w") as f:
     json.dump(spec, f, indent=2)
 
