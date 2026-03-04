@@ -1,0 +1,32 @@
+# Node
+node_modules/
+npm-debug.log*
+test-template
+
+# TypeScript SDK build output
+together-sandbox-typescript/dist/
+
+# CLI build output (esbuild bundle + compiled binaries)
+together-sandbox-cli/dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+*.pth
+
+# Python generation temp dirs
+together-sandbox-python/.tmp-api/
+together-sandbox-python/.tmp-sandbox/
+
+# Test scripts
+together-sandbox-typescript/test.ts
+together-sandbox-python/test.py
+
+# OS
+.DS_Store

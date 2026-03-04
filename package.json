@@ -1,0 +1,8 @@
+{
+  "name": "together-sandbox",
+  "private": true,
+  "workspaces": [
+    "together-sandbox-typescript",
+    "together-sandbox-cli"
+  ]
+}

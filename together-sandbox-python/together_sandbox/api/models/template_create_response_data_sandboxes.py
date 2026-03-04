@@ -1,0 +1,9 @@
+from typing import List, TypeAlias
+
+from .template_create_response_data_sandboxes_item import TemplateCreateResponseDataSandboxesItem
+
+from .template_create_response_data_sandboxes_item import TemplateCreateResponseDataSandboxesItem
+
+__all__ = ['TemplateCreateResponseDataSandboxes']
+
+TemplateCreateResponseDataSandboxes: TypeAlias = List[TemplateCreateResponseDataSandboxesItem]
