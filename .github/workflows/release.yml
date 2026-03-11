@@ -1,4 +1,4 @@
-name: Release CLI
+name: Release CLI and SDK
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   release:
-    name: Build and release binaries
+    name: Build and release binaries and SDK
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -30,6 +30,11 @@ jobs:
         run: npm run build
         working-directory: together-sandbox-typescript
 
+      - name: Pack TypeScript SDK
+        run: |
+          npm pack --workspace=together-sandbox-typescript
+          mv together-sandbox-sdk-*.tgz together-sandbox-sdk.tgz
+
       - name: Build binaries
         working-directory: together-sandbox-cli
         run: |
@@ -45,6 +50,7 @@ jobs:
         with:
           generate_release_notes: true
           files: |
+            together-sandbox-sdk.tgz
             together-sandbox-cli/dist/together-sandbox-darwin-arm64
             together-sandbox-cli/dist/together-sandbox-darwin-x64
             together-sandbox-cli/dist/together-sandbox-linux-x64
