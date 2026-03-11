@@ -4,6 +4,50 @@ Python SDK for the Together Sandbox API.
 
 ## Installation
 
+### From GitHub (Recommended)
+
+Since the package is not published to PyPI, install it directly from the GitHub repository:
+
+```bash
+# Latest from main branch
+pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
+
+# Specific version (tag)
+pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git@v1.0.0#subdirectory=together-sandbox-python"
+
+# Specific commit
+pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git@abc123#subdirectory=together-sandbox-python"
+```
+
+### With Authentication (Private Repositories)
+
+For private repositories, use SSH or a Personal Access Token:
+
+```bash
+# Using SSH (recommended for developers)
+pip install "git+ssh://git@github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
+
+# Using a GitHub PAT
+pip install "git+https://YOUR_TOKEN@github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
+```
+
+### In requirements.txt
+
+```text
+together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python
+```
+
+### In pyproject.toml
+
+```toml
+[project]
+dependencies = [
+    "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python",
+]
+```
+
+### From PyPI (When Available)
+
 ```bash
 pip install together-sandbox
 ```

@@ -4,8 +4,47 @@ TypeScript SDK for the Together Sandbox API.
 
 ## Installation
 
+### From GitHub Releases (Recommended)
+
+Since the package is not published to npm, install it directly from GitHub Releases:
+
 ```bash
-npm install @together-sandbox/sdk
+# Latest version
+npm install https://github.com/togethercomputer/together-sandbox/releases/latest/download/together-sandbox-sdk.tgz
+
+# Specific version
+npm install https://github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz
+```
+
+### With Authentication (Private Repositories)
+
+For private repositories, authenticate using a Personal Access Token:
+
+```bash
+# Using a GitHub PAT
+npm install https://YOUR_TOKEN@github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz
+```
+
+### Using yarn or pnpm
+
+```bash
+# yarn
+yarn add https://github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz
+
+# pnpm
+pnpm add https://github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz
+```
+
+### In package.json
+
+Add to your `package.json` dependencies:
+
+```json
+{
+  "dependencies": {
+    "@together-sandbox/sdk": "https://github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz"
+  }
+}
 ```
 
 ## Usage
