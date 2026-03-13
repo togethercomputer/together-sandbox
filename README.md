@@ -105,7 +105,27 @@ together-sandbox build
 
 ### Installation
 
-Install directly from GitHub Releases (pre-built tarball):
+#### From GitHub Packages (Recommended)
+
+```bash
+# Create .npmrc in your project root
+echo "@togethercomputer:registry=https://npm.pkg.github.com" >> .npmrc
+
+# Install the package
+npm install @togethercomputer/together-sandbox-sdk
+```
+
+For private repositories, authenticate with a GitHub Personal Access Token:
+
+```bash
+# Create .npmrc with authentication
+echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> .npmrc
+echo "@togethercomputer:registry=https://npm.pkg.github.com" >> .npmrc
+
+npm install @togethercomputer/together-sandbox-sdk
+```
+
+#### From GitHub Releases (Pre-built tarball)
 
 ```bash
 # Latest version
@@ -115,18 +135,12 @@ npm install https://github.com/togethercomputer/together-sandbox/releases/latest
 npm install https://github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz
 ```
 
-For private repositories, authenticate with a Personal Access Token:
-
-```bash
-npm install https://YOUR_TOKEN@github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz
-```
-
 ### In package.json
 
 ```json
 {
   "dependencies": {
-    "@together-sandbox/sdk": "https://github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz"
+    "@togethercomputer/together-sandbox-sdk": "^1.0.0"
   }
 }
 ```
@@ -141,7 +155,7 @@ import {
   createApiConfig,
   createSandboxClient,
   createSandboxConfig,
-} from "@together-sandbox/sdk";
+} from "@togethercomputer/together-sandbox-sdk";
 
 // Create the management API client
 const client = createApiClient(
@@ -284,7 +298,7 @@ together-sandbox sandboxes list --limit 1
 Create a test file `test-sdk.mjs`:
 
 ```javascript
-import { createApiClient, createApiConfig } from "@together-sandbox/sdk";
+import { createApiClient, createApiConfig } from "@togethercomputer/together-sandbox-sdk";
 
 const client = createApiClient(
   createApiConfig({

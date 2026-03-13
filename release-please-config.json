@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "changelog-sections": [
+    {"type": "feat", "section": "Features"},
+    {"type": "fix", "section": "Bug Fixes"},
+    {"type": "docs", "section": "Documentation"},
+    {"type": "chore", "section": "Internal"}
+  ],
+  "packages": {
+    "together-sandbox-typescript": {
+      "release-type": "node",
+      "package-name": "@togethercomputer/together-sandbox-sdk",
+      "component": "TypeScript SDK"
+    },
+    "together-sandbox-python": {
+      "release-type": "python",
+      "package-name": "together-sandbox",
+      "component": "Python SDK"
+    },
+    "together-sandbox-cli": {
+      "release-type": "node",
+      "package-name": "@together-sandbox/cli",
+      "component": "CLI"
+    }
+  }
+}

@@ -1,0 +1,111 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      typescript_released: ${{ steps.release.outputs['together-sandbox-typescript--release_created'] }}
+      python_released: ${{ steps.release.outputs['together-sandbox-python--release_created'] }}
+      cli_released: ${{ steps.release.outputs['together-sandbox-cli--release_created'] }}
+
+    steps:
+      - name: Create Release PR
+        uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build-artifacts:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build TypeScript SDK
+        run: npm run build
+        working-directory: together-sandbox-typescript
+
+      - name: Pack TypeScript SDK
+        run: |
+          npm pack --workspace=together-sandbox-typescript
+          mv together-sandbox-sdk-*.tgz together-sandbox-sdk.tgz
+
+      - name: Build CLI binaries
+        working-directory: together-sandbox-cli
+        run: |
+          mkdir -p dist
+          bun build --compile --minify src/main.ts --target=bun-darwin-arm64   --outfile dist/together-sandbox-darwin-arm64
+          bun build --compile --minify src/main.ts --target=bun-darwin-x64     --outfile dist/together-sandbox-darwin-x64
+          bun build --compile --minify src/main.ts --target=bun-linux-x64      --outfile dist/together-sandbox-linux-x64
+          bun build --compile --minify src/main.ts --target=bun-linux-arm64    --outfile dist/together-sandbox-linux-arm64
+          bun build --compile --minify src/main.ts --target=bun-windows-x64    --outfile dist/together-sandbox-windows-x64.exe
+
+      - name: Upload artifacts to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: |
+            together-sandbox-sdk.tgz
+            together-sandbox-cli/dist/together-sandbox-darwin-arm64
+            together-sandbox-cli/dist/together-sandbox-darwin-x64
+            together-sandbox-cli/dist/together-sandbox-linux-x64
+            together-sandbox-cli/dist/together-sandbox-linux-arm64
+            together-sandbox-cli/dist/together-sandbox-windows-x64.exe
+
+  publish-typescript:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.typescript_released }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: 'https://npm.pkg.github.com'
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build TypeScript SDK
+        run: npm run build
+        working-directory: together-sandbox-typescript
+
+      - name: Publish to GitHub Packages
+        run: npm publish
+        working-directory: together-sandbox-typescript
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

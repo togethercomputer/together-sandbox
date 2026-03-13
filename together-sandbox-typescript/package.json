@@ -1,5 +1,5 @@
 {
-  "name": "@together-sandbox/sdk",
+  "name": "@togethercomputer/together-sandbox-sdk",
   "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
@@ -9,6 +9,9 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
     "generate": "openapi-ts -i ../api-openapi.json -o src/api-clients/api -c @hey-api/client-fetch && openapi-ts -i ../sandbox-openapi.json -o src/api-clients/sandbox -c @hey-api/client-fetch",
