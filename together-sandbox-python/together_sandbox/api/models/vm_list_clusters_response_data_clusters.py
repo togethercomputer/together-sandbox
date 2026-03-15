@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import List, TypeAlias
 
 from .vm_list_clusters_response_data_clusters_item import VmListClustersResponseDataClustersItem

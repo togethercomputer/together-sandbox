@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from .meta_information_rate_limits_concurrent_vms import MetaInformationRateLimitsConcurrentVms

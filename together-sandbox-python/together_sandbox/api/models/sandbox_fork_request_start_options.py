@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from .sandbox_fork_request_start_options_automatic_wakeup_config import SandboxForkRequestStartOptionsAutomaticWakeupConfig

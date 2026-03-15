@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from .preview_host_list_response_data_preview_hosts import PreviewHostListResponseDataPreviewHosts

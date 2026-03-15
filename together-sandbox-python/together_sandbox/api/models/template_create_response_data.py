@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from .template_create_response_data_sandboxes import TemplateCreateResponseDataSandboxes

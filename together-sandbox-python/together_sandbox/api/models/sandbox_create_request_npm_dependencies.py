@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import ItemsView, KeysView, ValuesView
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Iterator

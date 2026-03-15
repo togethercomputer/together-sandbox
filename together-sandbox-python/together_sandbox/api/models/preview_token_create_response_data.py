@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from .preview_token_create_response_data_token import PreviewTokenCreateResponseDataToken

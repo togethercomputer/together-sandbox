@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from .sandbox_fork_response_data_start_response import SandboxForkResponseDataStartResponse

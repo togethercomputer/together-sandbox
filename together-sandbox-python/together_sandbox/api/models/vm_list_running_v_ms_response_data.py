@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from .vm_list_running_v_ms_response_data_vms import VmListRunningVMsResponseDataVms

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from .vm_start_request_automatic_wakeup_config import VmStartRequestAutomaticWakeupConfig

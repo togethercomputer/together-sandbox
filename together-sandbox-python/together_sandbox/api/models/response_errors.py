@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import List, TypeAlias
 
 from .response_errors_item import ResponseErrorsItem

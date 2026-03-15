@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from .vm_list_clusters_response_data_clusters import VmListClustersResponseDataClusters
