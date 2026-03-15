@@ -7,15 +7,17 @@ Tools for working with Together AI sandboxes: a CLI, a TypeScript SDK, and a Pyt
 All three components can be installed directly from GitHub without npm or PyPI publication:
 
 ```bash
-# CLI
+# CLI (latest version)
 curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
 
-# TypeScript SDK
+# TypeScript SDK (latest version)
 npm install https://github.com/togethercomputer/together-sandbox/releases/latest/download/together-sandbox-sdk.tgz
 
-# Python SDK
+# Python SDK (latest from main branch)
 pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
 ```
+
+For production use, we recommend pinning to a specific version. See the installation sections below for details.
 
 ---
 
@@ -23,14 +25,19 @@ pip install "together-sandbox @ git+https://github.com/togethercomputer/together
 
 ### Installation
 
+Install via curl:
+
 ```bash
+# Latest version
 curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
+
+# Specific version (recommended for production)
+VERSION=v1.2.0 curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
 ```
 
-This installs `together-sandbox` to `/usr/local/bin`. To install a specific version or to a different directory:
+This installs `together-sandbox` to `/usr/local/bin`. To install to a different directory:
 
 ```bash
-VERSION=v1.2.3 bash <(curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh)
 INSTALL_DIR=$HOME/.local/bin bash <(curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh)
 ```
 
@@ -105,20 +112,20 @@ together-sandbox build
 
 ### Installation
 
-Install directly from GitHub Releases (pre-built tarball):
+Install from GitHub Releases:
 
 ```bash
 # Latest version
 npm install https://github.com/togethercomputer/together-sandbox/releases/latest/download/together-sandbox-sdk.tgz
 
-# Specific version
-npm install https://github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz
+# Specific version (recommended for production)
+npm install https://github.com/togethercomputer/together-sandbox/releases/download/v1.2.0/together-sandbox-sdk.tgz
 ```
 
 For private repositories, authenticate with a Personal Access Token:
 
 ```bash
-npm install https://YOUR_TOKEN@github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz
+npm install https://YOUR_TOKEN@github.com/togethercomputer/together-sandbox/releases/download/v1.2.0/together-sandbox-sdk.tgz
 ```
 
 ### In package.json
@@ -198,14 +205,14 @@ await api.vmShutdown({ client, path: { id: sandboxId } });
 
 ### Installation
 
-Install directly from the GitHub repository:
+Install from Git:
 
 ```bash
 # Latest from main branch
 pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
 
-# Specific version (tag)
-pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git@v1.0.0#subdirectory=together-sandbox-python"
+# Specific version (recommended for production)
+pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git@v1.2.0#subdirectory=together-sandbox-python"
 ```
 
 For private repositories, use SSH:
@@ -383,16 +390,50 @@ bun build --compile --minify src/main.tsx --target=bun-linux-x64 --outfile dist/
 ./dist/test-binary --version
 ```
 
-### Creating a Release
+## Release Process
 
-1. Ensure all changes are committed and pushed
-2. Create and push a tag:
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-3. The GitHub Actions workflow will automatically:
-   - Build the TypeScript SDK
-   - Pack it into `together-sandbox-sdk.tgz`
-   - Build CLI binaries for all platforms
-   - Create a GitHub Release with all artifacts
+This project uses [Release Please](https://github.com/googleapis/release-please) for automated releases.
+
+1. Use [conventional commits](https://www.conventionalcommits.org/) for all changes:
+   - `feat:` for new features (minor version bump)
+   - `fix:` for bug fixes (patch version bump)
+   - `feat!:` for breaking changes (major version bump)
+   - `docs:`, `chore:`, `refactor:` for non-release changes
+
+2. When ready to release, merge the automatically-created Release PR
+
+3. The workflow will automatically:
+   - Create a new version tag
+   - Generate/update the CHANGELOG.md
+   - Build and upload SDK tarball and CLI binaries
+
+### Manual Release Testing
+
+Before merging a Release PR, you can test the build process locally:
+
+```bash
+# 1. Install dependencies
+npm ci
+
+# 2. Build the TypeScript SDK
+cd together-sandbox-typescript && npm run build && cd ..
+
+# 3. Pack the TypeScript SDK to verify tarball creation
+npm pack --workspace=together-sandbox-typescript
+# This creates together-sandbox-sdk-*.tgz
+
+# 4. Verify the tarball contents
+tar -tzf together-sandbox-sdk-*.tgz
+
+# 5. Test installation in a clean directory
+mkdir /tmp/test-sdk && cd /tmp/test-sdk
+npm init -y
+npm install /path/to/together-sandbox/together-sandbox-sdk-*.tgz
+
+# 6. Build CLI binaries (requires Bun)
+cd /path/to/together-sandbox/together-sandbox-cli
+bun build --compile --minify src/main.tsx --target=bun-linux-x64 --outfile dist/test-binary
+
+# 7. Test the CLI binary
+./dist/test-binary --version
+```

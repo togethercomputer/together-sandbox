@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify-generated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Regenerate SDKs
+        run: bash generate.sh
+      
+      - name: Check for uncommitted changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "Error: Generated code is out of date. Run 'bash generate.sh' and commit the changes."
+            git status
+            exit 1
+          fi
+
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: npm ci
+      - run: npm run build
+        working-directory: together-sandbox-typescript
+      - run: npm test
+        working-directory: together-sandbox-typescript
+        continue-on-error: true

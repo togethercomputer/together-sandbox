@@ -1,0 +1,59 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: simple
+
+  build:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: npm ci
+      # Build TypeScript SDK
+      - run: npm run build
+        working-directory: together-sandbox-typescript
+      - run: npm pack --workspace=together-sandbox-typescript
+      - run: mv together-sandbox-sdk-*.tgz together-sandbox-sdk.tgz
+      # Build CLI binaries for all platforms
+      - name: Build CLI binaries
+        working-directory: together-sandbox-cli
+        run: |
+          mkdir -p dist
+          bun build --compile --minify src/main.tsx --target=bun-darwin-arm64 --outfile dist/together-sandbox-darwin-arm64
+          bun build --compile --minify src/main.tsx --target=bun-darwin-x64 --outfile dist/together-sandbox-darwin-x64
+          bun build --compile --minify src/main.tsx --target=bun-linux-x64 --outfile dist/together-sandbox-linux-x64
+          bun build --compile --minify src/main.tsx --target=bun-linux-arm64 --outfile dist/together-sandbox-linux-arm64
+          bun build --compile --minify src/main.tsx --target=bun-windows-x64 --outfile dist/together-sandbox-windows-x64.exe
+      # Upload all artifacts to GitHub Release
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: |
+            together-sandbox-sdk.tgz
+            together-sandbox-cli/dist/*
