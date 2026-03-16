@@ -1,32 +1,32 @@
-name: Release Please
+name: PR Checks
 
 on:
-  push:
+  pull_request:
     branches: [main]
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
-  release-please:
-    runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name:        ${{ steps.release.outputs.tag_name }}
-    steps:
-      - uses: googleapis/release-please-action@v4
-        id: release
-        with:
-          config-file:   release-please-config.json
-          manifest-file: release-please-manifest.json
-
-  build-and-upload:
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+  release-please-dry-run:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Dry-run release-please
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx --yes release-please release-pr \
+            --dry-run \
+            --token "$GITHUB_TOKEN" \
+            --repo-url "$GITHUB_REPOSITORY" \
+            --config-file release-please-config.json \
+            --manifest-file release-please-manifest.json
+
+  build-dry-run:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -60,14 +60,7 @@ jobs:
           bun build --compile --minify src/main.tsx --target=bun-linux-arm64   --outfile dist/together-sandbox-linux-arm64
           bun build --compile --minify src/main.tsx --target=bun-windows-x64   --outfile dist/together-sandbox-windows-x64.exe
 
-      - name: Upload artifacts to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.release-please.outputs.tag_name }}
-          files: |
-            together-sandbox-sdk.tgz
-            together-sandbox-cli/dist/together-sandbox-darwin-arm64
-            together-sandbox-cli/dist/together-sandbox-darwin-x64
-            together-sandbox-cli/dist/together-sandbox-linux-x64
-            together-sandbox-cli/dist/together-sandbox-linux-arm64
-            together-sandbox-cli/dist/together-sandbox-windows-x64.exe
+      - name: Verify all artifacts exist
+        run: |
+          ls -lh together-sandbox-sdk.tgz
+          ls -lh together-sandbox-cli/dist/
