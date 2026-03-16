@@ -5,35 +5,64 @@ on:
     branches: [main]
 
 jobs:
-  release-please-dry-run:
+  validate-release-config:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Validate release-please config files
+      - name: Validate release-please configuration
         run: |
-          echo "::group::Validate JSON syntax"
-          node -e "JSON.parse(require('fs').readFileSync('release-please-config.json','utf8'))"
-          echo "✓ release-please-config.json is valid JSON"
-          node -e "JSON.parse(require('fs').readFileSync('release-please-manifest.json','utf8'))"
-          echo "✓ release-please-manifest.json is valid JSON"
-          echo "::endgroup::"
+          node -e "
+            const fs = require('fs');
 
-      - name: Dry-run release-please
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npx --yes release-please release-pr \
-            --dry-run \
-            --token "$GITHUB_TOKEN" \
-            --repo-url "$GITHUB_REPOSITORY" \
-            --target-branch "${{ github.head_ref }}" \
-            --config-file release-please-config.json \
-            --manifest-file release-please-manifest.json
+            // 1. Validate JSON syntax
+            const config = JSON.parse(fs.readFileSync('release-please-config.json', 'utf8'));
+            console.log('✓ release-please-config.json is valid JSON');
+
+            const manifest = JSON.parse(fs.readFileSync('release-please-manifest.json', 'utf8'));
+            console.log('✓ release-please-manifest.json is valid JSON');
+
+            // 2. Validate config structure
+            const errors = [];
+            if (!config.packages || typeof config.packages !== 'object') {
+              errors.push('release-please-config.json: missing or invalid \"packages\" field');
+            }
+
+            // 3. Validate manifest has entries matching config packages
+            for (const pkg of Object.keys(config.packages || {})) {
+              if (!(pkg in manifest)) {
+                errors.push('release-please-manifest.json: missing version entry for package \"' + pkg + '\"');
+              }
+            }
+
+            // 4. Validate all extra-files referenced in config actually exist
+            for (const [pkg, pkgConfig] of Object.entries(config.packages || {})) {
+              for (const ef of pkgConfig['extra-files'] || []) {
+                const filePath = ef.path;
+                if (filePath && !fs.existsSync(filePath)) {
+                  errors.push('extra-file not found: ' + filePath);
+                }
+              }
+            }
+
+            // 5. Validate root package.json has a version field (required by node release-type)
+            const rootPkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            if (!rootPkg.version) {
+              errors.push('package.json: missing \"version\" field (required by release-please node release-type)');
+            }
+
+            if (errors.length > 0) {
+              console.error('\\n✗ Validation failed:');
+              errors.forEach(e => console.error('  - ' + e));
+              process.exit(1);
+            }
+
+            console.log('✓ Config structure is valid');
+            console.log('✓ Manifest versions match config packages');
+            console.log('✓ All extra-files exist');
+            console.log('✓ Root package.json has version field');
+            console.log('\\nAll release-please configuration checks passed.');
+          "
 
   build-dry-run:
     runs-on: ubuntu-latest
