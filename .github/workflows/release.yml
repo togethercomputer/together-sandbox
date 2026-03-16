@@ -54,11 +54,11 @@ jobs:
         working-directory: together-sandbox-cli
         run: |
           mkdir -p dist
-          bun build --compile --minify src/main.tsx --target=bun-darwin-arm64  --outfile dist/together-sandbox-darwin-arm64
-          bun build --compile --minify src/main.tsx --target=bun-darwin-x64    --outfile dist/together-sandbox-darwin-x64
-          bun build --compile --minify src/main.tsx --target=bun-linux-x64     --outfile dist/together-sandbox-linux-x64
-          bun build --compile --minify src/main.tsx --target=bun-linux-arm64   --outfile dist/together-sandbox-linux-arm64
-          bun build --compile --minify src/main.tsx --target=bun-windows-x64   --outfile dist/together-sandbox-windows-x64.exe
+          bun build --compile --minify src/main.ts --target=bun-darwin-arm64  --outfile dist/together-sandbox-darwin-arm64
+          bun build --compile --minify src/main.ts --target=bun-darwin-x64    --outfile dist/together-sandbox-darwin-x64
+          bun build --compile --minify src/main.ts --target=bun-linux-x64     --outfile dist/together-sandbox-linux-x64
+          bun build --compile --minify src/main.ts --target=bun-linux-arm64   --outfile dist/together-sandbox-linux-arm64
+          bun build --compile --minify src/main.ts --target=bun-windows-x64   --outfile dist/together-sandbox-windows-x64.exe
 
       - name: Upload artifacts to GitHub Release
         uses: softprops/action-gh-release@v2

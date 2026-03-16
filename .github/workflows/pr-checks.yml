@@ -14,6 +14,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate release-please config files
+        run: |
+          echo "::group::Validate JSON syntax"
+          node -e "JSON.parse(require('fs').readFileSync('release-please-config.json','utf8'))"
+          echo "✓ release-please-config.json is valid JSON"
+          node -e "JSON.parse(require('fs').readFileSync('release-please-manifest.json','utf8'))"
+          echo "✓ release-please-manifest.json is valid JSON"
+          echo "::endgroup::"
+
       - name: Dry-run release-please
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -22,6 +31,7 @@ jobs:
             --dry-run \
             --token "$GITHUB_TOKEN" \
             --repo-url "$GITHUB_REPOSITORY" \
+            --target-branch "${{ github.head_ref }}" \
             --config-file release-please-config.json \
             --manifest-file release-please-manifest.json
 
@@ -54,11 +64,11 @@ jobs:
         working-directory: together-sandbox-cli
         run: |
           mkdir -p dist
-          bun build --compile --minify src/main.tsx --target=bun-darwin-arm64  --outfile dist/together-sandbox-darwin-arm64
-          bun build --compile --minify src/main.tsx --target=bun-darwin-x64    --outfile dist/together-sandbox-darwin-x64
-          bun build --compile --minify src/main.tsx --target=bun-linux-x64     --outfile dist/together-sandbox-linux-x64
-          bun build --compile --minify src/main.tsx --target=bun-linux-arm64   --outfile dist/together-sandbox-linux-arm64
-          bun build --compile --minify src/main.tsx --target=bun-windows-x64   --outfile dist/together-sandbox-windows-x64.exe
+          bun build --compile --minify src/main.ts --target=bun-darwin-arm64  --outfile dist/together-sandbox-darwin-arm64
+          bun build --compile --minify src/main.ts --target=bun-darwin-x64    --outfile dist/together-sandbox-darwin-x64
+          bun build --compile --minify src/main.ts --target=bun-linux-x64     --outfile dist/together-sandbox-linux-x64
+          bun build --compile --minify src/main.ts --target=bun-linux-arm64   --outfile dist/together-sandbox-linux-arm64
+          bun build --compile --minify src/main.ts --target=bun-windows-x64   --outfile dist/together-sandbox-windows-x64.exe
 
       - name: Verify all artifacts exist
         run: |
