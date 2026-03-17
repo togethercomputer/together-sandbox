@@ -54,12 +54,42 @@ pip install together-sandbox
 
 Requires Python 3.12+.
 
-## Usage
+## Quick Start
 
-The SDK exposes two async clients:
+```python
+import asyncio
+from together_sandbox import TogetherSandbox
 
-- **`ApiClient`** — manages sandboxes (create, fork, start, shutdown, etc.)
-- **`SandboxClient`** — interacts with a running sandbox via its Pint URL (filesystem, execs, SSE streams, etc.)
+async def main():
+    # api_key defaults to TOGETHER_API_KEY environment variable
+    sdk = TogetherSandbox(api_key="your-api-key")
+
+    # Start a sandbox — URL/token wiring is handled automatically
+    async with await sdk.sandboxes.start("your-sandbox-id") as sb:
+        # Read a file
+        content = await sb.files.read_file("/package.json")
+        print(content)
+
+        # Run a command
+        from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
+        exec_item = await sb.execs.create_exec(
+            CreateExecRequest(command="echo", args=["Hello, sandbox!"])
+        )
+
+asyncio.run(main())
+```
+
+### E2B-style: classmethod factory
+
+```python
+from together_sandbox import Sandbox
+
+sandbox = await Sandbox.start("your-sandbox-id", api_key="your-key")
+```
+
+## Low-level Usage (Advanced)
+
+The generated clients are still fully exported for direct use:
 
 ```python
 import asyncio

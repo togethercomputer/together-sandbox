@@ -134,63 +134,26 @@ npm install https://YOUR_TOKEN@github.com/togethercomputer/together-sandbox/rele
 ### Usage
 
 ```typescript
-import {
-  api,
-  sandbox,
-  createApiClient,
-  createApiConfig,
-  createSandboxClient,
-  createSandboxConfig,
-} from "@together-sandbox/sdk";
+import { TogetherSandbox } from "@together-sandbox/sdk";
 
-// Create the management API client
-const client = createApiClient(
-  createApiConfig({
-    baseUrl: "https://api.codesandbox.io",
-    headers: { Authorization: `Bearer ${process.env.TOGETHER_API_KEY}` },
-  }),
-);
+const sdk = new TogetherSandbox({ apiKey: process.env.TOGETHER_API_KEY });
 
-// Fork a sandbox from a template
-const forkResult = await api.sandboxFork({
-  client,
-  path: { id: "your-template-id" },
-  body: { privacy: 0, private_preview: false },
-});
+// Start a sandbox — URL/token wiring is handled automatically
+const sandbox = await sdk.sandboxes.start("your-sandbox-id");
 
-const sandboxId = forkResult.data.data.id;
+// Read a file
+const file = await sandbox.files.read({ path: { path: "/package.json" } });
 
-// Start the sandbox
-const startResult = await api.vmStart({
-  client,
-  path: { id: sandboxId },
-});
-
-const { pint_url, pint_token } = startResult.data.data;
-
-// Connect to the running sandbox
-const sandboxClient = createSandboxClient(
-  createSandboxConfig({
-    baseUrl: pint_url,
-    headers: { Authorization: `Bearer ${pint_token}` },
-  }),
-);
-
-// Create an exec and stream its status via SSE
-const execResult = await sandbox.createExec({
-  client: sandboxClient,
+// Run a command
+const exec = await sandbox.execs.create({
   body: { command: "bash", args: ["-c", "echo hello"] },
 });
 
-const { stream } = await sandbox.streamExecsList({ client: sandboxClient });
-for await (const event of stream) {
-  const exec = event.execs.find((e) => e.id === execResult.data.id);
-  if (exec?.status === "finished" || exec?.status === "stopped") break;
-}
-
-// Shut down the sandbox when done
-await api.vmShutdown({ client, path: { id: sandboxId } });
+// Shutdown when done
+await sandbox.shutdown();
 ```
+
+The low-level generated clients are also available for advanced use. See the [TypeScript SDK README](together-sandbox-typescript/README.md) for details.
 
 ---
 
@@ -225,43 +188,22 @@ together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#
 ### Usage
 
 ```python
-import asyncio, os
-from together_sandbox.api import APIClient as ApiClient, ClientConfig, HttpxTransport
-from together_sandbox.sandbox import APIClient as SandboxClient
-from together_sandbox.sandbox import ClientConfig as SandboxConfig, HttpxTransport as SandboxTransport
-from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
+import asyncio
+from together_sandbox import TogetherSandbox
 
 async def main():
-    api_key = os.environ["TOGETHER_API_KEY"]
-    base_url = os.environ.get("TOGETHER_BASE_URL", "https://api.codesandbox.io")
+    # api_key defaults to TOGETHER_API_KEY environment variable
+    sdk = TogetherSandbox(api_key="your-api-key")
 
-    async with ApiClient(ClientConfig(base_url=base_url),
-                         transport=HttpxTransport(base_url, bearer_token=api_key)) as client:
-        # Fork a sandbox from a template
-        fork = await client.sandbox.sandbox_fork("your-template-id")
-        sandbox_id = fork.data_.id_
-
-        # Start the sandbox
-        start = await client.vm.vm_start(sandbox_id)
-        pint_url, pint_token = start.data_.pint_url, start.data_.pint_token
-
-        # Connect to the running sandbox via Pint
-        async with SandboxClient(SandboxConfig(base_url=pint_url),
-                                  transport=SandboxTransport(pint_url, bearer_token=pint_token)) as sb:
-            # Create an exec and stream its status via SSE
-            exec_item = await sb.execs.create_exec(
-                CreateExecRequest(command="bash", args=["-c", "echo hello"])
-            )
-            async for event in sb.execs.stream_execs_list():
-                our = next((e for e in event.get("execs", []) if e.get("id") == exec_item.id_), None)
-                if our and our["status"] in ("finished", "stopped"):
-                    break
-
-        # Shut down when done
-        await client.vm.vm_shutdown(sandbox_id)
+    # Start a sandbox — URL/token wiring is handled automatically
+    async with await sdk.sandboxes.start("your-sandbox-id") as sb:
+        content = await sb.files.read_file("/package.json")
+        print(content)
 
 asyncio.run(main())
 ```
+
+The low-level generated clients are also available for advanced use. See the [Python SDK README](together-sandbox-python/README.md) for details.
 
 ---
 

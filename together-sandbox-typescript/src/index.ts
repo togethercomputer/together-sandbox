@@ -18,3 +18,14 @@ export {
   type Client as SandboxApiClient,
   type Config as SandboxApiConfig,
 } from "./api-clients/sandbox/client/index.js";
+
+// Unified facade — recommended entry point
+export {
+  TogetherSandbox,
+  Sandbox,
+  SandboxesNamespace,
+} from "./TogetherSandbox.js";
+export type {
+  TogetherSandboxConfig,
+  StartOptions,
+} from "./TogetherSandbox.js";
