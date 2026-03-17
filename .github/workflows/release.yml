@@ -1,17 +1,32 @@
-name: Release CLI and SDK
+name: Release Please
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  release:
-    name: Build and release binaries and SDK
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name:        ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file:   release-please-config.json
+          manifest-file: release-please-manifest.json
+
+  build-and-upload:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - uses: actions/checkout@v4
 
@@ -35,20 +50,20 @@ jobs:
           npm pack --workspace=together-sandbox-typescript
           mv together-sandbox-sdk-*.tgz together-sandbox-sdk.tgz
 
-      - name: Build binaries
+      - name: Build CLI binaries
         working-directory: together-sandbox-cli
         run: |
           mkdir -p dist
-          bun build --compile --minify src/main.tsx --target=bun-darwin-arm64   --outfile dist/together-sandbox-darwin-arm64
-          bun build --compile --minify src/main.tsx --target=bun-darwin-x64     --outfile dist/together-sandbox-darwin-x64
-          bun build --compile --minify src/main.tsx --target=bun-linux-x64      --outfile dist/together-sandbox-linux-x64
-          bun build --compile --minify src/main.tsx --target=bun-linux-arm64    --outfile dist/together-sandbox-linux-arm64
-          bun build --compile --minify src/main.tsx --target=bun-windows-x64    --outfile dist/together-sandbox-windows-x64.exe
+          bun build --compile --minify src/main.ts --target=bun-darwin-arm64  --outfile dist/together-sandbox-darwin-arm64
+          bun build --compile --minify src/main.ts --target=bun-darwin-x64    --outfile dist/together-sandbox-darwin-x64
+          bun build --compile --minify src/main.ts --target=bun-linux-x64     --outfile dist/together-sandbox-linux-x64
+          bun build --compile --minify src/main.ts --target=bun-linux-arm64   --outfile dist/together-sandbox-linux-arm64
+          bun build --compile --minify src/main.ts --target=bun-windows-x64   --outfile dist/together-sandbox-windows-x64.exe
 
-      - name: Create GitHub Release
+      - name: Upload artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
           files: |
             together-sandbox-sdk.tgz
             together-sandbox-cli/dist/together-sandbox-darwin-arm64
