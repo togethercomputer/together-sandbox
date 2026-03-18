@@ -47,12 +47,42 @@ Add to your `package.json` dependencies:
 }
 ```
 
-## Usage
+## Quick Start
 
-The SDK exposes two clients:
+```typescript
+import { TogetherSandbox } from "@together-sandbox/sdk";
 
-- **`api`** — manages sandboxes (create, fork, start, shutdown, etc.)
-- **`sandbox`** — interacts with a running sandbox via its Pint URL (filesystem, terminals, processes, etc.)
+const sdk = new TogetherSandbox({ apiKey: process.env.TOGETHER_API_KEY });
+
+// Start a sandbox — URL/token wiring is handled automatically
+const sandbox = await sdk.sandboxes.start("your-sandbox-id");
+
+// Read a file
+const file = await sandbox.files.read({ path: { path: "/package.json" } });
+console.log(file.data);
+
+// Run a command
+const exec = await sandbox.execs.create({
+  body: { command: "node", args: ["-e", 'console.log("hello")'] },
+});
+
+// Shutdown when done
+await sandbox.shutdown();
+```
+
+### E2B-style: static factory
+
+```typescript
+import { Sandbox } from "@together-sandbox/sdk";
+
+const sandbox = await Sandbox.start("your-sandbox-id", {
+  apiKey: process.env.TOGETHER_API_KEY,
+});
+```
+
+## Low-level Usage (Advanced)
+
+The generated clients are still fully exported for direct use:
 
 ```ts
 import {

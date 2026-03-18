@@ -21,6 +21,7 @@
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.84.4",
     "@types/node": "^22.15.30",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.9"
   }
 }

@@ -1,27 +1,27 @@
 """Together Sandbox Python SDK.
 
-Both clients are available from this single entry point:
+Recommended entry point::
+
+    from together_sandbox import TogetherSandbox
+
+    sdk = TogetherSandbox()  # reads TOGETHER_API_KEY from env
+    async with await sdk.sandboxes.start("sandbox-id") as sb:
+        content = await sb.files.read_file("/package.json")
+
+Low-level clients (advanced use)::
 
     from together_sandbox import ApiClient, SandboxClient
-
-- ``ApiClient``: authenticated client for the Together/CodeSandbox REST API
-  (sandbox management: create, fork, hibernate, list, etc.)
-
-- ``SandboxClient``: authenticated client for the Pint/Sandbox REST API
-  (in-sandbox operations: files, exec, tasks, etc.)
-
-Example::
-
-    from together_sandbox import ApiClient, SandboxClient
-
-    api = ApiClient(base_url="https://api.together.ai/csb/sdk",
-                    headers={"Authorization": "Bearer <token>"})
-
-    sb = SandboxClient(base_url="https://<sandbox-host>",
-                       headers={"Authorization": "Bearer <pint-token>"})
 """
 
 from .api.client import APIClient as ApiClient
+from .facade import Sandbox, TogetherSandbox
 from .sandbox.client import APIClient as SandboxClient
 
-__all__ = ["ApiClient", "SandboxClient"]
+__all__ = [
+    # High-level facade (recommended)
+    "TogetherSandbox",
+    "Sandbox",
+    # Low-level clients (advanced / direct use)
+    "ApiClient",
+    "SandboxClient",
+]
