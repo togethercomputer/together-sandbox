@@ -70,7 +70,7 @@ const exec = await sandbox.execs.create({
 await sandbox.shutdown();
 ```
 
-### E2B-style: static factory
+### Static factory
 
 ```typescript
 import { Sandbox } from "@together-sandbox/sdk";

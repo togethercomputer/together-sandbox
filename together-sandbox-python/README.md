@@ -79,7 +79,7 @@ async def main():
 asyncio.run(main())
 ```
 
-### E2B-style: classmethod factory
+### Classmethod factory
 
 ```python
 from together_sandbox import Sandbox

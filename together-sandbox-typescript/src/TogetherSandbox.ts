@@ -202,10 +202,10 @@ export class Sandbox {
     await api.vmShutdown({ client: this._apiClient, path: { id: this.id } });
   }
 
-  // ── Static factory (E2B-style convenience) ────────────────────────────────
+  // ── Static factory (convenience method) ────────────────────────────────
 
   /**
-   * Start a sandbox in a single call (E2B-style static factory).
+   * Start a sandbox in a single call (static factory).
    *
    * @example
    * ```typescript

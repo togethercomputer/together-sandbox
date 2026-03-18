@@ -161,7 +161,7 @@ class Sandbox:
     ) -> None:
         await self._sandbox_client.__aexit__(exc_type, exc_val, exc_tb)
 
-    # ── Static factory (E2B-style convenience) ────────────────────────────────
+    # ── Static factory (convenience classmethod) ────────────────────────────────
 
     @classmethod
     async def start(
@@ -173,7 +173,7 @@ class Sandbox:
         start_options: VmStartRequest2 | None = None,
     ) -> "Sandbox":
         """
-        Start a sandbox in a single call (E2B-style classmethod factory).
+        Start a sandbox in a single call (classmethod factory).
 
         Example::
 
