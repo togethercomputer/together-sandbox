@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveConnectionDetails, Sandbox } from "./TogetherSandbox.js";
+import { resolveConnectionDetails, Sandbox, TogetherSandbox, TokensNamespace } from "./TogetherSandbox.js";
 import type { VmStartResponseData } from "./api-clients/api/types.gen.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -90,20 +90,24 @@ describe("Sandbox", () => {
     expect(sandbox.vmInfo).toBe(vmInfo);
   });
 
-  it("exposes sandboxClient", () => {
+  it("does not expose sandboxClient as public property", () => {
     const mockClient = {} as any;
     const sandbox = new Sandbox(makeVmInfo(), mockClient, {} as any);
-    expect(sandbox.sandboxClient).toBe(mockClient);
+    expect((sandbox as any).sandboxClient).toBeUndefined();
   });
 
-  it("files namespace has expected methods", () => {
+  it("files namespace has expected methods including move, copy, watch", () => {
     const sandbox = new Sandbox(makeVmInfo(), {} as any, {} as any);
     const files = sandbox.files;
     expect(files).toHaveProperty("read");
     expect(files).toHaveProperty("create");
     expect(files).toHaveProperty("delete");
-    expect(files).toHaveProperty("action");
+    expect(files).toHaveProperty("move");
+    expect(files).toHaveProperty("copy");
     expect(files).toHaveProperty("stat");
+    expect(files).toHaveProperty("watch");
+    // action is removed (replaced by move/copy)
+    expect(files).not.toHaveProperty("action");
   });
 
   it("directories namespace has expected methods", () => {
@@ -114,7 +118,7 @@ describe("Sandbox", () => {
     expect(dirs).toHaveProperty("delete");
   });
 
-  it("execs namespace has expected methods", () => {
+  it("execs namespace has renamed methods (streamOutput, sendStdin, streamList)", () => {
     const sandbox = new Sandbox(makeVmInfo(), {} as any, {} as any);
     const execs = sandbox.execs;
     expect(execs).toHaveProperty("list");
@@ -122,9 +126,13 @@ describe("Sandbox", () => {
     expect(execs).toHaveProperty("get");
     expect(execs).toHaveProperty("update");
     expect(execs).toHaveProperty("delete");
-    expect(execs).toHaveProperty("output");
-    expect(execs).toHaveProperty("stdin");
-    expect(execs).toHaveProperty("stream");
+    expect(execs).toHaveProperty("streamOutput");
+    expect(execs).toHaveProperty("sendStdin");
+    expect(execs).toHaveProperty("streamList");
+    // Old names should not exist
+    expect(execs).not.toHaveProperty("output");
+    expect(execs).not.toHaveProperty("stdin");
+    expect(execs).not.toHaveProperty("stream");
   });
 
   it("tasks namespace has expected methods", () => {
@@ -136,10 +144,31 @@ describe("Sandbox", () => {
     expect(tasks).toHaveProperty("setup");
   });
 
-  it("ports namespace has expected methods", () => {
+  it("ports namespace has streamList (renamed from stream)", () => {
     const sandbox = new Sandbox(makeVmInfo(), {} as any, {} as any);
     const ports = sandbox.ports;
     expect(ports).toHaveProperty("list");
-    expect(ports).toHaveProperty("stream");
+    expect(ports).toHaveProperty("streamList");
+    expect(ports).not.toHaveProperty("stream");
+  });
+});
+
+// ─── TogetherSandbox tests ───────────────────────────────────────────────────
+
+describe("TogetherSandbox", () => {
+  it("exposes sandboxes and tokens namespaces", () => {
+    const sdk = new TogetherSandbox({ apiKey: "test-key" });
+    expect(sdk).toHaveProperty("sandboxes");
+    expect(sdk).toHaveProperty("tokens");
+  });
+
+  it("does not expose apiClient", () => {
+    const sdk = new TogetherSandbox({ apiKey: "test-key" });
+    expect((sdk as any).apiClient).toBeUndefined();
+  });
+
+  it("tokens namespace is a TokensNamespace instance", () => {
+    const sdk = new TogetherSandbox({ apiKey: "test-key" });
+    expect(sdk.tokens).toBeInstanceOf(TokensNamespace);
   });
 });
