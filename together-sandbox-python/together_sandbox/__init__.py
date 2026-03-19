@@ -14,13 +14,15 @@ Low-level clients (advanced use)::
 """
 
 from .api.client import APIClient as ApiClient
-from .facade import Sandbox, TogetherSandbox
+from .facade import Sandbox, SandboxesNamespace, TokensNamespace, TogetherSandbox
 from .sandbox.client import APIClient as SandboxClient
 
 __all__ = [
     # High-level facade (recommended)
     "TogetherSandbox",
     "Sandbox",
+    "SandboxesNamespace",
+    "TokensNamespace",
     # Low-level clients (advanced / direct use)
     "ApiClient",
     "SandboxClient",
