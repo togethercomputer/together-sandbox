@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from together_sandbox.facade import _resolve_connection, Sandbox, TogetherSandbox
+from together_sandbox.facade import _resolve_connection, Sandbox, TogetherSandbox, ExecsFacade, FilesFacade, PortsFacade
 from together_sandbox.api.models.vm_start_response_data_2 import VmStartResponseData2
 
 
@@ -121,7 +121,7 @@ class TestSandbox:
     def test_delegates_files_namespace(self):
         mock_sandbox_client = MagicMock()
         sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
-        assert sb.files is mock_sandbox_client.files
+        assert isinstance(sb.files, FilesFacade)
 
     def test_delegates_directories_namespace(self):
         mock_sandbox_client = MagicMock()
@@ -131,7 +131,7 @@ class TestSandbox:
     def test_delegates_execs_namespace(self):
         mock_sandbox_client = MagicMock()
         sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
-        assert sb.execs is mock_sandbox_client.execs
+        assert isinstance(sb.execs, ExecsFacade)
 
     def test_delegates_tasks_namespace(self):
         mock_sandbox_client = MagicMock()
@@ -141,9 +141,6 @@ class TestSandbox:
     def test_delegates_ports_namespace(self):
         mock_sandbox_client = MagicMock()
         sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
-        assert sb.ports is mock_sandbox_client.ports
+        assert isinstance(sb.ports, PortsFacade)
 
-    def test_delegates_streams_namespace(self):
-        mock_sandbox_client = MagicMock()
-        sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
-        assert sb.streams is mock_sandbox_client.streams
+
