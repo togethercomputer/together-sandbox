@@ -40,6 +40,7 @@ __all__ = [
     # Generated exception aliases
     "BadRequestError",
     "ConflictError",
+    "Error101",
     "InternalServerError",
     "NotFoundError",
     "UnauthorisedError",
