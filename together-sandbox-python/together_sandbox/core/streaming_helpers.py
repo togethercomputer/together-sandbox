@@ -1,5 +1,5 @@
 import json
-from typing import Any, AsyncIterator, List
+from typing import Any, AsyncGenerator, AsyncIterator, List
 
 import httpx
 
@@ -82,3 +82,29 @@ async def iter_sse_events_text(response: httpx.Response) -> AsyncIterator[str]:
     async for sse_event in iter_sse(response):
         if sse_event.data:  # Ensure data is not empty
             yield sse_event.data
+
+
+async def stream_sse_json(
+    client: httpx.AsyncClient,
+    url: str,
+    **kwargs: Any,
+) -> AsyncGenerator[dict[str, Any], None]:
+    """
+    Open a streaming GET via httpx.AsyncClient.stream() and yield each SSE
+    event's ``data`` field as a parsed JSON dict.
+
+    Uses ``.stream()`` (not ``.request()``) to avoid buffering the entire response,
+    which would hang indefinitely on long-lived SSE connections.
+
+    Args:
+        client: An httpx.AsyncClient (obtained via AuthenticatedClient.get_async_httpx_client()).
+        url: The endpoint URL path (relative to the client's base_url).
+        **kwargs: Additional kwargs forwarded to httpx.AsyncClient.stream() — e.g.,
+                  params={"lastSequence": 5}, headers={...}.
+
+    Yields:
+        Parsed JSON dicts from each SSE ``data:`` field (empty data fields are skipped).
+    """
+    async with client.stream("GET", url, **kwargs) as response:
+        async for text in iter_sse_events_text(response):
+            yield json.loads(text)

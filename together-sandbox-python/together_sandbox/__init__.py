@@ -13,9 +13,9 @@ Low-level clients (advanced use)::
     from together_sandbox import ApiClient, SandboxClient
 """
 
-from .api.client import APIClient as ApiClient
+from .api.client import AuthenticatedClient as ApiClient
 from .facade import Sandbox, SandboxesNamespace, TokensNamespace, TogetherSandbox
-from .sandbox.client import APIClient as SandboxClient
+from .sandbox.client import AuthenticatedClient as SandboxClient
 
 __all__ = [
     # High-level facade (recommended)
