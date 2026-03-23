@@ -7,19 +7,29 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from together_sandbox.facade import _resolve_connection, Sandbox, TogetherSandbox, ExecsFacade, FilesFacade, PortsFacade
-from together_sandbox.api.models.vm_start_response_data_2 import VmStartResponseData2
+from together_sandbox.facade import (
+    _resolve_connection,
+    DirectoriesFacade,
+    ExecsFacade,
+    FilesFacade,
+    PortsFacade,
+    Sandbox,
+    TasksFacade,
+    TogetherSandbox,
+)
+from together_sandbox.api.models.vm_start_response_data import VMStartResponseData
+from together_sandbox.api.types import UNSET
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _make_vm_info(**overrides) -> VmStartResponseData2:
-    """Build a VmStartResponseData2 with sensible defaults."""
+def _make_vm_info(**overrides) -> VMStartResponseData:
+    """Build a VMStartResponseData with sensible defaults."""
     defaults = dict(
         bootup_type="cold",
         cluster="us-east-1",
-        id_="test-sandbox-123",
+        id="test-sandbox-123",
         latest_pitcher_version="1.0.0",
         pitcher_manager_version="1.0.0",
         pitcher_token="pitcher-tok",
@@ -30,11 +40,11 @@ def _make_vm_info(**overrides) -> VmStartResponseData2:
         user_workspace_path="/home/user/workspace",
         vm_agent_type="pint",
         workspace_path="/workspace",
-        pint_token=None,
-        pint_url=None,
+        pint_token=UNSET,
+        pint_url=UNSET,
     )
     defaults.update(overrides)
-    return VmStartResponseData2(**defaults)
+    return VMStartResponseData(**defaults)
 
 
 # ─── _resolve_connection tests ────────────────────────────────────────────────
@@ -61,21 +71,21 @@ class TestResolveConnection:
         assert url == "https://pitcher.example.com"
         assert token == "pitcher-tok"
 
-    def test_falls_back_to_pitcher_when_pint_url_none(self):
+    def test_falls_back_to_pitcher_when_pint_url_unset(self):
         vm_info = _make_vm_info(
             use_pint=True,
-            pint_url=None,
-            pint_token=None,
+            pint_url=UNSET,
+            pint_token=UNSET,
         )
         url, token = _resolve_connection(vm_info)
         assert url == "https://pitcher.example.com"
         assert token == "pitcher-tok"
 
-    def test_falls_back_to_pitcher_when_pint_token_none(self):
+    def test_falls_back_to_pitcher_when_pint_token_unset(self):
         vm_info = _make_vm_info(
             use_pint=True,
             pint_url="https://pint.example.com",
-            pint_token=None,
+            pint_token=UNSET,
         )
         url, token = _resolve_connection(vm_info)
         assert url == "https://pitcher.example.com"
@@ -107,7 +117,7 @@ class TestTogetherSandbox:
 
 class TestSandbox:
     def test_id_property(self):
-        vm_info = _make_vm_info(id_="test-id-456")
+        vm_info = _make_vm_info(id="test-id-456")
         mock_sandbox_client = MagicMock()
         mock_api_client = MagicMock()
         sb = Sandbox(vm_info, mock_sandbox_client, mock_api_client)
@@ -126,7 +136,7 @@ class TestSandbox:
     def test_delegates_directories_namespace(self):
         mock_sandbox_client = MagicMock()
         sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
-        assert sb.directories is mock_sandbox_client.directories
+        assert isinstance(sb.directories, DirectoriesFacade)
 
     def test_delegates_execs_namespace(self):
         mock_sandbox_client = MagicMock()
@@ -136,11 +146,9 @@ class TestSandbox:
     def test_delegates_tasks_namespace(self):
         mock_sandbox_client = MagicMock()
         sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
-        assert sb.tasks is mock_sandbox_client.tasks
+        assert isinstance(sb.tasks, TasksFacade)
 
     def test_delegates_ports_namespace(self):
         mock_sandbox_client = MagicMock()
         sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
         assert isinstance(sb.ports, PortsFacade)
-
-
