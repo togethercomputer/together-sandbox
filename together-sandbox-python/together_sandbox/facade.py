@@ -85,7 +85,7 @@ from .sandbox.models.exec_stdin import ExecStdin
 from .sandbox.models.task_action_type import TaskActionType
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
-from .core.streaming_helpers import stream_sse_json
+from ._streaming import stream_sse_json
 
 
 # ─── Internal helpers ─────────────────────────────────────────────────────────
