@@ -1,89 +1,70 @@
-from dataclasses import dataclass, field
-from typing import Any, Dict
+from __future__ import annotations
 
-__all__ = ["SandboxCreateRequestFiles"]
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar
 
-@dataclass
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+
+if TYPE_CHECKING:
+    from ..models.sandbox_create_request_files_additional_property import (
+        SandboxCreateRequestFilesAdditionalProperty,
+    )
+
+
+T = TypeVar("T", bound="SandboxCreateRequestFiles")
+
+
+@_attrs_define
 class SandboxCreateRequestFiles:
-    """
-    Map of `path => file` where each file is a map.
+    """Map of `path => file` where each file is a map."""
 
-    This class wraps arbitrary JSON objects with no defined schema,
-    preserving all data during serialization/deserialization.
+    additional_properties: dict[str, SandboxCreateRequestFilesAdditionalProperty] = (
+        _attrs_field(init=False, factory=dict)
+    )
 
-    Example:
-        from together_sandbox.core.cattrs_converter import structure_from_dict, unstructure_to_dict
+    def to_dict(self) -> dict[str, Any]:
 
-        # Deserialize from API response
-        obj = structure_from_dict({"key": "value"}, SandboxCreateRequestFiles)
+        field_dict: dict[str, Any] = {}
+        for prop_name, prop in self.additional_properties.items():
+            field_dict[prop_name] = prop.to_dict()
 
-        # Access data
-        print(obj["key"])  # "value"
-        obj["new_key"] = "new_value"
+        return field_dict
 
-        # Serialize for API request
-        data = unstructure_to_dict(obj)  # {"key": "value", "new_key": "new_value"}
-    """
+    @classmethod
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.sandbox_create_request_files_additional_property import (
+            SandboxCreateRequestFilesAdditionalProperty,
+        )
 
-    _data: dict[str, Any] = field(default_factory=dict, repr=False)
+        d = dict(src_dict)
+        sandbox_create_request_files = cls()
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Get value for key, returning default if key not present."""
-        return self._data.get(key, default)
+        additional_properties = {}
+        for prop_name, prop_dict in d.items():
+            additional_property = SandboxCreateRequestFilesAdditionalProperty.from_dict(
+                prop_dict
+            )
 
-    def __getitem__(self, key: str) -> Any:
-        """Get value for key."""
-        return self._data[key]
+            additional_properties[prop_name] = additional_property
 
-    def __setitem__(self, key: str, value: Any) -> None:
-        """Set value for key."""
-        self._data[key] = value
+        sandbox_create_request_files.additional_properties = additional_properties
+        return sandbox_create_request_files
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> SandboxCreateRequestFilesAdditionalProperty:
+        return self.additional_properties[key]
+
+    def __setitem__(
+        self, key: str, value: SandboxCreateRequestFilesAdditionalProperty
+    ) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
 
     def __contains__(self, key: str) -> bool:
-        """Check if key exists."""
-        return key in self._data
-
-    def __bool__(self) -> bool:
-        """Return True if wrapper contains any data."""
-        return bool(self._data)
-
-    def keys(self) -> Any:
-        """Return dictionary keys."""
-        return self._data.keys()
-
-    def values(self) -> Any:
-        """Return dictionary values."""
-        return self._data.values()
-
-    def items(self) -> Any:
-        """Return dictionary items."""
-        return self._data.items()
-
-    def __iter__(self) -> Any:
-        """Iterate over keys."""
-        return iter(self._data)
-
-    def __len__(self) -> int:
-        """Return number of items."""
-        return len(self._data)
-
-
-# Register cattrs hooks for SandboxCreateRequestFiles
-def _structure_sandboxcreaterequestfiles(data: dict[str, Any], _: type[SandboxCreateRequestFiles]) -> SandboxCreateRequestFiles:
-    """Structure hook for cattrs to handle SandboxCreateRequestFiles deserialization."""
-    if data is None:
-        return SandboxCreateRequestFiles()
-    if isinstance(data, SandboxCreateRequestFiles):
-        return data
-    return SandboxCreateRequestFiles(_data=data)
-
-
-def _unstructure_sandboxcreaterequestfiles(instance: SandboxCreateRequestFiles) -> dict[str, Any]:
-    """Unstructure hook for cattrs to handle SandboxCreateRequestFiles serialization."""
-    return instance._data.copy()
-
-
-# Register hooks with cattrs converter at module import time
-from together_sandbox.core.cattrs_converter import converter
-converter.register_structure_hook(SandboxCreateRequestFiles, _structure_sandboxcreaterequestfiles)
-converter.register_unstructure_hook(SandboxCreateRequestFiles, _unstructure_sandboxcreaterequestfiles)
+        return key in self.additional_properties

@@ -1,26 +1,69 @@
-from dataclasses import dataclass
+from __future__ import annotations
 
-__all__ = ["TemplateCreateResponseDataSandboxesItem"]
+from collections.abc import Mapping
+from typing import Any, TypeVar
 
-@dataclass
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+
+T = TypeVar("T", bound="TemplateCreateResponseDataSandboxesItem")
+
+
+@_attrs_define
 class TemplateCreateResponseDataSandboxesItem:
     """
-    TemplateCreateResponseDataSandboxesItem dataclass
-    
-    Args:
-        cluster (str)            : 
-        id_ (str)                : Maps from 'id'
+    Attributes:
+        cluster (str):
+        id (str):
     """
+
     cluster: str
-    id_: str  # Maps from 'id'
-    
-    class Meta:
-        """Configure field name mapping for JSON conversion."""
-        key_transform_with_load = {
-            "cluster": "cluster",
-            "id": "id_",
-        }
-        key_transform_with_dump = {
-            "cluster": "cluster",
-            "id_": "id",
-        }
+    id: str
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        cluster = self.cluster
+
+        id = self.id
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update(
+            {
+                "cluster": cluster,
+                "id": id,
+            }
+        )
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        d = dict(src_dict)
+        cluster = d.pop("cluster")
+
+        id = d.pop("id")
+
+        template_create_response_data_sandboxes_item = cls(
+            cluster=cluster,
+            id=id,
+        )
+
+        template_create_response_data_sandboxes_item.additional_properties = d
+        return template_create_response_data_sandboxes_item
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

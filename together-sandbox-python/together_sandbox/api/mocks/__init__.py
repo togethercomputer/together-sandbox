@@ -15,12 +15,12 @@ Example:
     client = MockAPIClient(pets=TestPetsClient())
 """
 
-from .mock_client import MockAPIClient
 from .endpoints.mock_default import MockDefaultClient
 from .endpoints.mock_meta import MockMetaClient
 from .endpoints.mock_sandbox import MockSandboxClient
 from .endpoints.mock_templates import MockTemplatesClient
 from .endpoints.mock_vm import MockVmClient
+from .mock_client import MockAPIClient
 
 __all__ = [
     "MockAPIClient",

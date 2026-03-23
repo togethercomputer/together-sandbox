@@ -1,33 +1,81 @@
-from dataclasses import dataclass
+from __future__ import annotations
 
-from .file_action_request_action import FileActionRequestAction
+from collections.abc import Mapping
+from typing import Any, TypeVar
 
-__all__ = ["FileActionRequest"]
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
 
-@dataclass
+from ..models.file_action_request_action import FileActionRequestAction
+from ..types import UNSET, Unset
+
+T = TypeVar("T", bound="FileActionRequest")
+
+
+@_attrs_define
 class FileActionRequest:
     """
-    FileActionRequest dataclass
-    
-    Args:
-        action (FileActionRequestAction)
-                                 : Type of action to perform on the file
-        destination (str)        : Destination path for move operation
-        recursive (bool | None)  : Whether to perform the action recursively for directories
+    Attributes:
+        action (FileActionRequestAction): Type of action to perform on the file
+        destination (str): Destination path for move operation
+        recursive (bool | Unset): Whether to perform the action recursively for directories
     """
-    action: FileActionRequestAction  # Type of action to perform on the file
-    destination: str  # Destination path for move operation
-    recursive: bool | None = None  # Whether to perform the action recursively for directories
-    
-    class Meta:
-        """Configure field name mapping for JSON conversion."""
-        key_transform_with_load = {
-            "action": "action",
-            "destination": "destination",
-            "recursive": "recursive",
-        }
-        key_transform_with_dump = {
-            "action": "action",
-            "destination": "destination",
-            "recursive": "recursive",
-        }
+
+    action: FileActionRequestAction
+    destination: str
+    recursive: bool | Unset = UNSET
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        action = self.action.value
+
+        destination = self.destination
+
+        recursive = self.recursive
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update(
+            {
+                "action": action,
+                "destination": destination,
+            }
+        )
+        if recursive is not UNSET:
+            field_dict["recursive"] = recursive
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        d = dict(src_dict)
+        action = FileActionRequestAction(d.pop("action"))
+
+        destination = d.pop("destination")
+
+        recursive = d.pop("recursive", UNSET)
+
+        file_action_request = cls(
+            action=action,
+            destination=destination,
+            recursive=recursive,
+        )
+
+        file_action_request.additional_properties = d
+        return file_action_request
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties
