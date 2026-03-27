@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "httpx>=0.20.0",
-    "attrs>=21.3.0",
+    "cattrs>=23.0.0",
 ]
 
 [project.optional-dependencies]
