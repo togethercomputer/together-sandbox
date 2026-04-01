@@ -1,9 +1,0 @@
-from typing import List, TypeAlias
-
-from .vm_list_clusters_response_data_clusters_item import VmListClustersResponseDataClustersItem
-
-from .vm_list_clusters_response_data_clusters_item import VmListClustersResponseDataClustersItem
-
-__all__ = ['VmListClustersResponseDataClusters']
-
-VmListClustersResponseDataClusters: TypeAlias = List[VmListClustersResponseDataClustersItem]

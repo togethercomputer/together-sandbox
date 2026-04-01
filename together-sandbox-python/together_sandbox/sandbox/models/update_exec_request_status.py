@@ -1,13 +1,8 @@
-from enum import Enum, unique
+from enum import Enum
 
-__all__ = ["UpdateExecRequestStatus"]
 
-@unique
 class UpdateExecRequestStatus(str, Enum):
-    """
-    Status to set for the exec (currently only 'running' is supported)
-    
-    Args:
-        running (str)            : Value for RUNNING
-    """
     RUNNING = "running"
+
+    def __str__(self) -> str:
+        return str(self.value)

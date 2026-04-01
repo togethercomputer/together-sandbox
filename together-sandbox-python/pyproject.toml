@@ -7,15 +7,21 @@ name = "together-sandbox"
 version = "1.0.0"
 description = "Together Sandbox Python SDK"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "httpx>=0.20.0",
     "cattrs>=23.0.0",
+    "attrs>=23.0.0",
+    "python-dateutil>=2.8.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pyopenapi-gen>=5.1.2",
+    "openapi-python-client>=0.28.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
 ]
 
 [tool.hatch.build.targets.wheel]

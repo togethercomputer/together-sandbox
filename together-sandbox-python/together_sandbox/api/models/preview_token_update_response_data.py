@@ -1,28 +1,75 @@
-from dataclasses import dataclass
+from __future__ import annotations
 
-from .preview_token import PreviewToken
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar
 
-__all__ = ["PreviewTokenUpdateResponseData"]
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
 
-@dataclass
+if TYPE_CHECKING:
+    from ..models.preview_token import PreviewToken
+
+
+T = TypeVar("T", bound="PreviewTokenUpdateResponseData")
+
+
+@_attrs_define
 class PreviewTokenUpdateResponseData:
     """
-    PreviewTokenUpdateResponseData dataclass
-    
-    Args:
-        sandbox_id (str)         : 
-        token (PreviewToken)     : 
+    Attributes:
+        sandbox_id (str):
+        token (PreviewToken):
     """
+
     sandbox_id: str
     token: PreviewToken
-    
-    class Meta:
-        """Configure field name mapping for JSON conversion."""
-        key_transform_with_load = {
-            "sandbox_id": "sandbox_id",
-            "token": "token",
-        }
-        key_transform_with_dump = {
-            "sandbox_id": "sandbox_id",
-            "token": "token",
-        }
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        sandbox_id = self.sandbox_id
+
+        token = self.token.to_dict()
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update(
+            {
+                "sandbox_id": sandbox_id,
+                "token": token,
+            }
+        )
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.preview_token import PreviewToken
+
+        d = dict(src_dict)
+        sandbox_id = d.pop("sandbox_id")
+
+        token = PreviewToken.from_dict(d.pop("token"))
+
+        preview_token_update_response_data = cls(
+            sandbox_id=sandbox_id,
+            token=token,
+        )
+
+        preview_token_update_response_data.additional_properties = d
+        return preview_token_update_response_data
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

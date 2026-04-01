@@ -25,19 +25,55 @@ import os
 from types import TracebackType
 from typing import Any, AsyncIterator, List, Optional
 
-from .api.client import APIClient as ApiClient
-from .api.endpoints.sandbox import SandboxClient as SandboxEndpointClient
+# ── Management API client ─────────────────────────────────────────────────────
+from .api.client import AuthenticatedClient as ApiClient
+
+# ── Management API endpoint functions ─────────────────────────────────────────
+from .api.api.vm.vmstart import asyncio as vm_start_api
+from .api.api.vm.vmhibernate import asyncio as vm_hibernate_api
+from .api.api.vm.vmshutdown import asyncio as vm_shutdown_api
+from .api.api.sandbox.sandboxfork import asyncio as sandbox_fork_api
+from .api.api.default.preview_tokenlist import asyncio as preview_token_list_api
+from .api.api.default.preview_tokencreate import asyncio as preview_token_create_api
+from .api.api.default.preview_tokenupdate import asyncio as preview_token_update_api
+from .api.api.default.preview_tokenrevoke_all import asyncio as preview_token_revoke_all_api
+
+# ── Management API models ─────────────────────────────────────────────────────
 from .api.models.preview_token_create_request import PreviewTokenCreateRequest
 from .api.models.preview_token_create_response import PreviewTokenCreateResponse
 from .api.models.preview_token_list_response import PreviewTokenListResponse
 from .api.models.preview_token_revoke_all_response import PreviewTokenRevokeAllResponse
 from .api.models.preview_token_update_request import PreviewTokenUpdateRequest
 from .api.models.preview_token_update_response import PreviewTokenUpdateResponse
-from .api.models.vm_start_request_2 import VmStartRequest2
-from .api.models.vm_start_response_data_2 import VmStartResponseData2
-from .core.config import ClientConfig
-from .core.http_transport import HttpxTransport
-from .sandbox.client import APIClient as SandboxClient
+from .api.models.vm_start_request import VMStartRequest
+from .api.models.vm_start_response_data import VMStartResponseData
+from .api.types import UNSET
+
+# ── Sandbox API client ────────────────────────────────────────────────────────
+from .sandbox.client import AuthenticatedClient as SandboxClient
+
+# ── Sandbox API endpoint functions (non-SSE) ─────────────────────────────────
+from .sandbox.api.files.read_file import asyncio as read_file_api
+from .sandbox.api.files.create_file import asyncio as create_file_api
+from .sandbox.api.files.delete_file import asyncio as delete_file_api
+from .sandbox.api.files.get_file_stat import asyncio as get_file_stat_api
+from .sandbox.api.files.perform_file_action import asyncio as perform_file_action_api
+from .sandbox.api.execs.list_execs import asyncio as list_execs_api
+from .sandbox.api.execs.create_exec import asyncio as create_exec_api
+from .sandbox.api.execs.get_exec import asyncio as get_exec_api
+from .sandbox.api.execs.update_exec import asyncio as update_exec_api
+from .sandbox.api.execs.delete_exec import asyncio as delete_exec_api
+from .sandbox.api.execs.exec_exec_stdin import asyncio as exec_exec_stdin_api
+from .sandbox.api.ports.list_ports import asyncio as list_ports_api
+from .sandbox.api.directories.list_directory import asyncio as list_directory_api
+from .sandbox.api.directories.create_directory import asyncio as create_directory_api
+from .sandbox.api.directories.delete_directory import asyncio as delete_directory_api
+from .sandbox.api.tasks.list_tasks import asyncio as list_tasks_api
+from .sandbox.api.tasks.list_setup_tasks import asyncio as list_setup_tasks_api
+from .sandbox.api.tasks.get_task import asyncio as get_task_api
+from .sandbox.api.tasks.execute_task_action import asyncio as execute_task_action_api
+
+# ── Sandbox API models ────────────────────────────────────────────────────────
 from .sandbox.models.file_action_request import FileActionRequest
 from .sandbox.models.file_action_request_action import FileActionRequestAction
 from .sandbox.models.file_action_response import FileActionResponse
@@ -46,17 +82,21 @@ from .sandbox.models.file_info import FileInfo
 from .sandbox.models.file_operation_response import FileOperationResponse
 from .sandbox.models.file_read_response import FileReadResponse
 from .sandbox.models.exec_stdin import ExecStdin
+from .sandbox.models.task_action_type import TaskActionType
+
+# ── SSE streaming helper ─────────────────────────────────────────────────────
+from ._streaming import stream_sse_json
 
 
 # ─── Internal helpers ─────────────────────────────────────────────────────────
 
 
-def _resolve_connection(vm_info: VmStartResponseData2) -> tuple[str, str]:
+def _resolve_connection(vm_info: VMStartResponseData) -> tuple[str, str]:
     """
     Select the appropriate (url, token) pair from the vmStart response.
     Prefers Pint when available, falls back to Pitcher (legacy agent).
     """
-    if vm_info.use_pint and vm_info.pint_url and vm_info.pint_token:
+    if vm_info.use_pint and vm_info.pint_url is not UNSET and vm_info.pint_token is not UNSET:
         return vm_info.pint_url, vm_info.pint_token
     return vm_info.pitcher_url, vm_info.pitcher_token
 
@@ -77,23 +117,24 @@ class FilesFacade:
 
     async def read_file(self, path: str) -> FileReadResponse:
         """Read file content at the specified path."""
-        return await self._client.files.read_file(path)
+        return await read_file_api(path, client=self._client)
 
     async def create_file(
         self, path: str, body: FileCreateRequest | None = None
     ) -> FileReadResponse:
         """Create a file at the specified path with optional content."""
-        return await self._client.files.create_file(path, body=body)
+        return await create_file_api(path, client=self._client, body=body)
 
     async def delete_file(self, path: str) -> FileOperationResponse:
         """Delete a file at the specified path."""
-        return await self._client.files.delete_file(path)
+        return await delete_file_api(path, client=self._client)
 
     async def move_file(self, from_path: str, to_path: str) -> FileActionResponse:
         """Move a file from one path to another."""
-        return await self._client.files.perform_file_action(
+        return await perform_file_action_api(
             from_path,
-            FileActionRequest(
+            client=self._client,
+            body=FileActionRequest(
                 action=FileActionRequestAction.MOVE,
                 destination=to_path,
             ),
@@ -101,9 +142,10 @@ class FilesFacade:
 
     async def copy_file(self, from_path: str, to_path: str) -> FileActionResponse:
         """Copy a file from one path to another."""
-        return await self._client.files.perform_file_action(
+        return await perform_file_action_api(
             from_path,
-            FileActionRequest(
+            client=self._client,
+            body=FileActionRequest(
                 action=FileActionRequestAction.COPY,
                 destination=to_path,
             ),
@@ -111,7 +153,7 @@ class FilesFacade:
 
     async def get_file_stat(self, path: str) -> FileInfo:
         """Get file metadata at the specified path."""
-        return await self._client.files.get_file_stat(path)
+        return await get_file_stat_api(path, client=self._client)
 
     def watch(
         self,
@@ -124,8 +166,15 @@ class FilesFacade:
 
         Renamed from ``create_watcher`` for consistency.
         """
-        return self._client.files.create_watcher(
-            path, recursive=recursive, ignore_patterns=ignore_patterns
+        params: dict[str, Any] = {}
+        if recursive is not None:
+            params["recursive"] = recursive
+        if ignore_patterns is not None:
+            params["ignorePatterns"] = ignore_patterns
+        return stream_sse_json(
+            self._client.get_async_httpx_client(),
+            f"/api/v1/stream/directories/watcher/{path}",
+            params=params,
         )
 
 
@@ -147,37 +196,47 @@ class ExecsFacade:
 
     async def list_execs(self):
         """List all active execs."""
-        return await self._client.execs.list_execs()
+        return await list_execs_api(client=self._client)
 
     async def create_exec(self, body):
         """Create a new exec."""
-        return await self._client.execs.create_exec(body)
+        return await create_exec_api(client=self._client, body=body)
 
     async def get_exec(self, id_: str):
         """Get exec by ID."""
-        return await self._client.execs.get_exec(id_)
+        return await get_exec_api(id_, client=self._client)
 
     async def update_exec(self, id_: str, body):
         """Update exec status."""
-        return await self._client.execs.update_exec(id_, body)
+        return await update_exec_api(id_, client=self._client, body=body)
 
     async def delete_exec(self, id_: str):
         """Delete an exec."""
-        return await self._client.execs.delete_exec(id_)
+        return await delete_exec_api(id_, client=self._client)
 
     def stream_output(
         self, id_: str, last_sequence: int | None = None
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream exec output via SSE (renamed from get_exec_output)."""
-        return self._client.execs.get_exec_output(id_, last_sequence=last_sequence)
+        params: dict[str, Any] = {}
+        if last_sequence is not None:
+            params["lastSequence"] = last_sequence
+        return stream_sse_json(
+            self._client.get_async_httpx_client(),
+            f"/api/v1/execs/{id_}/io",
+            params=params,
+        )
 
     async def send_stdin(self, id_: str, body: ExecStdin):
         """Send stdin to an exec (renamed from exec_exec_stdin)."""
-        return await self._client.execs.exec_exec_stdin(id_, body)
+        return await exec_exec_stdin_api(id_, client=self._client, body=body)
 
     def stream_list(self) -> AsyncIterator[dict[str, Any]]:
         """Stream list of all active execs via SSE (renamed from stream_execs_list)."""
-        return self._client.execs.stream_execs_list()
+        return stream_sse_json(
+            self._client.get_async_httpx_client(),
+            "/api/v1/stream/execs",
+        )
 
 
 # ─── Ports facade ─────────────────────────────────────────────────────────────
@@ -195,11 +254,62 @@ class PortsFacade:
 
     async def list_ports(self):
         """List open ports."""
-        return await self._client.ports.list_ports()
+        return await list_ports_api(client=self._client)
 
     def stream_list(self) -> AsyncIterator[dict[str, Any]]:
         """Stream port changes via SSE (renamed from stream_ports_list)."""
-        return self._client.ports.stream_ports_list()
+        return stream_sse_json(
+            self._client.get_async_httpx_client(),
+            "/api/v1/stream/ports",
+        )
+
+
+# ─── Directories facade ──────────────────────────────────────────────────────
+
+
+class DirectoriesFacade:
+    """Directory operations (list, create, delete)."""
+
+    def __init__(self, sandbox_client: SandboxClient) -> None:
+        self._client = sandbox_client
+
+    async def list_directory(self, path: str):
+        """List directory contents."""
+        return await list_directory_api(path, client=self._client)
+
+    async def create_directory(self, path: str):
+        """Create a directory."""
+        return await create_directory_api(path, client=self._client)
+
+    async def delete_directory(self, path: str):
+        """Delete a directory."""
+        return await delete_directory_api(path, client=self._client)
+
+
+# ─── Tasks facade ─────────────────────────────────────────────────────────────
+
+
+class TasksFacade:
+    """Task operations (list, list_setup, get, action)."""
+
+    def __init__(self, sandbox_client: SandboxClient) -> None:
+        self._client = sandbox_client
+
+    async def list_tasks(self):
+        """List all tasks."""
+        return await list_tasks_api(client=self._client)
+
+    async def list_setup_tasks(self):
+        """List setup tasks."""
+        return await list_setup_tasks_api(client=self._client)
+
+    async def get_task(self, id_: str):
+        """Get task by ID."""
+        return await get_task_api(id_, client=self._client)
+
+    async def execute_task_action(self, id_: str, action_type: TaskActionType):
+        """Execute an action on a task."""
+        return await execute_task_action_api(id_, client=self._client, action_type=action_type)
 
 
 # ─── Sandbox (connected sandbox) ─────────────────────────────────────────────
@@ -236,7 +346,7 @@ class Sandbox:
 
     def __init__(
         self,
-        vm_info: VmStartResponseData2,
+        vm_info: VMStartResponseData,
         sandbox_client: SandboxClient,
         api_client: ApiClient,
     ) -> None:
@@ -249,10 +359,10 @@ class Sandbox:
     @property
     def id(self) -> str:
         """The VM/sandbox ID."""
-        return self._vm_info.id_
+        return self._vm_info.id
 
     @property
-    def vm_info(self) -> VmStartResponseData2:
+    def vm_info(self) -> VMStartResponseData:
         """Raw VM start response (id, cluster, workspace_path, etc.)."""
         return self._vm_info
 
@@ -264,9 +374,9 @@ class Sandbox:
         return FilesFacade(self._sandbox_client)
 
     @property
-    def directories(self):
+    def directories(self) -> DirectoriesFacade:
         """Directory operations (list, create, delete)."""
-        return self._sandbox_client.directories
+        return DirectoriesFacade(self._sandbox_client)
 
     @property
     def execs(self) -> ExecsFacade:
@@ -274,9 +384,9 @@ class Sandbox:
         return ExecsFacade(self._sandbox_client)
 
     @property
-    def tasks(self):
-        """Task operations (list, get, action)."""
-        return self._sandbox_client.tasks
+    def tasks(self) -> TasksFacade:
+        """Task operations (list, list_setup, get, action)."""
+        return TasksFacade(self._sandbox_client)
 
     @property
     def ports(self) -> PortsFacade:
@@ -289,15 +399,15 @@ class Sandbox:
 
     async def hibernate(self) -> None:
         """Suspend (hibernate) this VM."""
-        await self._api_client.vm.vm_hibernate(self.id)
+        await vm_hibernate_api(self.id, client=self._api_client)
 
     async def shutdown(self) -> None:
         """Shut down this VM."""
-        await self._api_client.vm.vm_shutdown(self.id)
+        await vm_shutdown_api(self.id, client=self._api_client)
 
     async def close(self) -> None:
         """Close the underlying sandbox client connection."""
-        await self._sandbox_client.close()
+        await self._sandbox_client.get_async_httpx_client().aclose()
 
     # ── Async context manager ─────────────────────────────────────────────────
 
@@ -322,7 +432,7 @@ class Sandbox:
         *,
         api_key: str | None = None,
         base_url: str = "https://api.codesandbox.io",
-        start_options: VmStartRequest2 | None = None,
+        start_options: VMStartRequest | None = None,
     ) -> "Sandbox":
         """
         Start a sandbox in a single call (classmethod factory).
@@ -386,7 +496,7 @@ class SandboxesNamespace:
         self,
         sandbox_id: str,
         *,
-        start_options: VmStartRequest2 | None = None,
+        start_options: VMStartRequest | None = None,
     ) -> Sandbox:
         """
         Start the VM for the given sandbox and return a :class:`Sandbox`
@@ -397,15 +507,15 @@ class SandboxesNamespace:
 
         Args:
             sandbox_id: The sandbox (VM) ID to start.
-            start_options: Optional :class:`VmStartRequest2` for tier/wakeup config.
+            start_options: Optional :class:`VMStartRequest` for tier/wakeup config.
 
         Returns:
             A ready-to-use :class:`Sandbox` with all sub-namespaces.
         """
-        response = await self._api_client.vm.vm_start(sandbox_id, body=start_options)
-        vm_info = response.data_
+        response = await vm_start_api(sandbox_id, client=self._api_client, body=start_options)
+        vm_info = response.data
 
-        if vm_info is None:
+        if vm_info is None or isinstance(vm_info, type(UNSET)):
             raise RuntimeError(
                 f"vmStart for sandbox '{sandbox_id}' returned no data. "
                 "Check that the sandbox ID is valid and your API key has the required scopes."
@@ -414,8 +524,10 @@ class SandboxesNamespace:
         url, token = _resolve_connection(vm_info)
 
         sandbox_client = SandboxClient(
-            ClientConfig(base_url=url),
-            transport=HttpxTransport(url, bearer_token=token),
+            base_url=url,
+            token=token,
+            prefix="Bearer",
+            raise_on_unexpected_status=True,
         )
 
         return Sandbox(vm_info, sandbox_client, self._api_client)
@@ -436,19 +548,17 @@ class SandboxesNamespace:
         Returns:
             A :class:`Sandbox` for the newly forked + started sandbox.
         """
-        fork_response = await self._api_client.sandbox.sandbox_fork(
-            sandbox_id, body=fork_options
-        )
-        new_id = fork_response.data_.id_
+        fork_response = await sandbox_fork_api(sandbox_id, client=self._api_client, body=fork_options)
+        new_id = fork_response.data.id
         return await self.start(new_id)
 
     async def hibernate(self, sandbox_id: str) -> None:
         """Hibernate (suspend) a VM by sandbox ID."""
-        await self._api_client.vm.vm_hibernate(sandbox_id)
+        await vm_hibernate_api(sandbox_id, client=self._api_client)
 
     async def shutdown(self, sandbox_id: str) -> None:
         """Shut down a VM by sandbox ID."""
-        await self._api_client.vm.vm_shutdown(sandbox_id)
+        await vm_shutdown_api(sandbox_id, client=self._api_client)
 
 
 # ─── TokensNamespace ──────────────────────────────────────────────────────────
@@ -466,13 +576,13 @@ class TokensNamespace:
 
     async def list(self, sandbox_id: str) -> PreviewTokenListResponse:
         """List all preview tokens for a sandbox."""
-        return await self._api_client.default.preview_token_list(sandbox_id)
+        return await preview_token_list_api(sandbox_id, client=self._api_client)
 
     async def create(
         self, sandbox_id: str, body: PreviewTokenCreateRequest | None = None
     ) -> PreviewTokenCreateResponse:
         """Create a new preview token for a sandbox."""
-        return await self._api_client.default.preview_token_create(sandbox_id, body=body)
+        return await preview_token_create_api(sandbox_id, client=self._api_client, body=body)
 
     async def update(
         self,
@@ -481,13 +591,13 @@ class TokensNamespace:
         body: PreviewTokenUpdateRequest | None = None,
     ) -> PreviewTokenUpdateResponse:
         """Update an existing preview token."""
-        return await self._api_client.default.preview_token_update(
-            sandbox_id, token_id, body=body
+        return await preview_token_update_api(
+            sandbox_id, token_id, client=self._api_client, body=body
         )
 
     async def revoke_all(self, sandbox_id: str) -> PreviewTokenRevokeAllResponse:
         """Revoke all preview tokens for a sandbox."""
-        return await self._api_client.default.preview_token_revoke_all(sandbox_id)
+        return await preview_token_revoke_all_api(sandbox_id, client=self._api_client)
 
 
 # ─── TogetherSandbox (main facade) ───────────────────────────────────────────
@@ -522,8 +632,10 @@ class TogetherSandbox:
                 "api_key must be provided or TOGETHER_API_KEY env var must be set"
             )
         self._api_client = ApiClient(
-            ClientConfig(base_url=base_url),
-            transport=HttpxTransport(base_url, bearer_token=resolved_key),
+            base_url=base_url,
+            token=resolved_key,
+            prefix="Bearer",
+            raise_on_unexpected_status=True,
         )
         self.sandboxes = SandboxesNamespace(self._api_client)
         self.tokens = TokensNamespace(self._api_client)
@@ -533,7 +645,7 @@ class TogetherSandbox:
 
     async def close(self) -> None:
         """Close the management API client."""
-        await self._api_client.close()
+        await self._api_client.get_async_httpx_client().aclose()
 
     async def __aenter__(self) -> "TogetherSandbox":
         await self._api_client.__aenter__()

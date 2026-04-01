@@ -1,22 +1,62 @@
-from dataclasses import dataclass
+from __future__ import annotations
 
-__all__ = ["VmAssignTagAliasRequest"]
+from collections.abc import Mapping
+from typing import Any, TypeVar
 
-@dataclass
-class VmAssignTagAliasRequest:
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+
+T = TypeVar("T", bound="VMAssignTagAliasRequest")
+
+
+@_attrs_define
+class VMAssignTagAliasRequest:
+    """Assign a tag alias to a VM
+
+    Attributes:
+        tag_id (str):
     """
-    Assign a tag alias to a VM
-    
-    Args:
-        tag_id (str)             : 
-    """
+
     tag_id: str
-    
-    class Meta:
-        """Configure field name mapping for JSON conversion."""
-        key_transform_with_load = {
-            "tag_id": "tag_id",
-        }
-        key_transform_with_dump = {
-            "tag_id": "tag_id",
-        }
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        tag_id = self.tag_id
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update(
+            {
+                "tag_id": tag_id,
+            }
+        )
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        d = dict(src_dict)
+        tag_id = d.pop("tag_id")
+
+        vm_assign_tag_alias_request = cls(
+            tag_id=tag_id,
+        )
+
+        vm_assign_tag_alias_request.additional_properties = d
+        return vm_assign_tag_alias_request
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties
