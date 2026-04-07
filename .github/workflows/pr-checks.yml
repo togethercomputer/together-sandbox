@@ -92,7 +92,7 @@ jobs:
         working-directory: ${{ github.workspace }}
 
       - name: Install dependencies
-        run: pip install .[test]
+        run: pip install .[dev]
 
       - name: Run tests
         run: pytest tests/ -v
