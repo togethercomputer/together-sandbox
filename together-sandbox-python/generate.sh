@@ -6,6 +6,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
+mkdir -p "$SCRIPT_DIR/together_sandbox"
+
 echo "Generating API client from api-openapi.json..."
 python3 -m openapi_python_client generate \
   --path "$REPO_ROOT/api-openapi.json" \
