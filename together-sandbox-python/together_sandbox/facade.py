@@ -444,42 +444,6 @@ class Sandbox:
         sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
         return await sdk.sandboxes.start(sandbox_id, start_options=start_options)
 
-    @classmethod
-    async def hibernate_by_id(
-        cls,
-        sandbox_id: str,
-        *,
-        api_key: str | None = None,
-        base_url: str = "https://api.codesandbox.io",
-    ) -> None:
-        """
-        Hibernate a sandbox by ID without needing a running Sandbox instance.
-
-        Example::
-
-            await Sandbox.hibernate_by_id("sandbox-id", api_key="your-key")
-        """
-        sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
-        await sdk.sandboxes.hibernate(sandbox_id)
-
-    @classmethod
-    async def shutdown_by_id(
-        cls,
-        sandbox_id: str,
-        *,
-        api_key: str | None = None,
-        base_url: str = "https://api.codesandbox.io",
-    ) -> None:
-        """
-        Shut down a sandbox by ID without needing a running Sandbox instance.
-
-        Example::
-
-            await Sandbox.shutdown_by_id("sandbox-id", api_key="your-key")
-        """
-        sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
-        await sdk.sandboxes.shutdown(sandbox_id)
-
 
 # ─── SandboxesNamespace ───────────────────────────────────────────────────────
 
