@@ -1,3 +1,8 @@
+# Generated code
+together-sandbox-python/together_sandbox/api
+together-sandbox-python/together_sandbox/sandbox
+together-sandbox-typescript/src/api-clients
+
 # Node
 node_modules/
 npm-debug.log*
