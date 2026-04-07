@@ -37,7 +37,7 @@ jobs:
         working-directory: ${{ github.workspace }}
 
       - name: Install dependencies
-        run: pip install . pytest
+        run: pip install .[test]
 
       - name: Run tests
         run: pytest tests/ -v
