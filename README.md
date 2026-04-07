@@ -4,17 +4,19 @@ Tools for working with Together AI sandboxes: a CLI, a TypeScript SDK, and a Pyt
 
 ## Quick Start
 
-All three components can be installed directly from GitHub without npm or PyPI publication:
+All three components require authentication with the [GitHub CLI](https://cli.github.com/) (`gh auth login`):
 
 ```bash
 # CLI
-curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
+GITHUB_TOKEN=$(gh auth token) curl -fsSL -H "Authorization: Bearer $(gh auth token)" \
+  https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
 
 # TypeScript SDK
-npm install https://github.com/togethercomputer/together-sandbox/releases/latest/download/together-sandbox-sdk.tgz
+gh release download --repo togethercomputer/together-sandbox --pattern "together-sandbox-sdk.tgz" -D /tmp \
+  && npm install /tmp/together-sandbox-sdk.tgz
 
 # Python SDK
-pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
+pip install "together-sandbox @ git+https://$(gh auth token)@github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
 ```
 
 ---
@@ -23,15 +25,21 @@ pip install "together-sandbox @ git+https://github.com/togethercomputer/together
 
 ### Installation
 
+Requires authentication with the [GitHub CLI](https://cli.github.com/) (`gh auth login`):
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
+GITHUB_TOKEN=$(gh auth token) curl -fsSL -H "Authorization: Bearer $(gh auth token)" \
+  https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
 ```
 
 This installs `together-sandbox` to `/usr/local/bin`. To install a specific version or to a different directory:
 
 ```bash
-VERSION=v1.2.3 bash <(curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh)
-INSTALL_DIR=$HOME/.local/bin bash <(curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh)
+GITHUB_TOKEN=$(gh auth token) VERSION=v1.2.3 bash <(curl -fsSL -H "Authorization: Bearer $(gh auth token)" \
+  https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh)
+
+GITHUB_TOKEN=$(gh auth token) INSTALL_DIR=$HOME/.local/bin bash <(curl -fsSL -H "Authorization: Bearer $(gh auth token)" \
+  https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh)
 ```
 
 ### Authentication
@@ -105,30 +113,16 @@ together-sandbox build
 
 ### Installation
 
-Install directly from GitHub Releases (pre-built tarball):
+Install directly from GitHub Releases using the [GitHub CLI](https://cli.github.com/) (`gh auth login`):
 
 ```bash
 # Latest version
-npm install https://github.com/togethercomputer/together-sandbox/releases/latest/download/together-sandbox-sdk.tgz
+gh release download --repo togethercomputer/together-sandbox --pattern "together-sandbox-sdk.tgz" -D /tmp \
+  && npm install /tmp/together-sandbox-sdk.tgz
 
 # Specific version
-npm install https://github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz
-```
-
-For private repositories, authenticate with a Personal Access Token:
-
-```bash
-npm install https://YOUR_TOKEN@github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz
-```
-
-### In package.json
-
-```json
-{
-  "dependencies": {
-    "@together-sandbox/sdk": "https://github.com/togethercomputer/together-sandbox/releases/download/v1.0.0/together-sandbox-sdk.tgz"
-  }
-}
+gh release download v1.0.0 --repo togethercomputer/together-sandbox --pattern "together-sandbox-sdk.tgz" -D /tmp \
+  && npm install /tmp/together-sandbox-sdk.tgz
 ```
 
 ### Usage
@@ -161,26 +155,14 @@ The low-level generated clients are also available for advanced use. See the [Ty
 
 ### Installation
 
-Install directly from the GitHub repository:
+Install directly from the GitHub repository using the [GitHub CLI](https://cli.github.com/) (`gh auth login`):
 
 ```bash
 # Latest from main branch
-pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
+pip install "together-sandbox @ git+https://$(gh auth token)@github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
 
 # Specific version (tag)
-pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git@v1.0.0#subdirectory=together-sandbox-python"
-```
-
-For private repositories, use SSH:
-
-```bash
-pip install "git+ssh://git@github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
-```
-
-### In requirements.txt
-
-```text
-together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python
+pip install "together-sandbox @ git+https://$(gh auth token)@github.com/togethercomputer/together-sandbox.git@v1.0.0#subdirectory=together-sandbox-python"
 ```
 
 **Requires Python 3.12+**
@@ -276,8 +258,8 @@ python test_sdk.py
 | Issue | Solution |
 |-------|----------|
 | **CLI not found** | Ensure `/usr/local/bin` is in your PATH, or use `INSTALL_DIR` |
-| **TypeScript SDK 404** | Verify the release exists and you have repository access |
-| **Python SDK install fails** | Ensure you have git installed and repository access |
+| **TypeScript SDK 404** | Verify the release exists and run `gh auth login` |
+| **Python SDK install fails** | Ensure you have git installed and run `gh auth login` |
 | **Authentication errors** | Check your `TOGETHER_API_KEY` environment variable |
 
 ---

@@ -5,6 +5,17 @@ REPO="togethercomputer/together-sandbox"
 VERSION="${VERSION:-latest}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
+# Require GitHub token for private repository access
+if [ -z "${GITHUB_TOKEN:-}" ]; then
+  echo "Error: GITHUB_TOKEN is not set."
+  echo "Authenticate with the GitHub CLI and re-run:"
+  echo ""
+  echo "  GITHUB_TOKEN=\$(gh auth token) curl -fsSL -H \"Authorization: Bearer \$(gh auth token)\" \\"
+  echo "    https://raw.githubusercontent.com/${REPO}/main/install.sh | bash"
+  echo ""
+  exit 1
+fi
+
 # Detect OS
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 case "$OS" in
@@ -42,7 +53,7 @@ fi
 TARGET="${INSTALL_DIR}/together-sandbox"
 
 echo "Downloading together-sandbox ${VERSION} (${OS}/${ARCH})..."
-curl -fsSL --progress-bar "$URL" -o /tmp/together-sandbox-download
+curl -fsSL --progress-bar -H "Authorization: Bearer ${GITHUB_TOKEN}" "$URL" -o /tmp/together-sandbox-download
 chmod +x /tmp/together-sandbox-download
 
 if [ -w "$INSTALL_DIR" ]; then
