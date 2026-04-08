@@ -79,18 +79,6 @@ together-sandbox host-tokens revoke <sandbox-id> [host-token-id]
   -a, --all  Revoke all tokens for the sandbox
 ```
 
-#### `preview-hosts`
-
-```
-together-sandbox preview-hosts list
-
-together-sandbox preview-hosts add <host>
-
-together-sandbox preview-hosts remove <host>
-
-together-sandbox preview-hosts clear
-```
-
 #### `build`
 
 Builds and deploys a sandbox from the current directory.

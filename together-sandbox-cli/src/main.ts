@@ -3,7 +3,6 @@ import { hideBin } from "yargs/helpers";
 
 import { buildCommand } from "./commands/build";
 import { sandboxesCommand } from "./commands/sandbox";
-import { previewHostsCommand } from "./commands/previewHosts";
 import { hostTokensCommand } from "./commands/hostTokens";
 
 yargs(hideBin(process.argv))
@@ -15,5 +14,4 @@ yargs(hideBin(process.argv))
   .command(buildCommand)
   .command(sandboxesCommand)
   .command(hostTokensCommand)
-  .command(previewHostsCommand)
   .parse();
