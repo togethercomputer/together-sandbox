@@ -1,19 +1,37 @@
 {
   "name": "@together-sandbox/sdk",
   "version": "1.1.0",
-  "type": "module",
+  "description": "TypeScript SDK for Together Sandbox",
+  "license": "MIT",
+  "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/togethercomputer/together-sandbox.git",
+    "directory": "together-sandbox-typescript"
+  },
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      }
     }
   },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
   "scripts": {
     "generate": "openapi-ts -i ../api-openapi.json -o src/api-clients/api -c @hey-api/client-fetch && openapi-ts -i ../sandbox-openapi.json -o src/api-clients/sandbox -c @hey-api/client-fetch",
-    "build": "tsc",
-    "dev": "tsc --watch"
+    "build": "tsup",
+    "dev": "tsup --watch"
   },
   "dependencies": {
     "@hey-api/client-fetch": "^0.13.1"
@@ -21,6 +39,7 @@
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.84.4",
     "@types/node": "^22.15.30",
+    "tsup": "^8.0.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.9"
   }
