@@ -143,7 +143,7 @@ export class Sandbox {
         // Convert string to Blob if necessary
         const body =
           typeof content === "string"
-            ? new Blob([content], { type: "text/plain" })
+            ? new Blob([content], { type: "application/octet-stream" })
             : content;
 
         return sandboxApi.createFile({
