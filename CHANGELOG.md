@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.1.0...together-sandbox-v1.1.1) (2026-04-09)
+
+
+### Bug Fixes
+
+* bundle correctly for esm vs cjs ([001accd](https://github.com/togethercomputer/together-sandbox/commit/001accd83e5e03868f7faa07124a9e78e469ca67))
+* bundle correctly for esm vs cjs ([2b984fc](https://github.com/togethercomputer/together-sandbox/commit/2b984fcd8122d6495b63ec89ddf24874448e30db))
+* merge test deps into dev extra for simpler onboarding ([ed2dbca](https://github.com/togethercomputer/together-sandbox/commit/ed2dbca163e32bb7be316f17f9bd42ab9d3ca094))
+* remove hibernate_by_id and shutdown_by_id from Sandbox facade ([f6e7ab5](https://github.com/togethercomputer/together-sandbox/commit/f6e7ab5789d6056eb347a12a94a3b5d1a46705be))
+* Remove hibernate_by_id and shutdown_by_id, and improve python development onboarding ([6bc03d5](https://github.com/togethercomputer/together-sandbox/commit/6bc03d5d908c77713528b17b4479bd11bd8ab479))
+* remove preview-hosts ([5155ad0](https://github.com/togethercomputer/together-sandbox/commit/5155ad058c13b3fd26e50ce035acf36ccd2230de))
+* remove preview-hosts ([33892b9](https://github.com/togethercomputer/together-sandbox/commit/33892b932110f8bcc7ee5b1509dfaa2138b5c7eb))
+
 ## [1.1.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.0.0...together-sandbox-v1.1.0) (2026-04-07)
 
 
