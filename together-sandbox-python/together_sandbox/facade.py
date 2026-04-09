@@ -77,12 +77,12 @@ from .sandbox.api.tasks.execute_task_action import asyncio as execute_task_actio
 from .sandbox.models.file_action_request import FileActionRequest
 from .sandbox.models.file_action_request_action import FileActionRequestAction
 from .sandbox.models.file_action_response import FileActionResponse
-from .sandbox.models.file_create_request import FileCreateRequest
 from .sandbox.models.file_info import FileInfo
 from .sandbox.models.file_operation_response import FileOperationResponse
 from .sandbox.models.file_read_response import FileReadResponse
 from .sandbox.models.exec_stdin import ExecStdin
 from .sandbox.models.task_action_type import TaskActionType
+from .sandbox.types import File
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
 from ._streaming import stream_sse_json
@@ -120,10 +120,30 @@ class FilesFacade:
         return await read_file_api(path, client=self._client)
 
     async def create_file(
-        self, path: str, body: FileCreateRequest | None = None
+        self, path: str, content: bytes | str
     ) -> FileReadResponse:
-        """Create a file at the specified path with optional content."""
-        return await create_file_api(path, client=self._client, body=body)
+        """
+        Create a file at the specified path with binary content.
+
+        Args:
+            path: File path to create
+            content: File content as bytes or string (will be encoded as UTF-8)
+
+        Returns:
+            FileReadResponse with the created file details
+        """
+        import io
+
+        # Convert string to bytes if necessary
+        if isinstance(content, str):
+            content_bytes = content.encode('utf-8')
+        else:
+            content_bytes = content
+
+        # Create a File object with binary content
+        file_obj = File(payload=io.BytesIO(content_bytes))
+
+        return await create_file_api(path, client=self._client, body=file_obj)
 
     async def delete_file(self, path: str) -> FileOperationResponse:
         """Delete a file at the specified path."""

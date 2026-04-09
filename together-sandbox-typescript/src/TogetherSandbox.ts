@@ -139,13 +139,20 @@ export class Sandbox {
     return {
       read: (path: string) =>
         sandboxApi.readFile({ client, path: { path }, throwOnError: true }),
-      create: (path: string, content?: string) =>
-        sandboxApi.createFile({
+      create: (path: string, content: string | Blob | File) => {
+        // Convert string to Blob if necessary
+        const body =
+          typeof content === "string"
+            ? new Blob([content], { type: "application/octet-stream" })
+            : content;
+
+        return sandboxApi.createFile({
           client,
           path: { path },
-          body: content !== undefined ? { content } : undefined,
+          body,
           throwOnError: true,
-        }),
+        });
+      },
       delete: (path: string) =>
         sandboxApi.deleteFile({ client, path: { path }, throwOnError: true }),
       move: (from: string, to: string) =>
