@@ -2,7 +2,7 @@
  * Unified Together Sandbox facade.
  *
  * This module provides {@link TogetherSandbox} — a thin wrapper over the two
- * generated SDK clients that handles the vmStart → SandboxClient handoff
+ * generated SDK clients that handles the startSandbox → SandboxClient handoff
  * transparently.
  *
  * @example
@@ -31,40 +31,17 @@ import {
   createConfig as createSandboxConfig,
   type Client as SandboxApiClient,
 } from "./api-clients/sandbox/client/index.js";
-import type { VmStartResponseData } from "./api-clients/api/types.gen.js";
-import type {
-  PreviewTokenCreateRequest,
-  PreviewTokenUpdateRequest,
-} from "./api-clients/api/types.gen.js";
 import type { TaskActionType } from "./api-clients/sandbox/types.gen.js";
+import type { Sandbox as SandboxModel } from "./api-clients/api/types.gen.js";
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
 /**
- * Select the appropriate (url, token) pair from the vmStart response.
- * Prefers Pint when available, falls back to Pitcher (legacy agent).
+ * Extract the agent connection details from the Sandbox model.
  */
-export function resolveConnectionDetails(vmInfo: VmStartResponseData): {
-  url: string;
-  token: string;
-} {
-  if (vmInfo.use_pint && vmInfo.pint_url && vmInfo.pint_token) {
-    return { url: vmInfo.pint_url, token: vmInfo.pint_token };
-  }
-  return { url: vmInfo.pitcher_url, token: vmInfo.pitcher_token };
-}
-
-/**
- * Extract data from an API response, throwing an error if data is missing.
- */
-function resolveApiData<T>(response: { data?: T; errors?: (string | { [key: string]: unknown })[] }): T {
-  if (!response.data) {
-    const errorMessage = response.errors
-      ?.map(err => typeof err === "string" ? err : JSON.stringify(err))
-      .join(", ") || "Unknown error";
-    throw new Error(errorMessage);
-  }
-  return response.data;
+function resolveConnectionDetails(sandbox: SandboxModel): { url: string; token: string } {
+  if (!sandbox.agent_url || !sandbox.agent_token) throw new Error("Sandbox has no agent connection details");
+  return { url: sandbox.agent_url, token: sandbox.agent_token };
 }
 
 // ─── Configuration ───────────────────────────────────────────────────────────
@@ -83,14 +60,9 @@ export interface TogetherSandboxConfig {
  * Options for starting a VM.
  */
 export interface StartOptions {
-  /** Additional VM start request body options (tier, wakeup config, etc.). */
-  startOptions?: Parameters<typeof api.vmStart>[0]["body"];
+  /** Additional sandbox start request body options. */
+  startOptions?: Parameters<typeof api.startSandbox>[0]["body"];
 }
-
-/**
- * Options for forking a sandbox.
- */
-export type ForkOptions = Parameters<typeof api.sandboxFork>[0]["body"];
 
 /**
  * Options for watching a directory.
@@ -121,7 +93,7 @@ export interface WatchOptions {
  */
 export class Sandbox {
   /** Raw VM start response data (id, cluster, workspace_path, etc.). */
-  readonly vmInfo: VmStartResponseData;
+  readonly vmInfo: SandboxModel;
 
   /** The underlying sandbox API client (internal). */
   private readonly _sandboxClient: SandboxApiClient;
@@ -130,7 +102,7 @@ export class Sandbox {
   private readonly _apiClient: ApiClient;
 
   constructor(
-    vmInfo: VmStartResponseData,
+    vmInfo: SandboxModel,
     sandboxClient: SandboxApiClient,
     apiClient: ApiClient,
   ) {
@@ -141,6 +113,7 @@ export class Sandbox {
 
   /** The VM/sandbox ID. */
   get id(): string {
+    if (!this.vmInfo.id) throw new Error("Sandbox has no ID");
     return this.vmInfo.id;
   }
 
@@ -285,7 +258,7 @@ export class Sandbox {
         const result = await sandboxApi.executeTaskAction({ client, path: { id }, query: { actionType }, throwOnError: true });
         return result.data;
       },
-      setup: async () => {
+      listSetup: async () => {
         const result = await sandboxApi.listSetupTasks({ client, throwOnError: true });
         return result.data.setupTasks;
       },
@@ -311,14 +284,22 @@ export class Sandbox {
 
   /** Hibernate (suspend) this VM. */
   async hibernate(): Promise<void> {
-    const result = await api.vmHibernate({ client: this._apiClient, path: { id: this.id }, throwOnError: true });
-    resolveApiData(result.data);
+    await api.stopSandbox({
+      client: this._apiClient,
+      path: { id: this.id },
+      body: { stop_type: 'hibernate' },
+      throwOnError: true,
+    });
   }
 
   /** Shut down this VM. */
   async shutdown(): Promise<void> {
-    const result = await api.vmShutdown({ client: this._apiClient, path: { id: this.id }, throwOnError: true });
-    resolveApiData(result.data);
+    await api.stopSandbox({
+      client: this._apiClient,
+      path: { id: this.id },
+      body: { stop_type: 'shutdown' },
+      throwOnError: true,
+    });
   }
 
   // ── Static factory methods ─────────────────────────────────────────────
@@ -390,20 +371,18 @@ export class SandboxesNamespace {
   /**
    * Start a VM for the given sandbox ID and return a {@link Sandbox}
    * with a fully wired sandbox client.
-   *
-   * The URL/token handoff (`use_pint` flag) is handled automatically.
    */
   async start(
     sandboxId: string,
     options?: StartOptions,
   ): Promise<Sandbox> {
-    const result = await api.vmStart({
+    const result = await api.startSandbox({
       client: this._apiClient,
       path: { id: sandboxId },
       body: options?.startOptions,
       throwOnError: true,
     });
-    const data = resolveApiData(result.data)
+    const data = result.data;
     const { url, token } = resolveConnectionDetails(data);
 
     const sandboxClient = createSandboxClient(
@@ -417,111 +396,25 @@ export class SandboxesNamespace {
   }
 
   /**
-   * Fork an existing sandbox and immediately start its VM.
-   * Returns a {@link Sandbox} ready to use.
-   */
-  async fork(
-    sandboxId: string,
-    forkOptions?: ForkOptions,
-  ): Promise<Sandbox> {
-    const forkResult = await api.sandboxFork({
-      client: this._apiClient,
-      path: { id: sandboxId },
-      body: forkOptions,
-      throwOnError: true,
-    });
-    const data = resolveApiData(forkResult.data);
-
-    return this.start(data.id);
-  }
-
-  /**
    * Hibernate (suspend) a VM by sandbox ID.
    */
   async hibernate(sandboxId: string): Promise<void> {
-    const result = await api.vmHibernate({
+    await api.stopSandbox({
       client: this._apiClient,
       path: { id: sandboxId },
+      body: { stop_type: 'hibernate' },
       throwOnError: true,
     });
-    
-    resolveApiData(result.data);
   }
 
   /**
    * Shut down a VM by sandbox ID.
    */
   async shutdown(sandboxId: string): Promise<void> {
-    const result = await api.vmShutdown({
+    await api.stopSandbox({
       client: this._apiClient,
       path: { id: sandboxId },
-      throwOnError: true,
-    });
-    resolveApiData(result.data);
-  }
-}
-
-// ─── TokensNamespace ─────────────────────────────────────────────────────────
-
-/**
- * Preview token operations, accessed as `sdk.tokens.*`.
- *
- * Preview tokens allow access to private sandboxes.
- */
-export class TokensNamespace {
-  constructor(private readonly _apiClient: ApiClient) {}
-
-  /**
-   * List all preview tokens for a sandbox.
-   */
-  async list(sandboxId: string) {
-    const result = await api.previewTokenList({
-      client: this._apiClient,
-      path: { id: sandboxId },
-      throwOnError: true,
-    });
-    const data = resolveApiData(result.data);
-
-    return data.tokens;
-  }
-
-  /**
-   * Create a new preview token for a sandbox.
-   */
-  async create(sandboxId: string, body?: PreviewTokenCreateRequest) {
-    const result = await api.previewTokenCreate({
-      client: this._apiClient,
-      path: { id: sandboxId },
-      body,
-      throwOnError: true,
-    });
-    const data = resolveApiData(result.data);
-
-    return data.token;
-  }
-
-  /**
-   * Update an existing preview token.
-   */
-  async update(sandboxId: string, tokenId: string, body?: PreviewTokenUpdateRequest) {
-    const result = await api.previewTokenUpdate({
-      client: this._apiClient,
-      path: { id: sandboxId, token_id: tokenId },
-      body,
-      throwOnError: true,
-    });
-    const data = resolveApiData(result.data);
-
-    return data.token;
-  }
-
-  /**
-   * Revoke all preview tokens for a sandbox.
-   */
-  async revokeAll(sandboxId: string) {
-    await api.previewTokenRevokeAll({
-      client: this._apiClient,
-      path: { id: sandboxId },
+      body: { stop_type: 'shutdown' },
       throwOnError: true,
     });
   }
@@ -549,20 +442,22 @@ export class TokensNamespace {
  * ```
  */
 export class TogetherSandbox {
-  /** Sandbox lifecycle operations (start, fork, hibernate, shutdown). */
+  /** Sandbox lifecycle operations (start, hibernate, shutdown). */
   readonly sandboxes: SandboxesNamespace;
 
-  /** Preview token operations (list, create, update, revokeAll). */
-  readonly tokens: TokensNamespace;
-
   constructor(config: TogetherSandboxConfig) {
+    const apiKey = config.apiKey ?? process.env.TOGETHER_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("apiKey must be provided or TOGETHER_API_KEY env var must be set");
+    }
+    
     const apiClient = createApiClient(
       createApiConfig({
         baseUrl: config.baseUrl ?? "https://api.codesandbox.io",
-        headers: { Authorization: `Bearer ${config.apiKey}` },
+        headers: { Authorization: `Bearer ${apiKey}` },
       }),
     );
     this.sandboxes = new SandboxesNamespace(apiClient);
-    this.tokens = new TokensNamespace(apiClient);
   }
 }

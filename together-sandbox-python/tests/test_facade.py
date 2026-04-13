@@ -10,89 +10,55 @@ import pytest
 
 from together_sandbox.facade import (
     _resolve_connection,
-    DirectoriesFacade,
-    ExecsFacade,
-    FilesFacade,
-    PortsFacade,
+    Directories,
+    Execs,
+    Files,
+    Ports,
     Sandbox,
-    TasksFacade,
+    Tasks,
     TogetherSandbox,
 )
-from together_sandbox.api.models.vm_start_response_data import VMStartResponseData
-from together_sandbox.api.types import UNSET
 from together_sandbox.sandbox.models.file_read_response import FileReadResponse
 from together_sandbox.sandbox.types import File
+from together_sandbox.api.models.sandbox import Sandbox as SandboxModel
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _make_vm_info(**overrides) -> VMStartResponseData:
-    """Build a VMStartResponseData with sensible defaults."""
+def _make_sandbox_model(**overrides) -> MagicMock:
+    """Build a mock SandboxModel with sensible defaults."""
     defaults = dict(
-        bootup_type="cold",
-        cluster="us-east-1",
         id="test-sandbox-123",
-        latest_pitcher_version="1.0.0",
-        pitcher_manager_version="1.0.0",
-        pitcher_token="pitcher-tok",
-        pitcher_url="https://pitcher.example.com",
-        pitcher_version="1.0.0",
-        reconnect_token="reconnect-tok",
-        use_pint=False,
-        user_workspace_path="/home/user/workspace",
-        vm_agent_type="pint",
-        workspace_path="/workspace",
-        pint_token=UNSET,
-        pint_url=UNSET,
+        agent_url="https://agent.example.com",
+        agent_token="agent-tok",
     )
     defaults.update(overrides)
-    return VMStartResponseData(**defaults)
+    mock = MagicMock(spec=SandboxModel)
+    for k, v in defaults.items():
+        setattr(mock, k, v)
+    return mock
 
 
 # ─── _resolve_connection tests ────────────────────────────────────────────────
 
 
 class TestResolveConnection:
-    def test_prefers_pint_when_use_pint_true_and_fields_present(self):
-        vm_info = _make_vm_info(
-            use_pint=True,
-            pint_url="https://pint.example.com",
-            pint_token="pint-tok",
-        )
-        url, token = _resolve_connection(vm_info)
-        assert url == "https://pint.example.com"
-        assert token == "pint-tok"
+    def test_returns_agent_url_and_token(self):
+        sandbox = _make_sandbox_model()
+        url, token = _resolve_connection(sandbox)
+        assert url == "https://agent.example.com"
+        assert token == "agent-tok"
 
-    def test_falls_back_to_pitcher_when_use_pint_false(self):
-        vm_info = _make_vm_info(
-            use_pint=False,
-            pint_url="https://pint.example.com",
-            pint_token="pint-tok",
-        )
-        url, token = _resolve_connection(vm_info)
-        assert url == "https://pitcher.example.com"
-        assert token == "pitcher-tok"
+    def test_raises_if_agent_url_missing(self):
+        sandbox = _make_sandbox_model(agent_url=None)
+        with pytest.raises(RuntimeError, match="no agent connection details"):
+            _resolve_connection(sandbox)
 
-    def test_falls_back_to_pitcher_when_pint_url_unset(self):
-        vm_info = _make_vm_info(
-            use_pint=True,
-            pint_url=UNSET,
-            pint_token=UNSET,
-        )
-        url, token = _resolve_connection(vm_info)
-        assert url == "https://pitcher.example.com"
-        assert token == "pitcher-tok"
-
-    def test_falls_back_to_pitcher_when_pint_token_unset(self):
-        vm_info = _make_vm_info(
-            use_pint=True,
-            pint_url="https://pint.example.com",
-            pint_token=UNSET,
-        )
-        url, token = _resolve_connection(vm_info)
-        assert url == "https://pitcher.example.com"
-        assert token == "pitcher-tok"
+    def test_raises_if_agent_token_missing(self):
+        sandbox = _make_sandbox_model(agent_token=None)
+        with pytest.raises(RuntimeError, match="no agent connection details"):
+            _resolve_connection(sandbox)
 
 
 # ─── TogetherSandbox tests ───────────────────────────────────────────────────
@@ -120,54 +86,59 @@ class TestTogetherSandbox:
 
 class TestSandbox:
     def test_id_property(self):
-        vm_info = _make_vm_info(id="test-id-456")
+        vm_info = _make_sandbox_model(id="test-id-456")
         mock_sandbox_client = MagicMock()
         mock_api_client = MagicMock()
         sb = Sandbox(vm_info, mock_sandbox_client, mock_api_client)
         assert sb.id == "test-id-456"
 
+    def test_id_raises_when_none(self):
+        sb = Sandbox(_make_sandbox_model(id=None), MagicMock(), MagicMock())
+        with pytest.raises(RuntimeError, match="no ID"):
+            _ = sb.id
+
     def test_vm_info_property(self):
-        vm_info = _make_vm_info()
+        vm_info = _make_sandbox_model()
         sb = Sandbox(vm_info, MagicMock(), MagicMock())
         assert sb.vm_info is vm_info
 
     def test_delegates_files_namespace(self):
         mock_sandbox_client = MagicMock()
-        sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
-        assert isinstance(sb.files, FilesFacade)
+        sb = Sandbox(_make_sandbox_model(), mock_sandbox_client, MagicMock())
+        assert isinstance(sb.files, Files)
 
     def test_delegates_directories_namespace(self):
         mock_sandbox_client = MagicMock()
-        sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
-        assert isinstance(sb.directories, DirectoriesFacade)
+        sb = Sandbox(_make_sandbox_model(), mock_sandbox_client, MagicMock())
+        assert isinstance(sb.directories, Directories)
 
     def test_delegates_execs_namespace(self):
         mock_sandbox_client = MagicMock()
-        sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
-        assert isinstance(sb.execs, ExecsFacade)
+        sb = Sandbox(_make_sandbox_model(), mock_sandbox_client, MagicMock())
+        assert isinstance(sb.execs, Execs)
 
     def test_delegates_tasks_namespace(self):
         mock_sandbox_client = MagicMock()
-        sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
-        assert isinstance(sb.tasks, TasksFacade)
+        sb = Sandbox(_make_sandbox_model(), mock_sandbox_client, MagicMock())
+        assert isinstance(sb.tasks, Tasks)
 
     def test_delegates_ports_namespace(self):
         mock_sandbox_client = MagicMock()
-        sb = Sandbox(_make_vm_info(), mock_sandbox_client, MagicMock())
-        assert isinstance(sb.ports, PortsFacade)
+        sb = Sandbox(_make_sandbox_model(), mock_sandbox_client, MagicMock())
+        assert isinstance(sb.ports, Ports)
 
 
 # ─── FilesFacade tests ────────────────────────────────────────────────────
 
 
-class TestFilesFacade:
-    """Tests for FilesFacade.create_file() binary file creation."""
+class TestFiles:
+    """Tests for Files.create() binary file creation."""
 
     @pytest.mark.asyncio
     async def test_create_file_with_string_content(self):
-        """Test that create_file accepts string content and converts to binary."""
+        """Test that create() accepts string content and converts to binary."""
         mock_client = MagicMock()
-        facade = FilesFacade(mock_client)
+        facade = Files(mock_client)
 
         # Mock the API response
         mock_response = FileReadResponse(
@@ -180,7 +151,7 @@ class TestFilesFacade:
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_api:
-            result = await facade.create_file("/test.txt", "Hello, world!")
+            result = await facade.create("/test.txt", "Hello, world!")
 
             # Verify the API was called
             assert mock_api.called
@@ -202,14 +173,14 @@ class TestFilesFacade:
             content = file_arg.payload.read()
             assert content == b"Hello, world!"
 
-            # Verify the response
-            assert result == mock_response
+            # Verify the response (unwrapped to content string)
+            assert result == "Hello, world!"
 
     @pytest.mark.asyncio
     async def test_create_file_with_bytes_content(self):
-        """Test that create_file accepts bytes content directly."""
+        """Test that create() accepts bytes content directly."""
         mock_client = MagicMock()
-        facade = FilesFacade(mock_client)
+        facade = Files(mock_client)
 
         # Binary content (e.g., image data)
         binary_data = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
@@ -224,7 +195,7 @@ class TestFilesFacade:
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_api:
-            result = await facade.create_file("/image.png", binary_data)
+            result = await facade.create("/image.png", binary_data)
 
             # Verify the API was called
             assert mock_api.called
@@ -240,14 +211,14 @@ class TestFilesFacade:
             content = file_arg.payload.read()
             assert content == binary_data
 
-            # Verify the response
-            assert result == mock_response
+            # Verify the response (unwrapped to content string)
+            assert result == "[binary]"
 
     @pytest.mark.asyncio
     async def test_create_file_with_unicode_content(self):
-        """Test that create_file properly encodes Unicode characters."""
+        """Test that create() properly encodes Unicode characters."""
         mock_client = MagicMock()
-        facade = FilesFacade(mock_client)
+        facade = Files(mock_client)
 
         # Unicode content with emoji and international characters
         unicode_text = "Hello 世界 🌍 Привет"
@@ -262,7 +233,7 @@ class TestFilesFacade:
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_api:
-            result = await facade.create_file("/unicode.txt", unicode_text)
+            result = await facade.create("/unicode.txt", unicode_text)
 
             # Verify the API was called
             assert mock_api.called
@@ -276,14 +247,14 @@ class TestFilesFacade:
             # Verify it can be decoded back to the original string
             assert content.decode("utf-8") == unicode_text
 
-            # Verify the response
-            assert result == mock_response
+            # Verify the response (unwrapped to content string)
+            assert result == unicode_text
 
     @pytest.mark.asyncio
     async def test_create_file_empty_content(self):
-        """Test that create_file handles empty content."""
+        """Test that create() handles empty content."""
         mock_client = MagicMock()
-        facade = FilesFacade(mock_client)
+        facade = Files(mock_client)
 
         mock_response = FileReadResponse(
             path="/empty.txt",
@@ -295,7 +266,7 @@ class TestFilesFacade:
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_api:
-            result = await facade.create_file("/empty.txt", "")
+            result = await facade.create("/empty.txt", "")
 
             # Verify the API was called
             assert mock_api.called
@@ -307,5 +278,5 @@ class TestFilesFacade:
             content = file_arg.payload.read()
             assert content == b""
 
-            # Verify the response
-            assert result == mock_response
+            # Verify the response (unwrapped to content string)
+            assert result == ""

@@ -24,11 +24,9 @@ export {
   TogetherSandbox,
   Sandbox,
   SandboxesNamespace,
-  TokensNamespace,
 } from "./TogetherSandbox.js";
 export type {
   TogetherSandboxConfig,
   StartOptions,
-  ForkOptions,
   WatchOptions,
 } from "./TogetherSandbox.js";

@@ -29,25 +29,11 @@ from typing import Any, AsyncIterator, List, Optional
 from .api.client import AuthenticatedClient as ApiClient
 
 # ── Management API endpoint functions ─────────────────────────────────────────
-from .api.api.vm.vmstart import asyncio as vm_start_api
-from .api.api.vm.vmhibernate import asyncio as vm_hibernate_api
-from .api.api.vm.vmshutdown import asyncio as vm_shutdown_api
-from .api.api.sandbox.sandboxfork import asyncio as sandbox_fork_api
-from .api.api.default.preview_tokenlist import asyncio as preview_token_list_api
-from .api.api.default.preview_tokencreate import asyncio as preview_token_create_api
-from .api.api.default.preview_tokenupdate import asyncio as preview_token_update_api
-from .api.api.default.preview_tokenrevoke_all import asyncio as preview_token_revoke_all_api
+from .api.api.default.start_sandbox import asyncio as start_sandbox_api
+from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
-from .api.models.preview_token_create_request import PreviewTokenCreateRequest
-from .api.models.preview_token_create_response import PreviewTokenCreateResponse
-from .api.models.preview_token_list_response import PreviewTokenListResponse
-from .api.models.preview_token_revoke_all_response import PreviewTokenRevokeAllResponse
-from .api.models.preview_token_update_request import PreviewTokenUpdateRequest
-from .api.models.preview_token_update_response import PreviewTokenUpdateResponse
-from .api.models.vm_start_request import VMStartRequest
-from .api.models.vm_start_response_data import VMStartResponseData
-from .api.types import UNSET
+from .api.models.sandbox import Sandbox as SandboxModel
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -91,20 +77,19 @@ from ._streaming import stream_sse_json
 # ─── Internal helpers ─────────────────────────────────────────────────────────
 
 
-def _resolve_connection(vm_info: VMStartResponseData) -> tuple[str, str]:
+def _resolve_connection(sandbox: SandboxModel) -> tuple[str, str]:
     """
-    Select the appropriate (url, token) pair from the vmStart response.
-    Prefers Pint when available, falls back to Pitcher (legacy agent).
+    Extract the agent connection details from the Sandbox model.
     """
-    if vm_info.use_pint and vm_info.pint_url is not UNSET and vm_info.pint_token is not UNSET:
-        return vm_info.pint_url, vm_info.pint_token
-    return vm_info.pitcher_url, vm_info.pitcher_token
+    if not sandbox.agent_url or not sandbox.agent_token:
+        raise RuntimeError("Sandbox has no agent connection details")
+    return sandbox.agent_url, sandbox.agent_token
 
 
 # ─── Files facade ─────────────────────────────────────────────────────────────
 
 
-class FilesFacade:
+class Files:
     """
     File operations facade that wraps the low-level files client.
 
@@ -115,13 +100,14 @@ class FilesFacade:
     def __init__(self, sandbox_client: SandboxClient) -> None:
         self._client = sandbox_client
 
-    async def read_file(self, path: str) -> FileReadResponse:
+    async def read(self, path: str) -> str:
         """Read file content at the specified path."""
-        return await read_file_api(path, client=self._client)
+        result = await read_file_api(path, client=self._client)
+        return result.content
 
-    async def create_file(
+    async def create(
         self, path: str, content: bytes | str
-    ) -> FileReadResponse:
+    ) -> str:
         """
         Create a file at the specified path with binary content.
 
@@ -130,7 +116,7 @@ class FilesFacade:
             content: File content as bytes or string (will be encoded as UTF-8)
 
         Returns:
-            FileReadResponse with the created file details
+            The created file content
         """
         import io
 
@@ -143,15 +129,16 @@ class FilesFacade:
         # Create a File object with binary content
         file_obj = File(payload=io.BytesIO(content_bytes))
 
-        return await create_file_api(path, client=self._client, body=file_obj)
+        result = await create_file_api(path, client=self._client, body=file_obj)
+        return result.content
 
-    async def delete_file(self, path: str) -> FileOperationResponse:
+    async def delete(self, path: str) -> None:
         """Delete a file at the specified path."""
-        return await delete_file_api(path, client=self._client)
+        await delete_file_api(path, client=self._client)
 
-    async def move_file(self, from_path: str, to_path: str) -> FileActionResponse:
+    async def move(self, from_path: str, to_path: str) -> None:
         """Move a file from one path to another."""
-        return await perform_file_action_api(
+        await perform_file_action_api(
             from_path,
             client=self._client,
             body=FileActionRequest(
@@ -160,9 +147,9 @@ class FilesFacade:
             ),
         )
 
-    async def copy_file(self, from_path: str, to_path: str) -> FileActionResponse:
+    async def copy(self, from_path: str, to_path: str) -> None:
         """Copy a file from one path to another."""
-        return await perform_file_action_api(
+        await perform_file_action_api(
             from_path,
             client=self._client,
             body=FileActionRequest(
@@ -171,7 +158,7 @@ class FilesFacade:
             ),
         )
 
-    async def get_file_stat(self, path: str) -> FileInfo:
+    async def stat(self, path: str) -> FileInfo:
         """Get file metadata at the specified path."""
         return await get_file_stat_api(path, client=self._client)
 
@@ -201,7 +188,7 @@ class FilesFacade:
 # ─── Execs facade ─────────────────────────────────────────────────────────────
 
 
-class ExecsFacade:
+class Execs:
     """
     Exec operations facade with renamed SSE methods.
 
@@ -214,25 +201,32 @@ class ExecsFacade:
     def __init__(self, sandbox_client: SandboxClient) -> None:
         self._client = sandbox_client
 
-    async def list_execs(self):
+    async def list(self):
         """List all active execs."""
-        return await list_execs_api(client=self._client)
+        result = await list_execs_api(client=self._client)
+        return result.execs
 
-    async def create_exec(self, body):
+    async def create(self, body):
         """Create a new exec."""
-        return await create_exec_api(client=self._client, body=body)
+        result = await create_exec_api(client=self._client, body=body)
+        assert isinstance(result, type(body).__bases__[0]) or result is not None
+        return result
 
-    async def get_exec(self, id_: str):
+    async def get(self, id_: str):
         """Get exec by ID."""
-        return await get_exec_api(id_, client=self._client)
+        result = await get_exec_api(id_, client=self._client)
+        assert result is not None
+        return result
 
-    async def update_exec(self, id_: str, body):
+    async def update(self, id_: str, body):
         """Update exec status."""
-        return await update_exec_api(id_, client=self._client, body=body)
+        result = await update_exec_api(id_, client=self._client, body=body)
+        assert result is not None
+        return result
 
-    async def delete_exec(self, id_: str):
+    async def delete(self, id_: str) -> None:
         """Delete an exec."""
-        return await delete_exec_api(id_, client=self._client)
+        await delete_exec_api(id_, client=self._client)
 
     def stream_output(
         self, id_: str, last_sequence: int | None = None
@@ -249,7 +243,9 @@ class ExecsFacade:
 
     async def send_stdin(self, id_: str, body: ExecStdin):
         """Send stdin to an exec (renamed from exec_exec_stdin)."""
-        return await exec_exec_stdin_api(id_, client=self._client, body=body)
+        result = await exec_exec_stdin_api(id_, client=self._client, body=body)
+        assert result is not None
+        return result
 
     def stream_list(self) -> AsyncIterator[dict[str, Any]]:
         """Stream list of all active execs via SSE (renamed from stream_execs_list)."""
@@ -262,7 +258,7 @@ class ExecsFacade:
 # ─── Ports facade ─────────────────────────────────────────────────────────────
 
 
-class PortsFacade:
+class Ports:
     """
     Port operations facade with renamed SSE method.
 
@@ -272,9 +268,10 @@ class PortsFacade:
     def __init__(self, sandbox_client: SandboxClient) -> None:
         self._client = sandbox_client
 
-    async def list_ports(self):
+    async def list(self):
         """List open ports."""
-        return await list_ports_api(client=self._client)
+        result = await list_ports_api(client=self._client)
+        return result.ports
 
     def stream_list(self) -> AsyncIterator[dict[str, Any]]:
         """Stream port changes via SSE (renamed from stream_ports_list)."""
@@ -287,47 +284,51 @@ class PortsFacade:
 # ─── Directories facade ──────────────────────────────────────────────────────
 
 
-class DirectoriesFacade:
+class Directories:
     """Directory operations (list, create, delete)."""
 
     def __init__(self, sandbox_client: SandboxClient) -> None:
         self._client = sandbox_client
 
-    async def list_directory(self, path: str):
+    async def list(self, path: str) -> List[FileInfo]:
         """List directory contents."""
-        return await list_directory_api(path, client=self._client)
+        result = await list_directory_api(path, client=self._client)
+        return result.files
 
-    async def create_directory(self, path: str):
+    async def create(self, path: str) -> None:
         """Create a directory."""
-        return await create_directory_api(path, client=self._client)
+        await create_directory_api(path, client=self._client)
 
-    async def delete_directory(self, path: str):
+    async def delete(self, path: str) -> None:
         """Delete a directory."""
-        return await delete_directory_api(path, client=self._client)
+        await delete_directory_api(path, client=self._client)
 
 
 # ─── Tasks facade ─────────────────────────────────────────────────────────────
 
 
-class TasksFacade:
+class Tasks:
     """Task operations (list, list_setup, get, action)."""
 
     def __init__(self, sandbox_client: SandboxClient) -> None:
         self._client = sandbox_client
 
-    async def list_tasks(self):
+    async def list(self):
         """List all tasks."""
-        return await list_tasks_api(client=self._client)
+        result = await list_tasks_api(client=self._client)
+        return result.tasks
 
-    async def list_setup_tasks(self):
+    async def listSetup(self):
         """List setup tasks."""
-        return await list_setup_tasks_api(client=self._client)
+        result = await list_setup_tasks_api(client=self._client)
+        return result.setup_tasks
 
-    async def get_task(self, id_: str):
+    async def get(self, id_: str):
         """Get task by ID."""
-        return await get_task_api(id_, client=self._client)
+        result = await get_task_api(id_, client=self._client)
+        return result.task
 
-    async def execute_task_action(self, id_: str, action_type: TaskActionType):
+    async def action(self, id_: str, action_type: TaskActionType):
         """Execute an action on a task."""
         return await execute_task_action_api(id_, client=self._client, action_type=action_type)
 
@@ -366,7 +367,7 @@ class Sandbox:
 
     def __init__(
         self,
-        vm_info: VMStartResponseData,
+        vm_info: SandboxModel,
         sandbox_client: SandboxClient,
         api_client: ApiClient,
     ) -> None:
@@ -379,39 +380,41 @@ class Sandbox:
     @property
     def id(self) -> str:
         """The VM/sandbox ID."""
+        if not self._vm_info.id:
+            raise RuntimeError("Sandbox has no ID")
         return self._vm_info.id
 
     @property
-    def vm_info(self) -> VMStartResponseData:
-        """Raw VM start response (id, cluster, workspace_path, etc.)."""
+    def vm_info(self) -> SandboxModel:
+        """Raw sandbox model (id, agent_url, agent_token, etc.)."""
         return self._vm_info
 
     # ── Sandbox sub-namespace delegation ──────────────────────────────────────
 
     @property
-    def files(self) -> FilesFacade:
+    def files(self) -> Files:
         """File system operations (read, create, delete, move, copy, stat, watch)."""
-        return FilesFacade(self._sandbox_client)
+        return Files(self._sandbox_client)
 
     @property
-    def directories(self) -> DirectoriesFacade:
+    def directories(self) -> Directories:
         """Directory operations (list, create, delete)."""
-        return DirectoriesFacade(self._sandbox_client)
+        return Directories(self._sandbox_client)
 
     @property
-    def execs(self) -> ExecsFacade:
+    def execs(self) -> Execs:
         """Shell exec operations (create, get, update, stream_output, send_stdin, stream_list)."""
-        return ExecsFacade(self._sandbox_client)
+        return Execs(self._sandbox_client)
 
     @property
-    def tasks(self) -> TasksFacade:
+    def tasks(self) -> Tasks:
         """Task operations (list, list_setup, get, action)."""
-        return TasksFacade(self._sandbox_client)
+        return Tasks(self._sandbox_client)
 
     @property
-    def ports(self) -> PortsFacade:
+    def ports(self) -> Ports:
         """Port discovery (list, stream_list)."""
-        return PortsFacade(self._sandbox_client)
+        return Ports(self._sandbox_client)
 
     # NOTE: sandbox.streams is removed — use sandbox.files.watch() instead
 
@@ -419,11 +422,11 @@ class Sandbox:
 
     async def hibernate(self) -> None:
         """Suspend (hibernate) this VM."""
-        await vm_hibernate_api(self.id, client=self._api_client)
+        await stop_sandbox_api(self.id, client=self._api_client, body={'stop_type': 'hibernate'})
 
     async def shutdown(self) -> None:
         """Shut down this VM."""
-        await vm_shutdown_api(self.id, client=self._api_client)
+        await stop_sandbox_api(self.id, client=self._api_client, body={'stop_type': 'shutdown'})
 
     async def close(self) -> None:
         """Close the underlying sandbox client connection."""
@@ -452,7 +455,7 @@ class Sandbox:
         *,
         api_key: str | None = None,
         base_url: str = "https://api.codesandbox.io",
-        start_options: VMStartRequest | None = None,
+        start_options: dict | None = None,
     ) -> "Sandbox":
         """
         Start a sandbox in a single call (classmethod factory).
@@ -464,6 +467,29 @@ class Sandbox:
         sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
         return await sdk.sandboxes.start(sandbox_id, start_options=start_options)
 
+    @classmethod
+    async def hibernate(
+        cls,
+        sandbox_id: str,
+        *,
+        api_key: str | None = None,
+        base_url: str = "https://api.codesandbox.io",
+    ) -> None:
+        """Hibernate a sandbox by ID without a running Sandbox instance."""
+        sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
+        await sdk.sandboxes.hibernate(sandbox_id)
+
+    @classmethod
+    async def shutdown(
+        cls,
+        sandbox_id: str,
+        *,
+        api_key: str | None = None,
+        base_url: str = "https://api.codesandbox.io",
+    ) -> None:
+        """Shut down a sandbox by ID without a running Sandbox instance."""
+        sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
+        await sdk.sandboxes.shutdown(sandbox_id)
 
 # ─── SandboxesNamespace ───────────────────────────────────────────────────────
 
@@ -480,28 +506,25 @@ class SandboxesNamespace:
         self,
         sandbox_id: str,
         *,
-        start_options: VMStartRequest | None = None,
+        start_options: dict | None = None,
     ) -> Sandbox:
         """
         Start the VM for the given sandbox and return a :class:`Sandbox`
         with a fully wired sandbox client.
 
-        The ``pint_url``/``pint_token`` vs. ``pitcher_url``/``pitcher_token``
-        selection is handled automatically based on the ``use_pint`` flag.
-
         Args:
             sandbox_id: The sandbox (VM) ID to start.
-            start_options: Optional :class:`VMStartRequest` for tier/wakeup config.
+            start_options: Optional start options (e.g., version_number).
 
         Returns:
             A ready-to-use :class:`Sandbox` with all sub-namespaces.
         """
-        response = await vm_start_api(sandbox_id, client=self._api_client, body=start_options)
+        response = await start_sandbox_api(sandbox_id, client=self._api_client, body=start_options)
         vm_info = response.data
 
-        if vm_info is None or isinstance(vm_info, type(UNSET)):
+        if vm_info is None:
             raise RuntimeError(
-                f"vmStart for sandbox '{sandbox_id}' returned no data. "
+                f"startSandbox for sandbox '{sandbox_id}' returned no data. "
                 "Check that the sandbox ID is valid and your API key has the required scopes."
             )
 
@@ -516,75 +539,16 @@ class SandboxesNamespace:
 
         return Sandbox(vm_info, sandbox_client, self._api_client)
 
-    async def fork(
-        self,
-        sandbox_id: str,
-        *,
-        fork_options: Any = None,
-    ) -> Sandbox:
-        """
-        Fork an existing sandbox and immediately start its VM.
-
-        Args:
-            sandbox_id: The sandbox to fork.
-            fork_options: Optional fork request body.
-
-        Returns:
-            A :class:`Sandbox` for the newly forked + started sandbox.
-        """
-        fork_response = await sandbox_fork_api(sandbox_id, client=self._api_client, body=fork_options)
-        new_id = fork_response.data.id
-        return await self.start(new_id)
-
     async def hibernate(self, sandbox_id: str) -> None:
         """Hibernate (suspend) a VM by sandbox ID."""
-        await vm_hibernate_api(sandbox_id, client=self._api_client)
+        await stop_sandbox_api(sandbox_id, client=self._api_client, body={'stop_type': 'hibernate'})
 
     async def shutdown(self, sandbox_id: str) -> None:
         """Shut down a VM by sandbox ID."""
-        await vm_shutdown_api(sandbox_id, client=self._api_client)
+        await stop_sandbox_api(sandbox_id, client=self._api_client, body={'stop_type': 'shutdown'})
 
 
-# ─── TokensNamespace ──────────────────────────────────────────────────────────
-
-
-class TokensNamespace:
-    """
-    Preview token operations accessed as ``sdk.tokens.*``.
-
-    Preview tokens allow access to private sandboxes.
-    """
-
-    def __init__(self, api_client: ApiClient) -> None:
-        self._api_client = api_client
-
-    async def list(self, sandbox_id: str) -> PreviewTokenListResponse:
-        """List all preview tokens for a sandbox."""
-        return await preview_token_list_api(sandbox_id, client=self._api_client)
-
-    async def create(
-        self, sandbox_id: str, body: PreviewTokenCreateRequest | None = None
-    ) -> PreviewTokenCreateResponse:
-        """Create a new preview token for a sandbox."""
-        return await preview_token_create_api(sandbox_id, client=self._api_client, body=body)
-
-    async def update(
-        self,
-        sandbox_id: str,
-        token_id: str,
-        body: PreviewTokenUpdateRequest | None = None,
-    ) -> PreviewTokenUpdateResponse:
-        """Update an existing preview token."""
-        return await preview_token_update_api(
-            sandbox_id, token_id, client=self._api_client, body=body
-        )
-
-    async def revoke_all(self, sandbox_id: str) -> PreviewTokenRevokeAllResponse:
-        """Revoke all preview tokens for a sandbox."""
-        return await preview_token_revoke_all_api(sandbox_id, client=self._api_client)
-
-
-# ─── TogetherSandbox (main facade) ───────────────────────────────────────────
+# ─── TogetherSandbox (main facade) ──────────────────────────────────────────
 
 
 class TogetherSandbox:
@@ -622,7 +586,6 @@ class TogetherSandbox:
             raise_on_unexpected_status=True,
         )
         self.sandboxes = SandboxesNamespace(self._api_client)
-        self.tokens = TokensNamespace(self._api_client)
 
     # NOTE: sdk.api_client is removed from the public surface.
     # The internal _api_client is still used by sandboxes and tokens namespaces.

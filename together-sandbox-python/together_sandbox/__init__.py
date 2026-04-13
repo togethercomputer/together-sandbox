@@ -14,7 +14,7 @@ Low-level clients (advanced use)::
 """
 
 from .api.client import AuthenticatedClient as ApiClient
-from .facade import Sandbox, SandboxesNamespace, TokensNamespace, TogetherSandbox
+from .facade import Sandbox, SandboxesNamespace, TogetherSandbox
 from .sandbox.client import AuthenticatedClient as SandboxClient
 
 __all__ = [
@@ -22,7 +22,6 @@ __all__ = [
     "TogetherSandbox",
     "Sandbox",
     "SandboxesNamespace",
-    "TokensNamespace",
     # Low-level clients (advanced / direct use)
     "ApiClient",
     "SandboxClient",
