@@ -6,6 +6,7 @@
     "together-sandbox": "dist/together-sandbox.mjs"
   },
   "scripts": {
+    "generate": "openapi-ts -i ../api-openapi.json -o src/api-clients/api -c @hey-api/client-fetch",
     "build": "node esbuild.cjs",
     "build:binary": "bun build --compile --minify src/main.tsx --outfile dist/together-sandbox",
     "build:binary:all": "bun build --compile --minify src/main.tsx --target=bun-darwin-arm64 --outfile dist/together-sandbox-darwin-arm64 && bun build --compile --minify src/main.tsx --target=bun-darwin-x64 --outfile dist/together-sandbox-darwin-x64 && bun build --compile --minify src/main.tsx --target=bun-linux-x64 --outfile dist/together-sandbox-linux-x64 && bun build --compile --minify src/main.tsx --target=bun-linux-arm64 --outfile dist/together-sandbox-linux-arm64 && bun build --compile --minify src/main.tsx --target=bun-windows-x64 --outfile dist/together-sandbox-windows-x64.exe",
@@ -14,7 +15,6 @@
   },
   "dependencies": {
     "@together-sandbox/sdk": "^1.0.0",
-    "@hey-api/client-fetch": "^0.13.1",
     "chalk": "^5.4.1",
     "cli-table3": "^0.6.3",
     "date-fns": "^4.1.0",
@@ -23,6 +23,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@hey-api/client-fetch": "^0.13.1",
     "@parcel/watcher": "^2.5.1",
     "@types/node": "^22.15.30",
     "@types/yargs": "^17.0.33",
