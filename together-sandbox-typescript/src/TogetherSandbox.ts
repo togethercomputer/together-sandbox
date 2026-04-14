@@ -39,8 +39,12 @@ import type { Sandbox as SandboxModel } from "./api-clients/api/types.gen.js";
 /**
  * Extract the agent connection details from the Sandbox model.
  */
-function resolveConnectionDetails(sandbox: SandboxModel): { url: string; token: string } {
-  if (!sandbox.agent_url || !sandbox.agent_token) throw new Error("Sandbox has no agent connection details");
+function resolveConnectionDetails(sandbox: SandboxModel): {
+  url: string;
+  token: string;
+} {
+  if (!sandbox.agent_url || !sandbox.agent_token)
+    throw new Error("Sandbox has no agent connection details");
   return { url: sandbox.agent_url, token: sandbox.agent_token };
 }
 
@@ -124,8 +128,12 @@ export class Sandbox {
     const client = this._sandboxClient;
     return {
       read: async (path: string) => {
-        const result = await sandboxApi.readFile({ client, path: { path }, throwOnError: true });
-        return result.data.content
+        const result = await sandboxApi.readFile({
+          client,
+          path: { path },
+          throwOnError: true,
+        });
+        return result.data.content;
       },
       create: async (path: string, content: string | Blob | File) => {
         const body =
@@ -139,10 +147,14 @@ export class Sandbox {
           body,
           throwOnError: true,
         });
-        return result.data.content
+        return result.data.content;
       },
       delete: async (path: string) => {
-        await sandboxApi.deleteFile({ client, path: { path }, throwOnError: true });
+        await sandboxApi.deleteFile({
+          client,
+          path: { path },
+          throwOnError: true,
+        });
       },
       move: async (from: string, to: string) => {
         await sandboxApi.performFileAction({
@@ -161,8 +173,12 @@ export class Sandbox {
         });
       },
       stat: async (path: string) => {
-        const result = await sandboxApi.getFileStat({ client, path: { path }, throwOnError: true });
-        return result.data
+        const result = await sandboxApi.getFileStat({
+          client,
+          path: { path },
+          throwOnError: true,
+        });
+        return result.data;
       },
       watch: async (path: string, options?: WatchOptions) => {
         const result = await sandboxApi.createWatcher({
@@ -176,7 +192,7 @@ export class Sandbox {
             : undefined,
           throwOnError: true,
         });
-        
+
         return result.stream;
       },
     };
@@ -187,14 +203,26 @@ export class Sandbox {
     const client = this._sandboxClient;
     return {
       list: async (path: string) => {
-        const result = await sandboxApi.listDirectory({ client, path: { path }, throwOnError: true });
-        return result.data.files
+        const result = await sandboxApi.listDirectory({
+          client,
+          path: { path },
+          throwOnError: true,
+        });
+        return result.data.files;
       },
       create: async (path: string) => {
-        await sandboxApi.createDirectory({ client, path: { path }, throwOnError: true });
+        await sandboxApi.createDirectory({
+          client,
+          path: { path },
+          throwOnError: true,
+        });
       },
       delete: async (path: string) => {
-        await sandboxApi.deleteDirectory({ client, path: { path }, throwOnError: true });
+        await sandboxApi.deleteDirectory({
+          client,
+          path: { path },
+          throwOnError: true,
+        });
       },
     };
   }
@@ -204,39 +232,84 @@ export class Sandbox {
     const client = this._sandboxClient;
     return {
       list: async () => {
-        const result = await sandboxApi.listExecs({ client, throwOnError: true });
-        return result.data.execs
+        const result = await sandboxApi.listExecs({
+          client,
+          throwOnError: true,
+        });
+        return result.data.execs;
       },
-      create: async (body: Parameters<typeof sandboxApi.createExec>[0]["body"]) => {
-        const result = await sandboxApi.createExec({ client, body, throwOnError: true });
-        return result.data
+      create: async (
+        body: Parameters<typeof sandboxApi.createExec>[0]["body"],
+      ) => {
+        const result = await sandboxApi.createExec({
+          client,
+          body,
+          throwOnError: true,
+        });
+        return result.data;
       },
       get: async (id: string) => {
-        const result = await sandboxApi.getExec({ client, path: { id }, throwOnError: true });
-        return result.data
+        const result = await sandboxApi.getExec({
+          client,
+          path: { id },
+          throwOnError: true,
+        });
+        return result.data;
       },
-      update: async (id: string, body: Parameters<typeof sandboxApi.updateExec>[0]["body"]) => {
-        const result = await sandboxApi.updateExec({ client, path: { id }, body, throwOnError: true });
-        return result.data
+      update: async (
+        id: string,
+        body: Parameters<typeof sandboxApi.updateExec>[0]["body"],
+      ) => {
+        const result = await sandboxApi.updateExec({
+          client,
+          path: { id },
+          body,
+          throwOnError: true,
+        });
+        return result.data;
       },
       delete: async (id: string) => {
-        await sandboxApi.deleteExec({ client, path: { id }, throwOnError: true });
+        await sandboxApi.deleteExec({
+          client,
+          path: { id },
+          throwOnError: true,
+        });
       },
       streamOutput: async (id: string, lastSequence?: number) => {
+        const result = await sandboxApi.streamExecOutput({
+          client,
+          path: { id },
+          query: lastSequence !== undefined ? { lastSequence } : undefined,
+          throwOnError: true,
+        });
+        return result.stream;
+      },
+      getOutput: async (id: string, lastSequence?: number) => {
         const result = await sandboxApi.getExecOutput({
           client,
           path: { id },
           query: lastSequence !== undefined ? { lastSequence } : undefined,
           throwOnError: true,
         });
-        return result.data
+        return result.data;
       },
-      sendStdin: async (id: string, body: Parameters<typeof sandboxApi.execExecStdin>[0]["body"]) => {
-        const result = await sandboxApi.execExecStdin({ client, path: { id }, body, throwOnError: true });
+      sendStdin: async (
+        id: string,
+        body: Parameters<typeof sandboxApi.execExecStdin>[0]["body"],
+      ) => {
+        const result = await sandboxApi.execExecStdin({
+          client,
+          path: { id },
+          body,
+          throwOnError: true,
+        });
         return result.data;
       },
       streamList: async () => {
-        const result = await sandboxApi.streamExecsList({ client, throwOnError: true });
+        const result = await sandboxApi.streamExecsList({
+          client,
+          throwOnError: true,
+        });
         return result.stream;
       },
     };
@@ -247,19 +320,34 @@ export class Sandbox {
     const client = this._sandboxClient;
     return {
       list: async () => {
-        const result = await sandboxApi.listTasks({ client, throwOnError: true });
+        const result = await sandboxApi.listTasks({
+          client,
+          throwOnError: true,
+        });
         return result.data.tasks;
       },
       get: async (id: string) => {
-        const result = await sandboxApi.getTask({ client, path: { id }, throwOnError: true });
+        const result = await sandboxApi.getTask({
+          client,
+          path: { id },
+          throwOnError: true,
+        });
         return result.data.task;
       },
       action: async (id: string, actionType: TaskActionType) => {
-        const result = await sandboxApi.executeTaskAction({ client, path: { id }, query: { actionType }, throwOnError: true });
+        const result = await sandboxApi.executeTaskAction({
+          client,
+          path: { id },
+          query: { actionType },
+          throwOnError: true,
+        });
         return result.data;
       },
       listSetup: async () => {
-        const result = await sandboxApi.listSetupTasks({ client, throwOnError: true });
+        const result = await sandboxApi.listSetupTasks({
+          client,
+          throwOnError: true,
+        });
         return result.data.setupTasks;
       },
     };
@@ -270,11 +358,17 @@ export class Sandbox {
     const client = this._sandboxClient;
     return {
       list: async () => {
-        const result = await sandboxApi.listPorts({ client, throwOnError: true });
+        const result = await sandboxApi.listPorts({
+          client,
+          throwOnError: true,
+        });
         return result.data.ports;
       },
       streamList: async () => {
-        const result = await sandboxApi.streamPortsList({ client, throwOnError: true });
+        const result = await sandboxApi.streamPortsList({
+          client,
+          throwOnError: true,
+        });
         return result.stream;
       },
     };
@@ -287,7 +381,7 @@ export class Sandbox {
     await api.stopSandbox({
       client: this._apiClient,
       path: { id: this.id },
-      body: { stop_type: 'hibernate' },
+      body: { stop_type: "hibernate" },
       throwOnError: true,
     });
   }
@@ -297,7 +391,7 @@ export class Sandbox {
     await api.stopSandbox({
       client: this._apiClient,
       path: { id: this.id },
-      body: { stop_type: 'shutdown' },
+      body: { stop_type: "shutdown" },
       throwOnError: true,
     });
   }
@@ -372,10 +466,7 @@ export class SandboxesNamespace {
    * Start a VM for the given sandbox ID and return a {@link Sandbox}
    * with a fully wired sandbox client.
    */
-  async start(
-    sandboxId: string,
-    options?: StartOptions,
-  ): Promise<Sandbox> {
+  async start(sandboxId: string, options?: StartOptions): Promise<Sandbox> {
     const result = await api.startSandbox({
       client: this._apiClient,
       path: { id: sandboxId },
@@ -402,7 +493,7 @@ export class SandboxesNamespace {
     await api.stopSandbox({
       client: this._apiClient,
       path: { id: sandboxId },
-      body: { stop_type: 'hibernate' },
+      body: { stop_type: "hibernate" },
       throwOnError: true,
     });
   }
@@ -414,7 +505,7 @@ export class SandboxesNamespace {
     await api.stopSandbox({
       client: this._apiClient,
       path: { id: sandboxId },
-      body: { stop_type: 'shutdown' },
+      body: { stop_type: "shutdown" },
       throwOnError: true,
     });
   }
@@ -449,9 +540,11 @@ export class TogetherSandbox {
     const apiKey = config.apiKey ?? process.env.TOGETHER_API_KEY;
 
     if (!apiKey) {
-      throw new Error("apiKey must be provided or TOGETHER_API_KEY env var must be set");
+      throw new Error(
+        "apiKey must be provided or TOGETHER_API_KEY env var must be set",
+      );
     }
-    
+
     const apiClient = createApiClient(
       createApiConfig({
         baseUrl: config.baseUrl ?? "https://api.codesandbox.io",

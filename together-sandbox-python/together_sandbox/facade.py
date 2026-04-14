@@ -237,9 +237,23 @@ class Execs:
             params["lastSequence"] = last_sequence
         return stream_sse_json(
             self._client.get_async_httpx_client(),
+            f"/api/v1/stream/execs/{id_}/io",
+            params=params,
+        )
+
+    async def get_output(
+        self, id_: str, last_sequence: int | None = None
+    ) -> str:
+        """Fetch exec output as plain text (one-shot poll)."""
+        params: dict[str, Any] = {}
+        if last_sequence is not None:
+            params["lastSequence"] = last_sequence
+        response = await self._client.get_async_httpx_client().get(
             f"/api/v1/execs/{id_}/io",
             params=params,
         )
+        response.raise_for_status()
+        return response.text
 
     async def send_stdin(self, id_: str, body: ExecStdin):
         """Send stdin to an exec (renamed from exec_exec_stdin)."""
