@@ -34,6 +34,8 @@ from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
+from .api.models.stop_sandbox_body import StopSandboxBody
+from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -47,6 +49,7 @@ from .sandbox.api.files.perform_file_action import asyncio as perform_file_actio
 from .sandbox.api.execs.list_execs import asyncio as list_execs_api
 from .sandbox.api.execs.create_exec import asyncio as create_exec_api
 from .sandbox.api.execs.get_exec import asyncio as get_exec_api
+from .sandbox.api.execs.get_exec_output import asyncio as get_exec_output_api
 from .sandbox.api.execs.update_exec import asyncio as update_exec_api
 from .sandbox.api.execs.delete_exec import asyncio as delete_exec_api
 from .sandbox.api.execs.exec_exec_stdin import asyncio as exec_exec_stdin_api
@@ -60,6 +63,7 @@ from .sandbox.api.tasks.get_task import asyncio as get_task_api
 from .sandbox.api.tasks.execute_task_action import asyncio as execute_task_action_api
 
 # ── Sandbox API models ────────────────────────────────────────────────────────
+from .sandbox.models.create_exec_request import CreateExecRequest
 from .sandbox.models.file_action_request import FileActionRequest
 from .sandbox.models.file_action_request_action import FileActionRequestAction
 from .sandbox.models.file_action_response import FileActionResponse
@@ -68,6 +72,7 @@ from .sandbox.models.file_operation_response import FileOperationResponse
 from .sandbox.models.file_read_response import FileReadResponse
 from .sandbox.models.exec_stdin import ExecStdin
 from .sandbox.models.task_action_type import TaskActionType
+from .sandbox.models.update_exec_request import UpdateExecRequest
 from .sandbox.types import File
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
@@ -206,10 +211,11 @@ class Execs:
         result = await list_execs_api(client=self._client)
         return result.execs
 
-    async def create(self, body):
+    async def create(self, body: CreateExecRequest):
         """Create a new exec."""
         result = await create_exec_api(client=self._client, body=body)
-        assert isinstance(result, type(body).__bases__[0]) or result is not None
+        if result is None:
+            raise RuntimeError("createExec returned None")
         return result
 
     async def get(self, id_: str):
@@ -218,10 +224,11 @@ class Execs:
         assert result is not None
         return result
 
-    async def update(self, id_: str, body):
+    async def update(self, id_: str, body: UpdateExecRequest):
         """Update exec status."""
         result = await update_exec_api(id_, client=self._client, body=body)
-        assert result is not None
+        if result is None:
+            raise RuntimeError(f"updateExec returned None for id {id_!r}")
         return result
 
     async def delete(self, id_: str) -> None:
@@ -245,15 +252,12 @@ class Execs:
         self, id_: str, last_sequence: int | None = None
     ) -> str:
         """Fetch exec output as plain text (one-shot poll)."""
-        params: dict[str, Any] = {}
-        if last_sequence is not None:
-            params["lastSequence"] = last_sequence
-        response = await self._client.get_async_httpx_client().get(
-            f"/api/v1/execs/{id_}/io",
-            params=params,
-        )
-        response.raise_for_status()
-        return response.text
+        result = await get_exec_output_api(id_, client=self._client, last_sequence=last_sequence)
+        if isinstance(result, str):
+            return result
+        if result and hasattr(result, 'output'):
+            return result.output
+        return ""
 
     async def send_stdin(self, id_: str, body: ExecStdin):
         """Send stdin to an exec (renamed from exec_exec_stdin)."""
@@ -332,7 +336,7 @@ class Tasks:
         result = await list_tasks_api(client=self._client)
         return result.tasks
 
-    async def listSetup(self):
+    async def list_setup(self):
         """List setup tasks."""
         result = await list_setup_tasks_api(client=self._client)
         return result.setup_tasks
@@ -436,11 +440,13 @@ class Sandbox:
 
     async def hibernate(self) -> None:
         """Suspend (hibernate) this VM."""
-        await stop_sandbox_api(self.id, client=self._api_client, body={'stop_type': 'hibernate'})
+        await stop_sandbox_api(self.id, client=self._api_client,
+                               body=StopSandboxBody(stop_type=StopSandboxBodyStopType.HIBERNATE))
 
     async def shutdown(self) -> None:
         """Shut down this VM."""
-        await stop_sandbox_api(self.id, client=self._api_client, body={'stop_type': 'shutdown'})
+        await stop_sandbox_api(self.id, client=self._api_client,
+                               body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN))
 
     async def close(self) -> None:
         """Close the underlying sandbox client connection."""
@@ -555,11 +561,13 @@ class SandboxesNamespace:
 
     async def hibernate(self, sandbox_id: str) -> None:
         """Hibernate (suspend) a VM by sandbox ID."""
-        await stop_sandbox_api(sandbox_id, client=self._api_client, body={'stop_type': 'hibernate'})
+        await stop_sandbox_api(sandbox_id, client=self._api_client,
+                               body=StopSandboxBody(stop_type=StopSandboxBodyStopType.HIBERNATE))
 
     async def shutdown(self, sandbox_id: str) -> None:
         """Shut down a VM by sandbox ID."""
-        await stop_sandbox_api(sandbox_id, client=self._api_client, body={'stop_type': 'shutdown'})
+        await stop_sandbox_api(sandbox_id, client=self._api_client,
+                               body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN))
 
 
 # ─── TogetherSandbox (main facade) ──────────────────────────────────────────
