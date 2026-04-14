@@ -25,33 +25,12 @@ export TOGETHER_API_KEY=your_api_key
 
 ## CLI
 
-### `sandboxes`
-
-```
-together-sandbox sandboxes list [options]
-  -o, --output     Comma-separated fields: id,title,privacy,tags,createdAt,updatedAt
-  -t, --tags       Filter by tags (comma-separated)
-  -s, --status     Filter by status (running)
-  -p, --page       Page number
-      --page-size  Items per page
-      --since      Filter by creation date
-      --order-by   Order by field (inserted_at, updated_at)
-      --direction  Sort direction (asc, desc)
-  -l, --limit      Maximum number of sandboxes to list (default: 100)
-
-together-sandbox sandboxes fork <id>
-
-together-sandbox sandboxes hibernate [id]    # reads from stdin if no ID given
-
-together-sandbox sandboxes shutdown [id]     # reads from stdin if no ID given
-```
-
 ### `build`
 
 Builds and deploys a sandbox from the current directory.
 
 ```bash
-together-sandbox build
+together-sandbox build <directory>
 ```
 
 ---
@@ -106,15 +85,14 @@ The low-level generated clients are also available for advanced use. See the [Py
 
 ---
 
-
 ### Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| **CLI not found** | Ensure `/usr/local/bin` is in your PATH, or use `INSTALL_DIR` |
-| **TypeScript SDK 404** | Verify the release exists and you have repository access |
-| **Python SDK install fails** | Ensure you have git installed and repository access |
-| **Authentication errors** | Check your `TOGETHER_API_KEY` environment variable |
+| Issue                        | Solution                                                      |
+| ---------------------------- | ------------------------------------------------------------- |
+| **CLI not found**            | Ensure `/usr/local/bin` is in your PATH, or use `INSTALL_DIR` |
+| **TypeScript SDK 404**       | Verify the release exists and you have repository access      |
+| **Python SDK install fails** | Ensure you have git installed and repository access           |
+| **Authentication errors**    | Check your `TOGETHER_API_KEY` environment variable            |
 
 ---
 
@@ -128,16 +106,30 @@ If the OpenAPI specs change, regenerate all clients from the repo root:
 bash generate.sh
 ```
 
-### Creating a Release
+## Release Process
 
-1. Ensure all changes are committed and pushed
-2. Create and push a tag:
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-3. The GitHub Actions workflow will automatically:
-   - Build the TypeScript SDK
-   - Pack it into `together-sandbox-sdk.tgz`
-   - Build CLI binaries for all platforms
-   - Create a GitHub Release with all artifacts
+Releases are fully automated via **release-please** — no manual tagging or version bumping required.
+
+### How it works
+
+1. **Merge PRs to `main` using Conventional Commits** — the commit type determines what kind of release is created:
+   - `feat:` → minor version bump
+   - `fix:` → patch version bump
+   - `feat!:` / `BREAKING CHANGE:` → major version bump
+   - `chore:`, `docs:`, etc. → no release
+
+2. **release-please opens a "Release PR"** automatically, accumulating changes and
+   updating `CHANGELOG.md` plus all three version files in sync:
+   - `together-sandbox-typescript/package.json`
+   - `together-sandbox-cli/package.json`
+   - `together-sandbox-python/pyproject.toml`
+
+3. **Merge the Release PR** → release-please creates the GitHub Release and tag automatically.
+
+4. **The `build-and-upload` job triggers** and:
+   - Regenerates SDK clients (`bash generate.sh`)
+   - Builds and packs the TypeScript SDK → `together-sandbox-sdk.tgz`
+   - Compiles CLI binaries for all 5 platforms (darwin arm64/x64, linux x64/arm64, windows x64)
+   - Uploads all artifacts to the GitHub Release
+
+The only human action required is keeping commits conventional and merging the Release PR when ready to ship.

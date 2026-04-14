@@ -141,10 +141,12 @@ export async function betaCodeSandboxBuild(
   try {
     const apiKey = getInferredApiKey();
     const apiClient = createClient(apiKey, instrumentedFetch);
+    // 3 custom properties, but we have defaults
     const sandboxTier: VmTier = argv.vmTier ?? "Micro";
 
     const resolvedDirectory = path.resolve(argv.directory);
 
+    // New api to get the registry + repository (First part of path)
     const metaInfoResult = await api.metaInfo({ client: apiClient });
     const teamId = metaInfoResult.data?.auth?.team;
 
