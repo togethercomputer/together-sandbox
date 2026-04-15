@@ -1,79 +1,43 @@
 import { describe, it, expect } from "vitest";
-import { resolveConnectionDetails, Sandbox, TogetherSandbox, TokensNamespace } from "./TogetherSandbox.js";
-import type { VmStartResponseData } from "./api-clients/api/types.gen.js";
+import { Sandbox, TogetherSandbox } from "./TogetherSandbox.js";
+import type { Sandbox as SandboxModel } from "./api-clients/api/types.gen.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function makeVmInfo(overrides: Partial<VmStartResponseData> = {}): VmStartResponseData {
+function makeVmInfo(overrides: Partial<SandboxModel> = {}): SandboxModel {
   return {
-    bootup_type: "cold",
-    cluster: "us-east-1",
+    _type: "sandbox",
     id: "test-sandbox-123",
-    latest_pitcher_version: "1.0.0",
-    pitcher_manager_version: "1.0.0",
-    pitcher_token: "pitcher-tok",
-    pitcher_url: "https://pitcher.example.com",
-    pitcher_version: "1.0.0",
-    reconnect_token: "reconnect-tok",
-    use_pint: false,
-    user_workspace_path: "/home/user/workspace",
-    vm_agent_type: "pint",
-    workspace_path: "/workspace",
+    status: "running",
+    ephemeral: false,
+    cluster_name: "us-east-1",
+    current_version_number: 1,
+    next_version_number: 2,
+    millicpu: 2000,
+    gpu: 0,
+    memory_bytes: 2147483648,
+    disk_bytes: 10737418240,
+    version_count: 1,
+    agent_version: "1.0.0",
+    agent_type: "bartender",
+    agent_token: "agent-tok",
+    agent_url: "https://agent.example.com",
+    created_at: "2026-04-13T00:00:00Z",
+    start_scheduled_at: null,
+    start_type: "cold_start",
+    started_at: "2026-04-13T00:00:01Z",
+    stop_scheduled_at: null,
+    scheduled_stop_type: null,
+    stopped_at: null,
+    stop_reason: null,
+    specs_updated_at: null,
+    recovery_status: null,
+    recovery_scheduled_at: null,
+    recovery_finished_at: null,
+    updated_at: "2026-04-13T00:00:01Z",
     ...overrides,
   };
 }
-
-// ─── resolveConnectionDetails tests ──────────────────────────────────────────
-
-describe("resolveConnectionDetails", () => {
-  it("prefers pint when use_pint is true and pint fields present", () => {
-    const vmInfo = makeVmInfo({
-      use_pint: true,
-      pint_url: "https://pint.example.com",
-      pint_token: "pint-tok",
-    });
-
-    const { url, token } = resolveConnectionDetails(vmInfo);
-    expect(url).toBe("https://pint.example.com");
-    expect(token).toBe("pint-tok");
-  });
-
-  it("falls back to pitcher when use_pint is false", () => {
-    const vmInfo = makeVmInfo({
-      use_pint: false,
-      pint_url: "https://pint.example.com",
-      pint_token: "pint-tok",
-    });
-
-    const { url, token } = resolveConnectionDetails(vmInfo);
-    expect(url).toBe("https://pitcher.example.com");
-    expect(token).toBe("pitcher-tok");
-  });
-
-  it("falls back to pitcher when pint_url is undefined", () => {
-    const vmInfo = makeVmInfo({
-      use_pint: true,
-      pint_url: undefined,
-      pint_token: undefined,
-    });
-
-    const { url, token } = resolveConnectionDetails(vmInfo);
-    expect(url).toBe("https://pitcher.example.com");
-    expect(token).toBe("pitcher-tok");
-  });
-
-  it("falls back to pitcher when pint_token is undefined", () => {
-    const vmInfo = makeVmInfo({
-      use_pint: true,
-      pint_url: "https://pint.example.com",
-      pint_token: undefined,
-    });
-
-    const { url, token } = resolveConnectionDetails(vmInfo);
-    expect(url).toBe("https://pitcher.example.com");
-    expect(token).toBe("pitcher-tok");
-  });
-});
 
 // ─── Sandbox tests ───────────────────────────────────────────────────────────
 
@@ -141,7 +105,7 @@ describe("Sandbox", () => {
     expect(tasks).toHaveProperty("list");
     expect(tasks).toHaveProperty("get");
     expect(tasks).toHaveProperty("action");
-    expect(tasks).toHaveProperty("setup");
+    expect(tasks).toHaveProperty("listSetup");
   });
 
   it("ports namespace has streamList (renamed from stream)", () => {
@@ -156,19 +120,13 @@ describe("Sandbox", () => {
 // ─── TogetherSandbox tests ───────────────────────────────────────────────────
 
 describe("TogetherSandbox", () => {
-  it("exposes sandboxes and tokens namespaces", () => {
+  it("exposes sandboxes", () => {
     const sdk = new TogetherSandbox({ apiKey: "test-key" });
     expect(sdk).toHaveProperty("sandboxes");
-    expect(sdk).toHaveProperty("tokens");
   });
 
   it("does not expose apiClient", () => {
     const sdk = new TogetherSandbox({ apiKey: "test-key" });
     expect((sdk as any).apiClient).toBeUndefined();
-  });
-
-  it("tokens namespace is a TokensNamespace instance", () => {
-    const sdk = new TogetherSandbox({ apiKey: "test-key" });
-    expect(sdk.tokens).toBeInstanceOf(TokensNamespace);
   });
 });

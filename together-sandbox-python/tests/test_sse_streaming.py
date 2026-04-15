@@ -7,7 +7,7 @@ import json
 import httpx
 import pytest
 
-from together_sandbox.facade import ExecsFacade, FilesFacade, PortsFacade
+from together_sandbox.facade import Execs, Files, Ports
 from together_sandbox.sandbox.client import AuthenticatedClient as SandboxAuthClient
 
 
@@ -60,7 +60,7 @@ async def test_execs_stream_output():
     """stream_output() parses SSE frames and yields dicts."""
     payload = [{"type": "stdout", "data": "hello"}, {"type": "stdout", "data": "world"}]
     client = _make_sandbox_client(_sse_body(*payload))
-    facade = ExecsFacade(client)
+    facade = Execs(client)
     results = []
     async for event in facade.stream_output("exec-123"):
         results.append(event)
@@ -72,7 +72,7 @@ async def test_execs_stream_list():
     """stream_list() parses SSE frames and yields dicts."""
     payload = [{"id": "exec-1", "status": "running"}]
     client = _make_sandbox_client(_sse_body(*payload))
-    facade = ExecsFacade(client)
+    facade = Execs(client)
     results = []
     async for event in facade.stream_list():
         results.append(event)
@@ -87,7 +87,7 @@ async def test_files_watch():
     """watch() parses SSE frames and yields dicts."""
     payload = [{"type": "change", "path": "/file.txt"}]
     client = _make_sandbox_client(_sse_body(*payload))
-    facade = FilesFacade(client)
+    facade = Files(client)
     results = []
     async for event in facade.watch("/src"):
         results.append(event)
@@ -102,7 +102,7 @@ async def test_ports_stream_list():
     """stream_list() parses SSE frames and yields dicts."""
     payload = [{"port": 3000, "status": "open"}]
     client = _make_sandbox_client(_sse_body(*payload))
-    facade = PortsFacade(client)
+    facade = Ports(client)
     results = []
     async for event in facade.stream_list():
         results.append(event)
@@ -117,7 +117,7 @@ async def test_stream_handles_empty_data_fields():
     """SSE events with empty data: lines are skipped."""
     body = b"data: \n\ndata: {\"key\": \"val\"}\n\n"
     client = _make_sandbox_client(body)
-    facade = ExecsFacade(client)
+    facade = Execs(client)
     results = []
     async for event in facade.stream_list():
         results.append(event)
@@ -131,7 +131,7 @@ async def test_stream_handles_sse_comments():
     """Comment lines (: comment) are ignored."""
     body = b": this is a comment\ndata: {\"k\": 1}\n\n"
     client = _make_sandbox_client(body)
-    facade = ExecsFacade(client)
+    facade = Execs(client)
     results = []
     async for event in facade.stream_list():
         results.append(event)

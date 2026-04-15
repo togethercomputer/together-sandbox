@@ -1,13 +1,17 @@
-import { createApiClient, createApiConfig, type ApiClient } from "@together-sandbox/sdk";
+import {
+  createClient as createApiClient,
+  createConfig,
+  type Client,
+} from "../api-clients/api/client";
 import { getInferredBaseUrl } from "./constants.js";
 
 function generateTraceParent(): string {
   const version = "00";
   const traceId = Array.from({ length: 32 }, () =>
-    Math.floor(Math.random() * 16).toString(16)
+    Math.floor(Math.random() * 16).toString(16),
   ).join("");
   const spanId = Array.from({ length: 16 }, () =>
-    Math.floor(Math.random() * 16).toString(16)
+    Math.floor(Math.random() * 16).toString(16),
   ).join("");
   const traceFlags = "01";
   return `${version}-${traceId}-${spanId}-${traceFlags}`;
@@ -15,10 +19,10 @@ function generateTraceParent(): string {
 
 async function enhanceFetch(
   request: RequestInfo | URL,
-  instrumentation?: (request: Request) => Promise<Response>
+  instrumentation?: (request: Request) => Promise<Response>,
 ) {
   const headers = new Headers(
-    request instanceof Request ? request.headers : undefined
+    request instanceof Request ? request.headers : undefined,
   );
   headers.set("traceparent", generateTraceParent());
   return instrumentation
@@ -28,18 +32,19 @@ async function enhanceFetch(
 
 export function createClient(
   apiKey: string,
-  instrumentation?: (request: Request) => Promise<Response>
-): ApiClient {
+  instrumentation?: (request: Request) => Promise<Response>,
+): Client {
   return createApiClient(
-    createApiConfig({
+    createConfig({
       baseUrl: getInferredBaseUrl(apiKey),
       fetch: (request) => enhanceFetch(request, instrumentation),
       headers: { Authorization: `Bearer ${apiKey}` },
-    })
+      throwOnError: true,
+    }),
   );
 }
 
-export function getDefaultTemplateId(client: ApiClient): string {
+export function getDefaultTemplateId(client: Client): string {
   if (client.getConfig().baseUrl?.includes("codesandbox.stream")) {
     return "7ngcrf";
   }
@@ -49,7 +54,7 @@ export function getDefaultTemplateId(client: ApiClient): string {
 export async function retryWithDelay<T>(
   callback: () => Promise<T>,
   retries: number = 3,
-  delay: number = 500
+  delay: number = 500,
 ): Promise<T> {
   let lastError: Error = new Error("Retry failed");
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -62,37 +67,4 @@ export async function retryWithDelay<T>(
     }
   }
   throw lastError;
-}
-
-export function handleResponse<D, E>(
-  result: Awaited<{ data?: { data?: D }; error?: E; response: Response }>,
-  errorPrefix: string
-): D {
-  if (result.response.status === 429 && "error" in result) {
-    const error = (result.error as { errors: string[] }).errors[0];
-    throw new Error(`${errorPrefix}: Rate limit exceeded. ${error ?? ""}`);
-  }
-  if (result.response.status === 404) {
-    throw new Error(errorPrefix + ": Not found");
-  }
-  if (result.response.status === 403) {
-    throw new Error(errorPrefix + ": Unauthorized");
-  }
-  if (result.response.status === 502) {
-    throw new Error(errorPrefix + ": Bad gateway");
-  }
-  if (result.response.status === 503) {
-    throw new Error(
-      errorPrefix +
-        ": The sandbox is currently overloaded. Please review your logic to reduce the number of concurrent requests or try again in a moment."
-    );
-  }
-  if ("error" in result) {
-    const error = (result.error as { errors: string[] }).errors[0];
-    throw new Error(errorPrefix + ": " + error);
-  }
-  if (!result.data || !result.data.data) {
-    throw new Error(errorPrefix + ": No data returned");
-  }
-  return result.data.data;
 }

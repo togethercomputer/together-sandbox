@@ -2,8 +2,9 @@ import path from "path";
 import ora from "ora";
 import type * as yargs from "yargs";
 import { instrumentedFetch } from "../utils/sentry";
-import { api } from "@together-sandbox/sdk";
-import { createClient, handleResponse, getDefaultTemplateId } from "../utils/api";
+import * as api from "../api-clients/api";
+
+import { createClient, getDefaultTemplateId } from "../utils/api";
 import {
   getInferredApiKey,
   getInferredRegistryUrl,
@@ -11,8 +12,16 @@ import {
 } from "../utils/constants";
 import { sleep, base32Encode } from "../utils/misc";
 
-const VM_TIERS = ['Pico', 'Nano', 'Micro', 'Small', 'Medium', 'Large', 'XLarge'] as const;
-type VmTier = typeof VM_TIERS[number];
+const VM_TIERS = [
+  "Pico",
+  "Nano",
+  "Micro",
+  "Small",
+  "Medium",
+  "Large",
+  "XLarge",
+] as const;
+type VmTier = (typeof VM_TIERS)[number];
 import {
   buildDockerImage,
   prepareDockerBuild,
@@ -89,13 +98,12 @@ export const buildCommand: yargs.CommandModule<
   },
 };
 
-
 function createAlias(directory: string, alias: string) {
   const aliasParts = alias.split("@");
 
   if (aliasParts.length > 2) {
     throw new Error(
-      `Alias name "${alias}" is invalid, must be in the format of name@tag`
+      `Alias name "${alias}" is invalid, must be in the format of name@tag`,
     );
   }
 
@@ -105,13 +113,13 @@ function createAlias(directory: string, alias: string) {
 
   if (namespace.length > 64 || alias.length > 64) {
     throw new Error(
-      `Alias name "${namespace}" or tag "${alias}" is too long, must be 64 characters or less`
+      `Alias name "${namespace}" or tag "${alias}" is too long, must be 64 characters or less`,
     );
   }
 
   if (!/^[a-zA-Z0-9-_]+$/.test(namespace) || !/^[a-zA-Z0-9-_]+$/.test(alias)) {
     throw new Error(
-      `Alias name "${namespace}" or tag "${alias}" is invalid, must only contain upper/lower case letters, numbers, dashes and underscores`
+      `Alias name "${namespace}" or tag "${alias}" is invalid, must only contain upper/lower case letters, numbers, dashes and underscores`,
     );
   }
 
@@ -126,23 +134,25 @@ function createAlias(directory: string, alias: string) {
  * @param argv arguments to csb build command
  */
 export async function betaCodeSandboxBuild(
-  argv: yargs.ArgumentsCamelCase<BuildCommandArgs>
+  argv: yargs.ArgumentsCamelCase<BuildCommandArgs>,
 ): Promise<void> {
   let dockerFileCleanupFn: (() => Promise<void>) | undefined;
 
   try {
     const apiKey = getInferredApiKey();
     const apiClient = createClient(apiKey, instrumentedFetch);
-    const sandboxTier: VmTier = argv.vmTier ?? 'Micro';
+    // 3 custom properties, but we have defaults
+    const sandboxTier: VmTier = argv.vmTier ?? "Micro";
 
     const resolvedDirectory = path.resolve(argv.directory);
 
+    // New api to get the registry + repository (First part of path)
     const metaInfoResult = await api.metaInfo({ client: apiClient });
     const teamId = metaInfoResult.data?.auth?.team;
 
     if (!teamId) {
       throw new Error(
-        "Failed to fetch team information for the provided API key. Please ensure your TOGETHER_API_KEY is correct and has access to a team."
+        "Failed to fetch team information for the provided API key. Please ensure your TOGETHER_API_KEY is correct and has access to a team.",
       );
     }
 
@@ -172,7 +182,7 @@ export async function betaCodeSandboxBuild(
         resolvedDirectory,
         (output: string) => {
           dockerBuildPrepareSpinner.text = `Preparing build environment: (${output})`;
-        }
+        },
       );
       dockerFileCleanupFn = result.cleanupFn;
       dockerfilePath = result.dockerfilePath;
@@ -180,7 +190,7 @@ export async function betaCodeSandboxBuild(
       dockerBuildPrepareSpinner.succeed("Build environment ready.");
     } catch (error) {
       dockerBuildPrepareSpinner.fail(
-        `Failed to prepare build environment: ${(error as Error).message}`
+        `Failed to prepare build environment: ${(error as Error).message}`,
       );
       throw error;
     }
@@ -201,7 +211,7 @@ export async function betaCodeSandboxBuild(
       });
     } catch (error) {
       dockerBuildSpinner.fail(
-        `Failed to build template Docker image: ${(error as Error).message}`
+        `Failed to build template Docker image: ${(error as Error).message}`,
       );
       throw error;
     }
@@ -210,7 +220,7 @@ export async function betaCodeSandboxBuild(
     // Docker Login
     const dockerLoginSpinner = ora({ stream: process.stdout });
     dockerLoginSpinner.start(
-      "Authenticating with CodeSandbox Docker registry..."
+      "Authenticating with CodeSandbox Docker registry...",
     );
     try {
       await dockerLogin({
@@ -227,7 +237,7 @@ export async function betaCodeSandboxBuild(
       dockerLoginSpinner.fail(
         `Failed to authenticate with Docker registry: ${
           (error as Error).message
-        }`
+        }`,
       );
       throw error;
     }
@@ -242,7 +252,7 @@ export async function betaCodeSandboxBuild(
       });
     } catch (error) {
       imagePushSpinner.fail(
-        `Failed to push template Docker image: ${(error as Error).message}`
+        `Failed to push template Docker image: ${(error as Error).message}`,
       );
       throw error;
     }
@@ -269,7 +279,7 @@ export async function betaCodeSandboxBuild(
           },
         },
       }),
-      "Failed to create template"
+      "Failed to create template",
     );
     templateCreateSpinner.succeed("Template created with Docker image.");
 
@@ -299,7 +309,7 @@ export async function betaCodeSandboxBuild(
       templateBuildSpinner.fail(
         `Failed to create template reference and example: ${
           (error as Error).message
-        }`
+        }`,
       );
       throw error;
     }
@@ -307,7 +317,7 @@ export async function betaCodeSandboxBuild(
     // Create alias if needed and output final instructions
     const templateFinaliseSpinner = ora({ stream: process.stdout });
     templateFinaliseSpinner.start(
-      `\n\nCreating template reference and example...`
+      `\n\nCreating template reference and example...`,
     );
     let referenceString;
     let id;
