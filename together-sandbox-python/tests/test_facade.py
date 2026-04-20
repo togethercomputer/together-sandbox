@@ -9,12 +9,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from together_sandbox.facade import (
+    _parse_image_reference,
     _resolve_connection,
+    CreateSnapshotParams,
     Directories,
     Execs,
     Files,
     Ports,
     Sandbox,
+    SnapshotsNamespace,
     Tasks,
     TogetherSandbox,
 )
@@ -280,3 +283,118 @@ class TestFiles:
 
             # Verify the response (unwrapped to content string)
             assert result == ""
+
+
+# ─── _parse_image_reference tests ────────────────────────────────────────────
+
+
+class TestParseImageReference:
+    """Tests for _parse_image_reference() Docker image reference parser."""
+
+    def test_bare_name(self):
+        """Test parsing a bare image name without tag."""
+        result = _parse_image_reference("ubuntu")
+        assert result.name == "ubuntu"
+        assert result.registry is None
+        assert result.repository is None
+        assert result.tag is None
+
+    def test_name_with_tag(self):
+        """Test parsing name and tag."""
+        result = _parse_image_reference("node:24")
+        assert result.name == "node"
+        assert result.tag == "24"
+        assert result.registry is None
+        assert result.repository is None
+
+    def test_repository_with_name_and_tag(self):
+        """Test parsing repository, name, and tag."""
+        result = _parse_image_reference("org/myapp:latest")
+        assert result.registry is None
+        assert result.repository == "org"
+        assert result.name == "myapp"
+        assert result.tag == "latest"
+
+    def test_registry_with_repository_name_and_tag(self):
+        """Test parsing full reference with registry, repository, name, and tag."""
+        result = _parse_image_reference("ghcr.io/org/node:24")
+        assert result.registry == "ghcr.io"
+        assert result.repository == "org"
+        assert result.name == "node"
+        assert result.tag == "24"
+
+    def test_registry_with_port(self):
+        """Test parsing registry with port number."""
+        result = _parse_image_reference("localhost:5000/myapp:dev")
+        assert result.registry == "localhost:5000"
+        assert result.repository is None
+        assert result.name == "myapp"
+        assert result.tag == "dev"
+
+
+# ─── Snapshots tests ──────────────────────────────────────────────────────────
+
+
+class TestSnapshots:
+    """Tests for Snapshots.from_image() method."""
+
+    @pytest.mark.asyncio
+    async def test_from_image_calls_create_snapshot_api(self):
+        """Test that from_image calls create_snapshot_api, not build_docker_image."""
+        mock_api_client = MagicMock()
+        
+        snapshots = SnapshotsNamespace(
+            api_client=mock_api_client,
+            api_key="test-key",
+            base_url="https://api.codesandbox.io",
+        )
+
+        # Mock the create_snapshot_api response
+        mock_response = MagicMock()
+        mock_response.id = "snap-123"
+
+        with patch(
+            "together_sandbox.facade.create_snapshot_api",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ) as mock_create_snapshot:
+            result = await snapshots.from_image("node:24")
+
+            # Verify create_snapshot_api was called
+            assert mock_create_snapshot.called
+            assert result.snapshot_id == "snap-123"
+
+    @pytest.mark.asyncio
+    async def test_from_image_with_alias(self):
+        """Test that from_image calls aliasSnapshot when alias is provided."""
+        mock_api_client = MagicMock()
+        
+        snapshots = SnapshotsNamespace(
+            api_client=mock_api_client,
+            api_key="test-key",
+            base_url="https://api.codesandbox.io",
+        )
+
+        # Mock the API responses
+        mock_snapshot_response = MagicMock()
+        mock_snapshot_response.id = "snap-456"
+
+        with patch(
+            "together_sandbox.facade.create_snapshot_api",
+            new_callable=AsyncMock,
+            return_value=mock_snapshot_response,
+        ) as mock_create_snapshot:
+            with patch(
+                "together_sandbox.facade.alias_snapshot_api",
+                new_callable=AsyncMock,
+            ) as mock_alias:
+                result = await snapshots.from_image(
+                    "ubuntu:22.04",
+                    params=CreateSnapshotParams(alias="myimage@latest")
+                )
+
+                # Verify both APIs were called
+                assert mock_create_snapshot.called
+                assert mock_alias.called
+                assert result.snapshot_id == "snap-456"
+                assert result.alias == "myimage@latest"

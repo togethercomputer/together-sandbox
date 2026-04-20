@@ -3,15 +3,13 @@ import * as path from "path";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { getInferredRegistryUrl, isLocalEnvironment } from "./configuration.js";
 import { base32Encode, sleep } from "./utils.js";
-import { randomUUID } from "crypto";
 import {
   buildDockerImage,
-  createImageDockerfile,
   dockerLogin,
   isDockerAvailable,
   pushDockerImage,
 } from "./docker.js";
-import { rm } from "fs/promises";
+import { randomUUID } from "crypto";
 
 export type SnapshotProgress = { output: string } & (
   | { step: "prepare" }
@@ -125,11 +123,74 @@ function createAlias(defaultNamespace: string, alias: string) {
   };
 }
 
-function extractImageName(image: string): string {
-  // "ghcr.io/org/node:24" → "node"
-  const withoutTag = image.split(":")[0];
+export type ImageReference = {
+  registry?: string;
+  repository?: string;
+  name: string;
+  tag?: string;
+};
+
+export function parseImageReference(image: string): ImageReference {
+  // Split tag from the end
+  let tag: string | undefined;
+  let withoutTag = image;
+
+  const tagIndex = image.lastIndexOf(":");
+  if (tagIndex !== -1) {
+    // Check if the part after ':' contains '/' — if so, it's not a tag
+    // (e.g., "registry.example.com:5000/org/app" shouldn't treat ":5000" as a tag)
+    const afterColon = image.slice(tagIndex + 1);
+    if (!afterColon.includes("/")) {
+      tag = afterColon;
+      withoutTag = image.slice(0, tagIndex);
+    }
+  }
+
+  // Split path segments
   const parts = withoutTag.split("/");
-  return parts[parts.length - 1];
+
+  let registry: string | undefined;
+  let repository: string | undefined;
+  let name: string;
+
+  if (parts.length === 1) {
+    // Just "node" or "ubuntu"
+    name = parts[0];
+  } else if (parts.length === 2) {
+    // Either "org/myapp" or "registry.example.com/myapp"
+    const firstPart = parts[0];
+    if (firstPart.includes(".") || firstPart.includes(":")) {
+      // It's a registry
+      registry = firstPart;
+      name = parts[1];
+    } else {
+      // It's a repository
+      repository = firstPart;
+      name = parts[1];
+    }
+  } else if (parts.length >= 3) {
+    // "registry/org/myapp" or more
+    const firstPart = parts[0];
+    if (firstPart.includes(".") || firstPart.includes(":")) {
+      // First part is registry
+      registry = firstPart;
+      repository = parts[1];
+      name = parts[2];
+    } else {
+      // No registry, first part is repository
+      repository = firstPart;
+      name = parts[1];
+    }
+  } else {
+    throw new Error(`Invalid image reference: ${image}`);
+  }
+
+  return {
+    registry,
+    repository,
+    name,
+    tag,
+  };
 }
 
 /**
@@ -183,29 +244,51 @@ export class SnapshotsNamespace {
     image: string,
     params?: CreateSnapshotParams,
   ): Promise<CreateSnapshotResult> {
-    const dockerAvailable = await isDockerAvailable();
-    if (!dockerAvailable) {
-      console.error(
-        "Docker is not available. Please install Docker to use beta build mode.",
-      );
-      process.exit(1);
+    const imageRef = parseImageReference(image);
+    const extractedName = imageRef.name;
+
+    params?.onProgress?.({
+      step: "register",
+      output: "Registering snapshot...",
+    });
+
+    const snapshotData = await api.createSnapshot({
+      client: this._apiClient,
+      body: {
+        image: {
+          registry: imageRef.registry,
+          repository: imageRef.repository,
+          name: imageRef.name,
+          tag: imageRef.tag,
+          architecture: "amd64",
+        },
+      },
+      throwOnError: true,
+    });
+
+    let alias;
+
+    // Create alias if needed
+    if (params?.alias) {
+      params.onProgress?.({
+        step: "alias",
+        output: "Creating alias...",
+      });
+
+      const aliasParts = createAlias(extractedName, params.alias);
+      alias = `${aliasParts.namespace}@${aliasParts.alias}`;
+      await api.aliasSnapshot({
+        client: this._apiClient,
+        path: { snapshot_id: snapshotData.data.id },
+        body: { alias },
+        throwOnError: true,
+      });
     }
 
-    const { dockerfilePath, tmpDir } = await createImageDockerfile(image);
-    const context = tmpDir;
-    const architecture: "amd64" | "arm64" =
-      process.arch === "arm64" && isLocalEnvironment(this._baseUrl)
-        ? "arm64"
-        : "amd64";
-
-    return this._buildAndRegister({
-      dockerfilePath,
-      context,
-      architecture,
-      aliasDefaultNamespace: extractImageName(image),
-      cleanupFn: () => rm(tmpDir, { recursive: true, force: true }),
-      params,
-    });
+    return {
+      snapshotId: snapshotData.data.id,
+      alias,
+    };
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────
@@ -241,7 +324,6 @@ export class SnapshotsNamespace {
       }
 
       const base32EncodedTeamId = base32Encode(teamId);
-
       const registry = getInferredRegistryUrl(this._baseUrl);
       const repository = base32EncodedTeamId;
       const imageName = `image-${randomUUID().toLowerCase()}`;

@@ -25,11 +25,10 @@ import base64
 import os
 import platform
 import re
-import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, AsyncIterator, List, Optional
+from typing import Any, AsyncIterator, List
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -97,13 +96,13 @@ from .api.models.alias_snapshot_body import AliasSnapshotBody
 from .api.models.create_snapshot_body import CreateSnapshotBody
 from .api.models.create_snapshot_body_image import CreateSnapshotBodyImage
 from .api.models.create_snapshot_body_image_architecture import CreateSnapshotBodyImageArchitecture
+from .api.types import UNSET
 
 # ── Docker helpers ────────────────────────────────────────────────────────────
 from .docker import (
     DockerBuildOptions,
     DockerLoginOptions,
     build_docker_image,
-    create_image_dockerfile,
     docker_login,
     is_docker_available,
     push_docker_image,
@@ -666,8 +665,80 @@ def _parse_alias(default_namespace: str, alias: str) -> tuple[str, str]:
     return namespace, tag
 
 
-def _extract_image_name(image: str) -> str:
-    return image.split(":")[0].split("/")[-1]
+@dataclass
+class ImageReference:
+    """Parsed Docker image reference components."""
+    name: str
+    registry: str | None = None
+    repository: str | None = None
+    tag: str | None = None
+
+
+def _parse_image_reference(image: str) -> ImageReference:
+    """
+    Parse a Docker image reference into its components.
+
+    Handles formats like:
+    - ubuntu
+    - node:24
+    - org/myapp
+    - org/myapp:latest
+    - ghcr.io/org/node:24
+    - registry.example.com:5000/org/app:v1
+
+    A registry is present if the first path segment contains '.' or ':',
+    indicating a registry hostname.
+    """
+    # Find the last colon and check if the text after it contains a slash
+    last_colon = image.rfind(":")
+    if last_colon != -1:
+        after_colon = image[last_colon + 1:]
+        if "/" not in after_colon:
+            tag = after_colon
+            image_without_tag = image[:last_colon]
+        else:
+            image_without_tag = image
+            tag = None
+    else:
+        image_without_tag = image
+        tag = None
+
+    # Split the image part by "/"
+    parts = image_without_tag.split("/")
+
+    if len(parts) == 1:
+        # Just "name" or "name:tag"
+        return ImageReference(name=parts[0], tag=tag if tag else None)
+
+    if len(parts) == 2:
+        # Either "registry/name" or "repo/name"
+        first_part = parts[0]
+        second_part = parts[1]
+        if "." in first_part or ":" in first_part:
+            # It's a registry
+            return ImageReference(registry=first_part, name=second_part, tag=tag if tag else None)
+        else:
+            # It's a repository
+            return ImageReference(repository=first_part, name=second_part, tag=tag if tag else None)
+
+    if len(parts) >= 3:
+        # "registry/repo/name" or more
+        first_part = parts[0]
+        if "." in first_part or ":" in first_part:
+            # First part is a registry
+            registry = first_part
+            repository = parts[1]
+            name = parts[2]
+            return ImageReference(registry=registry, repository=repository, name=name, tag=tag if tag else None)
+        else:
+            # No registry, treat first two parts as namespace/repo hierarchy
+            # (unlikely but handle it as repo/name)
+            repository = parts[0]
+            name = parts[1]
+            return ImageReference(repository=repository, name=name, tag=tag if tag else None)
+
+    # Fallback (should not reach here)
+    return ImageReference(name=image_without_tag)
 
 
 async def _get_meta_info(api_key: str) -> dict:
@@ -737,32 +808,46 @@ class SnapshotsNamespace:
         image: str,
         params: CreateSnapshotParams | None = None,
     ) -> CreateSnapshotResult:
-        """Pull a public Docker image and register it as a snapshot."""
-        if not await is_docker_available():
-            raise RuntimeError(
-                "Docker is not available. Please install Docker to use snapshot builds."
+        """Create a snapshot from a public Docker image without building."""
+        # Parse the image reference into components
+        ref = _parse_image_reference(image)
+
+        def _emit(step: str, output: str) -> None:
+            if params and params.on_progress:
+                params.on_progress(SnapshotProgress(step=step, output=output))
+
+        # Build CreateSnapshotBodyImage, mapping None to UNSET
+        _emit("register", "Creating snapshot from image...")
+        snapshot_data = await create_snapshot_api(
+            client=self._api_client,
+            body=CreateSnapshotBody(
+                image=CreateSnapshotBodyImage(
+                    registry=ref.registry or UNSET,
+                    repository=ref.repository or UNSET,
+                    name=ref.name,
+                    tag=ref.tag or UNSET,
+                    architecture=CreateSnapshotBodyImageArchitecture("amd64"),
+                )
+            ),
+        )
+
+        if snapshot_data is None or not hasattr(snapshot_data, "id"):
+            raise RuntimeError("Snapshot creation returned no data")
+
+        snapshot_id = str(snapshot_data.id)
+        alias: str | None = None
+
+        if params and params.alias:
+            _emit("alias", "Creating alias...")
+            namespace, alias_tag = _parse_alias(ref.name, params.alias)
+            alias = f"{namespace}@{alias_tag}"
+            await alias_snapshot_api(
+                snapshot_data.id,
+                client=self._api_client,
+                body=AliasSnapshotBody(alias=alias),
             )
 
-        result = await create_image_dockerfile(image)
-        dockerfile_path = result["dockerfile_path"]
-        tmp_dir = result["tmp_dir"]
-        architecture = (
-            "arm64"
-            if platform.machine().lower() == "arm64" and _is_local_environment(self._base_url)
-            else "amd64"
-        )
-
-        async def cleanup() -> None:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-
-        return await self._build_and_register(
-            dockerfile_path=dockerfile_path,
-            context=tmp_dir,
-            architecture=architecture,
-            alias_default_namespace=_extract_image_name(image),
-            cleanup_fn=cleanup,
-            params=params,
-        )
+        return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
 
     # ─── Private helpers ──────────────────────────────────────────────────────
 

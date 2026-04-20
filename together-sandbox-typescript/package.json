@@ -31,7 +31,8 @@
   "scripts": {
     "generate": "openapi-ts -i ../api-openapi.json -o src/api-clients/api -c @hey-api/client-fetch && openapi-ts -i ../sandbox-openapi.json -o src/api-clients/sandbox -c @hey-api/client-fetch",
     "build": "tsup",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hey-api/client-fetch": "^0.13.1"
