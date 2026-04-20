@@ -961,13 +961,13 @@ class TogetherSandbox:
 
     Args:
         api_key: Together AI API key. Falls back to ``TOGETHER_API_KEY`` env var.
-        base_url: Management API base URL. Defaults to ``https://api.codesandbox.io``.
+        base_url: Management API base URL. Defaults to ``https://api.bartender.codesandbox.io``.
     """
 
     def __init__(
         self,
         api_key: str | None = None,
-        base_url: str = "https://api.codesandbox.io",
+        base_url: str = "https://api.bartender.codesandbox.stream",
     ) -> None:
         resolved_key = api_key or os.environ.get("TOGETHER_API_KEY")
         if not resolved_key:
@@ -977,7 +977,7 @@ class TogetherSandbox:
         self._api_key = resolved_key
         self._base_url = base_url
         self._api_client = ApiClient(
-            base_url=base_url,
+            base_url=base_url + "/api/v1",
             token=resolved_key,
             prefix="Bearer",
             raise_on_unexpected_status=True,
