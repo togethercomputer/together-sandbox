@@ -149,9 +149,9 @@ export class SnapshotsNamespace {
    * Together Sandbox snapshot. The build context is the parent directory of
    * the Dockerfile.
    */
-  async fromDockerFile(
-    dockerFilePath: string,
-    params?: CreateSnapshotParams,
+  async fromBuild(
+    dockerContext: string,
+    params?: CreateSnapshotParams & { dockerfile?: string },
   ): Promise<CreateSnapshotResult> {
     const dockerAvailable = await isDockerAvailable();
     if (!dockerAvailable) {
@@ -161,18 +161,16 @@ export class SnapshotsNamespace {
       process.exit(1);
     }
 
-    const resolvedPath = path.resolve(dockerFilePath);
-    const context = path.dirname(resolvedPath);
     const architecture: "amd64" | "arm64" =
       process.arch === "arm64" && isLocalEnvironment(this._baseUrl)
         ? "arm64"
         : "amd64";
 
     return this._buildAndRegister({
-      dockerfilePath: resolvedPath,
-      context,
+      dockerfilePath: params?.dockerfile,
+      context: dockerContext,
       architecture,
-      aliasDefaultNamespace: path.basename(context),
+      aliasDefaultNamespace: path.basename(dockerContext),
       cleanupFn: async () => {},
       params,
     });
@@ -213,7 +211,7 @@ export class SnapshotsNamespace {
   // ─── Private helpers ──────────────────────────────────────────────────────
 
   private async _buildAndRegister(opts: {
-    dockerfilePath: string;
+    dockerfilePath?: string;
     context: string;
     architecture: "amd64" | "arm64";
     aliasDefaultNamespace: string;

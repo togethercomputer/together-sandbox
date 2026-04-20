@@ -49,7 +49,7 @@ export async function createTemporaryDockerfile(): Promise<string> {
 }
 
 export type DockerBuildOptions = {
-  dockerfilePath: string;
+  dockerfilePath?: string;
   imageName: string;
   context: string;
   architecture?: string;
@@ -75,8 +75,7 @@ export async function buildDockerImage(
         "--platform",
         `linux/${architecture}`,
         "--progress=plain",
-        "-f",
-        dockerfilePath,
+        ...(dockerfilePath ? ["-f", dockerfilePath] : []),
         "-t",
         imageName,
         context,

@@ -618,10 +618,14 @@ class CreateSnapshotResult:
 
 @dataclass
 class CreateSnapshotParams:
+
     alias: str | None = None
     memory_snapshot: bool | None = None
     on_progress: Callable[[SnapshotProgress], None] | None = None
 
+@dataclass
+class BuildSnapshotParams(CreateSnapshotParams):
+    dockerfile: str | None = None
 
 # ─── Snapshot helpers ─────────────────────────────────────────────────────────
 
@@ -696,10 +700,10 @@ class SnapshotsNamespace:
 
     # ─── Public entry points ──────────────────────────────────────────────────
 
-    async def from_docker_file(
+    async def from_build(
         self,
-        dockerfile_path: str,
-        params: CreateSnapshotParams | None = None,
+        docker_context: str,
+        params: BuildSnapshotParams | None = None,
     ) -> CreateSnapshotResult:
         """Build a Docker image from an existing Dockerfile and register it as a snapshot."""
         if not await is_docker_available():
@@ -707,8 +711,9 @@ class SnapshotsNamespace:
                 "Docker is not available. Please install Docker to use snapshot builds."
             )
 
-        resolved = os.path.realpath(dockerfile_path)
-        context = os.path.dirname(resolved)
+        resolved_context = os.path.realpath(docker_context)
+        resolved_dockerfile = os.path.realpath(params.dockerfile) if params and params.dockerfile else None
+        
         architecture = (
             "arm64"
             if platform.machine().lower() == "arm64" and _is_local_environment(self._base_url)
@@ -719,10 +724,10 @@ class SnapshotsNamespace:
             pass
 
         return await self._build_and_register(
-            dockerfile_path=resolved,
-            context=context,
+            dockerfile_path=resolved_dockerfile,
+            context=resolved_context,
             architecture=architecture,
-            alias_default_namespace=os.path.basename(context),
+            alias_default_namespace=os.path.basename(resolved_context),
             cleanup_fn=noop,
             params=params,
         )
@@ -763,7 +768,7 @@ class SnapshotsNamespace:
 
     async def _build_and_register(
         self,
-        dockerfile_path: str,
+        dockerfile_path: str | None,
         context: str,
         architecture: str,
         alias_default_namespace: str,

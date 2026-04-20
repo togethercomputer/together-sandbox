@@ -1,7 +1,7 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import { createSnapshotCommand } from "./commands/snapshots";
+import { fromBuildCommand, fromImageCommand } from "./commands/snapshots";
 
 let snapshotsYargs: ReturnType<typeof yargs>;
 
@@ -15,8 +15,10 @@ yargs(hideBin(process.argv))
     command: "snapshots",
     describe: "Manage snapshots",
     builder: (yargs) => {
-      snapshotsYargs = yargs.recommendCommands().command(createSnapshotCommand);
-
+      snapshotsYargs = yargs
+        .recommendCommands()
+        .command(fromBuildCommand)
+        .command(fromImageCommand);
       return snapshotsYargs;
     },
     handler: () => {

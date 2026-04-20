@@ -1,87 +1,140 @@
 import type * as yargs from "yargs";
+import * as path from "path";
 import { TogetherSandbox } from "@together-sandbox/sdk";
 import ora from "ora";
 
-export type CreateSnapshotArgs = {
-  dockerFile?: string;
-  image?: string;
+export type SnapshotOptions = {
   alias?: string;
-  // memorySnapshot?: boolean; // still commented out
+  // memorySnapshot?: boolean; // not yet supported
 };
 
-export const createSnapshotCommand: yargs.CommandModule<
+export type FromBuildArgs = {
+  dockerContext: string;
+  dockerFile?: string;
+} & SnapshotOptions;
+
+export type FromImageArgs = {
+  image: string;
+} & SnapshotOptions;
+
+function addSnapshotOptions<T>(
+  yargs: yargs.Argv<T>,
+): yargs.Argv<T & SnapshotOptions> {
+  return yargs.option("alias", {
+    describe:
+      "Alias for the snapshot. Namespace defaults to the image/directory name, or pass `namespace@alias` explicitly",
+    type: "string",
+  });
+  // When memorySnapshot is ready, add it here
+}
+
+export const fromBuildCommand: yargs.CommandModule<
   Record<string, never>,
-  CreateSnapshotArgs
+  FromBuildArgs
 > = {
-  command: "create",
-  describe:
-    "Build a snapshot from a directory. This snapshot can be used to create sandboxes.",
+  command: "from-build <dockerContext>",
+  describe: "Build a snapshot from a Dockerfile.",
   builder: (yargs: yargs.Argv) =>
-    yargs
-      .option("dockerFile", {
-        describe: "Path to a Dockerfile to build a snapshot from",
-        type: "string",
-      })
-      .option("image", {
-        describe: "Docker image name or reference to create a snapshot from",
-        type: "string",
-      })
-      .option("alias", {
-        describe:
-          "Alias that should point to the created snapshot. Alias namespace defaults to directory name, but you can explicitly pass `namespace@alias`",
-        type: "string",
-      })
-      /*
-      // This is not yet supported due to a Nydus bug. We'll open up for this when it works.
-      .option("memory-snapshot", {
-        describe:
-          "Create a memory snapshot by starting the sandbox and capturing its state",
-        type: "boolean",
-      })
-        */
-      .check((argv) => {
-        if (!argv.dockerFile && !argv.image) {
-          throw new Error("Provide either --dockerFile or --image");
-        }
-        if (argv.dockerFile && argv.image) {
-          throw new Error("--dockerFile and --image are mutually exclusive");
-        }
-        return true;
-      }),
+    addSnapshotOptions(
+      yargs
+        .positional("dockerContext", {
+          describe: "Path to the Docker build context directory",
+          type: "string",
+          demandOption: true,
+        })
+        .option("dockerFile", {
+          describe: "Path to a Dockerfile to build a snapshot from",
+          type: "string",
+        }),
+    ) as yargs.Argv<FromBuildArgs>,
 
   handler: async (argv) => {
-    return createSnapshot(argv);
+    return snapshotFromBuild(argv);
+  },
+};
+
+export const fromImageCommand: yargs.CommandModule<
+  Record<string, never>,
+  FromImageArgs
+> = {
+  command: "from-image <image>",
+  describe: "Create a snapshot from a Docker image.",
+  builder: (yargs: yargs.Argv) =>
+    addSnapshotOptions(
+      yargs.positional("image", {
+        describe: "Docker image name or reference to create a snapshot from",
+        type: "string",
+        demandOption: true,
+      }),
+    ) as yargs.Argv<FromImageArgs>,
+
+  handler: async (argv) => {
+    return snapshotFromImage(argv);
   },
 };
 
 /**
- * Build a Together Sandbox Snapshot using Docker for use in gvisor-based sandboxes.
- * @param argv arguments to csb build command
+ * Build a Together Sandbox Snapshot from a Dockerfile.
+ * @param argv arguments to from-build command
  */
-export async function createSnapshot(
-  argv: yargs.ArgumentsCamelCase<CreateSnapshotArgs>,
+async function snapshotFromBuild(
+  argv: yargs.ArgumentsCamelCase<FromBuildArgs>,
 ): Promise<void> {
   const sdk = new TogetherSandbox();
-  const createSnapshotSpinner = ora({ stream: process.stdout });
+  const spinner = ora({ stream: process.stdout });
 
-  createSnapshotSpinner.start();
+  spinner.start();
+
+  try {
+    const resolvedDockerContext = path.resolve(argv.dockerContext);
+    const resolvedDockerFile = argv.dockerFile
+      ? path.resolve(argv.dockerFile)
+      : undefined;
+
+    const result = await sdk.snapshots.fromBuild(resolvedDockerContext, {
+      dockerfile: resolvedDockerFile,
+      alias: argv.alias,
+      onProgress: (event: { output: string }) => {
+        spinner.text = event.output;
+      },
+    });
+    spinner.succeed(`Snapshot created: ${result.alias || result.snapshotId}`);
+    process.exit(0);
+  } catch (error) {
+    spinner.fail();
+    console.error(
+      error instanceof Error
+        ? error.message
+        : `Unknown error: ${JSON.stringify(error)}`,
+    );
+    process.exit(1);
+  }
+}
+
+/**
+ * Create a Together Sandbox Snapshot from a Docker image.
+ * @param argv arguments to from-image command
+ */
+async function snapshotFromImage(
+  argv: yargs.ArgumentsCamelCase<FromImageArgs>,
+): Promise<void> {
+  const sdk = new TogetherSandbox();
+  const spinner = ora({ stream: process.stdout });
+
+  spinner.start();
 
   try {
     const params = {
       alias: argv.alias,
       onProgress: (event: { output: string }) => {
-        createSnapshotSpinner.text = event.output;
+        spinner.text = event.output;
       },
     };
-    const result = argv.dockerFile
-      ? await sdk.snapshots.fromDockerFile(argv.dockerFile, params)
-      : await sdk.snapshots.fromImage(argv.image!, params);
-    createSnapshotSpinner.succeed(
-      `Snapshot created: ${result.alias || result.snapshotId}`,
-    );
+    const result = await sdk.snapshots.fromImage(argv.image, params);
+    spinner.succeed(`Snapshot created: ${result.alias || result.snapshotId}`);
     process.exit(0);
   } catch (error) {
-    createSnapshotSpinner.fail();
+    spinner.fail();
     console.error(
       error instanceof Error
         ? error.message

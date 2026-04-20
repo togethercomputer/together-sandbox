@@ -51,7 +51,7 @@ async def create_image_dockerfile(image: str) -> dict[str, str]:
 
 @dataclass
 class DockerBuildOptions:
-    dockerfile_path: str
+    dockerfile_path: str | None
     image_name: str
     context: str
     architecture: str = "amd64"
@@ -79,7 +79,7 @@ async def build_docker_image(options: DockerBuildOptions) -> None:
         "docker", "build",
         "--platform", f"linux/{options.architecture}",
         "--progress=plain",
-        "-f", options.dockerfile_path,
+        *(['-f', options.dockerfile_path] if options.dockerfile_path else []),
         "-t", options.image_name,
         options.context,
         stdout=asyncio.subprocess.PIPE,
@@ -170,42 +170,3 @@ async def push_docker_image(
         )
 
     _on_output(f"Docker image pushed successfully: {image_name}")
-
-
-async def prepare_docker_build(
-    directory: str,
-    on_output: Callable[[str], None] | None = None,
-) -> dict[str, object]:
-    """
-    Prepare the Docker build environment, creating a temporary Dockerfile if needed.
-
-    Returns:
-        dict with 'dockerfile_path' (str) and 'cleanup_fn' (async callable)
-    """
-    _on_output = on_output or (lambda _: None)
-
-    if not await is_docker_available():
-        raise RuntimeError(
-            "Docker is not available. Please install Docker to use snapshot builds."
-        )
-
-    _on_output("Checking for Dockerfile...")
-
-    dockerfile_info = await find_dockerfile(directory)
-    tmp_dir: str | None = None
-
-    if dockerfile_info["exists"]:
-        dockerfile_path = str(dockerfile_info["path"])
-        cleanup_needed = False
-    else:
-        _on_output("Creating temporary Dockerfile...")
-        result = await create_image_dockerfile("node:24")
-        dockerfile_path = result["dockerfile_path"]
-        tmp_dir = result["tmp_dir"]
-        cleanup_needed = True
-
-    async def cleanup() -> None:
-        if cleanup_needed and tmp_dir:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-
-    return {"dockerfile_path": dockerfile_path, "cleanup_fn": cleanup}
