@@ -89,10 +89,5 @@ echo "Generating Python SDK..."
 cd "$REPO_ROOT/together-sandbox-python"
 bash generate.sh
 
-# ─── Step 4: CLI ─────────────────────────────────────────────────────────────
-echo "Generating CLI API client..."
-cd "$REPO_ROOT/together-sandbox-cli"
-npm run generate
-
 echo ""
 echo "All SDKs generated successfully."

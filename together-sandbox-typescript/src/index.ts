@@ -20,13 +20,5 @@ export {
 } from "./api-clients/sandbox/client/index.js";
 
 // Unified facade — recommended entry point
-export {
-  TogetherSandbox,
-  Sandbox,
-  SandboxesNamespace,
-} from "./TogetherSandbox.js";
-export type {
-  TogetherSandboxConfig,
-  StartOptions,
-  WatchOptions,
-} from "./TogetherSandbox.js";
+export { TogetherSandbox } from "./TogetherSandbox.js";
+export type { TogetherSandboxConfig } from "./configuration.js";

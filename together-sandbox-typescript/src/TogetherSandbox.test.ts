@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { Sandbox, TogetherSandbox } from "./TogetherSandbox.js";
+import { TogetherSandbox } from "./TogetherSandbox.js";
+import { Sandbox } from "./Sandbox.js";
 import type { Sandbox as SandboxModel } from "./api-clients/api/types.gen.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

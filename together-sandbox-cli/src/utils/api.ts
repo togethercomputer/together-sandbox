@@ -43,28 +43,3 @@ export function createClient(
     }),
   );
 }
-
-export function getDefaultTemplateId(client: Client): string {
-  if (client.getConfig().baseUrl?.includes("codesandbox.stream")) {
-    return "7ngcrf";
-  }
-  return "pcz35m";
-}
-
-export async function retryWithDelay<T>(
-  callback: () => Promise<T>,
-  retries: number = 3,
-  delay: number = 500,
-): Promise<T> {
-  let lastError: Error = new Error("Retry failed");
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      return await callback();
-    } catch (error) {
-      lastError = error as Error;
-      if (attempt === retries) throw lastError;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-  throw lastError;
-}

@@ -17,7 +17,7 @@ export async function isDockerAvailable(): Promise<boolean> {
 }
 
 export async function findDockerfile(
-  templateDirectory: string
+  templateDirectory: string,
 ): Promise<{ exists: boolean; path: string | null; inCodesandbox: boolean }> {
   // Check root directory
   const rootDockerfilePath = path.join(templateDirectory, "Dockerfile");
@@ -29,7 +29,7 @@ export async function findDockerfile(
     const codesandboxDockerfilePath = path.join(
       templateDirectory,
       ".codesandbox",
-      "Dockerfile"
+      "Dockerfile",
     );
     try {
       await fs.access(codesandboxDockerfilePath);
@@ -46,7 +46,7 @@ export async function findDockerfile(
 
 export async function createTemporaryDockerfile(
   templateDirectory: string,
-  existingDockerfilePath: string | null
+  existingDockerfilePath: string | null,
 ): Promise<string> {
   // Create a temporary directory for the Dockerfile
   const tmpDir = await mkdtemp(path.join(tmpdir(), "csb-docker-"));
@@ -57,7 +57,7 @@ export async function createTemporaryDockerfile(
   if (existingDockerfilePath) {
     // Read existing Dockerfile from .codesandbox
     dockerfileContent = await fs.readFile(existingDockerfilePath, "utf-8");
-    dockerfileContent += "\n\n# Added by CodeSandbox SDK\n";
+    dockerfileContent += "\n\n# Added by Together Sandbox SDK\n";
   } else {
     // Create a new Dockerfile with node:24 base
     dockerfileContent = "FROM node:24\n\n";
@@ -79,9 +79,16 @@ export type DockerBuildOptions = {
   onOutput?: (output: string) => void;
 };
 
-export async function buildDockerImage(options: DockerBuildOptions): Promise<void> {
-  const { dockerfilePath, imageName, context, architecture = "amd64", onOutput = () => { } } = options;
-
+export async function buildDockerImage(
+  options: DockerBuildOptions,
+): Promise<void> {
+  const {
+    dockerfilePath,
+    imageName,
+    context,
+    architecture = "amd64",
+    onOutput = () => {},
+  } = options;
 
   await new Promise<void>((resolve, reject) => {
     const dockerProcess = spawn(
@@ -99,7 +106,7 @@ export async function buildDockerImage(options: DockerBuildOptions): Promise<voi
       ],
       {
         stdio: ["inherit", "pipe", "pipe"],
-      }
+      },
     );
 
     let outputBuffer = "";
@@ -132,7 +139,9 @@ export async function buildDockerImage(options: DockerBuildOptions): Promise<voi
         resolve();
       } else {
         reject(
-          new Error(`Docker build failed with exit code ${code}\n${outputBuffer}`)
+          new Error(
+            `Docker build failed with exit code ${code}\n${outputBuffer}`,
+          ),
         );
       }
     });
@@ -141,7 +150,6 @@ export async function buildDockerImage(options: DockerBuildOptions): Promise<voi
       reject(`Docker build failed: ${error.message}`);
     });
   });
-
 }
 
 export type DockerLoginOptions = {
@@ -152,7 +160,7 @@ export type DockerLoginOptions = {
 };
 
 export async function dockerLogin(options: DockerLoginOptions): Promise<void> {
-  const { registry, username, password, onOutput = () => { } } = options;
+  const { registry, username, password, onOutput = () => {} } = options;
 
   await new Promise<void>((resolve, reject) => {
     const args = ["login"];
@@ -199,7 +207,9 @@ export async function dockerLogin(options: DockerLoginOptions): Promise<void> {
         resolve();
       } else {
         reject(
-          new Error(`Docker login failed with exit code ${code}\n${outputBuffer}`)
+          new Error(
+            `Docker login failed with exit code ${code}\n${outputBuffer}`,
+          ),
         );
       }
     });
@@ -210,18 +220,16 @@ export async function dockerLogin(options: DockerLoginOptions): Promise<void> {
   });
 }
 
-export async function pushDockerImage(imageName: string, onOutput?: (output: string) => void): Promise<void> {
-
-  onOutput = onOutput || (() => { });
+export async function pushDockerImage(
+  imageName: string,
+  onOutput?: (output: string) => void,
+): Promise<void> {
+  onOutput = onOutput || (() => {});
 
   await new Promise<void>((resolve, reject) => {
-    const pushProcess = spawn(
-      "docker",
-      ["push", imageName],
-      {
-        stdio: ["inherit", "pipe", "pipe"],
-      }
-    );
+    const pushProcess = spawn("docker", ["push", imageName], {
+      stdio: ["inherit", "pipe", "pipe"],
+    });
 
     let outputBuffer = "";
 
@@ -253,7 +261,9 @@ export async function pushDockerImage(imageName: string, onOutput?: (output: str
         resolve();
       } else {
         reject(
-          new Error(`Docker push failed with exit code ${code}\n${outputBuffer}`)
+          new Error(
+            `Docker push failed with exit code ${code}\n${outputBuffer}`,
+          ),
         );
       }
     });
@@ -265,20 +275,22 @@ export async function pushDockerImage(imageName: string, onOutput?: (output: str
 }
 
 /**
- * Prepares the Docker build environment for building a Docker image for a CodeSandbox template.
- * 
+ * Prepares the Docker build environment for building a Docker image for a Together Sandbox snapshot.
+ *
  * @param directory Directory where csb build is called on
  * @param onOutput Optional output callback for logging
  * @returns A cleanup function to remove temporary Dockerfile if created
  */
-export async function prepareDockerBuild(directory: string, onOutput?: (output: string) => void): Promise<{ dockerfilePath: string, cleanupFn: () => Promise<void> }> {
-
-  onOutput = onOutput || (() => { });
+export async function prepareDockerBuild(
+  directory: string,
+  onOutput?: (output: string) => void,
+): Promise<{ dockerfilePath: string; cleanupFn: () => Promise<void> }> {
+  onOutput = onOutput || (() => {});
 
   const dockerAvailable = await isDockerAvailable();
   if (!dockerAvailable) {
     console.error(
-      "Docker is not available. Please install Docker to use beta build mode."
+      "Docker is not available. Please install Docker to use beta build mode.",
     );
     process.exit(1);
   }
@@ -294,7 +306,7 @@ export async function prepareDockerBuild(directory: string, onOutput?: (output: 
     onOutput("Creating temporary Dockerfile...");
     tmpDockerfilePath = await createTemporaryDockerfile(
       directory,
-      dockerfileInfo.path
+      dockerfileInfo.path,
     );
     dockerfilePath = tmpDockerfilePath;
     needsCleanup = true;
@@ -306,10 +318,9 @@ export async function prepareDockerBuild(directory: string, onOutput?: (output: 
     dockerfilePath,
     cleanupFn: async () => {
       if (needsCleanup && tmpDockerfilePath) {
-        onOutput("Cleaning up temporary Dockerfile...");
         const tmpDir = path.dirname(tmpDockerfilePath);
         await rm(tmpDir, { recursive: true, force: true });
       }
-    }
-  }
+    },
+  };
 }
