@@ -5,7 +5,10 @@ import {
 } from "./api-clients/sandbox/client/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { Sandbox, type StartOptions } from "./Sandbox.js";
-import type { Sandbox as SandboxModel } from "./api-clients/api/types.gen.js";
+import type {
+  CreateSandboxData,
+  Sandbox as SandboxModel,
+} from "./api-clients/api/types.gen.js";
 
 /**
  * Extract the agent connection details from the Sandbox model.
@@ -24,6 +27,18 @@ function resolveConnectionDetails(sandbox: SandboxModel): {
  */
 export class SandboxesNamespace {
   constructor(private readonly _apiClient: ApiClient) {}
+
+  /**
+   * Create a new sandbox (does not start the VM).
+   */
+  async create(body: CreateSandboxData["body"]): Promise<SandboxModel> {
+    const result = await api.createSandbox({
+      client: this._apiClient,
+      body,
+      throwOnError: true,
+    });
+    return result.data;
+  }
 
   /**
    * Start a VM for the given sandbox ID and return a {@link Sandbox}

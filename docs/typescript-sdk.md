@@ -57,6 +57,31 @@ const sdk = new TogetherSandbox(config: TogetherSandboxConfig);
 
 Sandbox lifecycle namespace.
 
+#### `sdk.sandboxes.create(body): Promise<SandboxModel>`
+
+Creates a new sandbox record from a snapshot. Does not start the VM — call `sdk.sandboxes.start()` with the returned ID afterwards.
+
+```typescript
+const sandboxModel = await sdk.sandboxes.create({
+  snapshot_alias: "my-app@v1",
+  millicpu: 1000,
+  memory_bytes: 512 * 1024 * 1024,
+  disk_bytes: 10 * 1024 * 1024 * 1024,
+});
+
+const sandbox = await sdk.sandboxes.start(sandboxModel.id);
+```
+
+| Property          | Type      | Required | Description                                                                     |
+| ----------------- | --------- | -------- | ------------------------------------------------------------------------------- |
+| `snapshot_id`     | `string`  | *        | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required. |
+| `snapshot_alias`  | `string`  | *        | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required. |
+| `millicpu`        | `number`  | Yes      | CPU allocation in millicpu (must be > 0, multiple of 250).                      |
+| `memory_bytes`    | `number`  | Yes      | Memory allocation in bytes.                                                     |
+| `disk_bytes`      | `number`  | Yes      | Disk allocation in bytes.                                                       |
+| `id`              | `string`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                         |
+| `ephemeral`       | `boolean` | No       | Mark the sandbox as ephemeral.                                                  |
+
 #### `sdk.sandboxes.start(sandboxId, options?): Promise<Sandbox>`
 
 Starts the VM for the given sandbox ID and returns a connected [`Sandbox`](#sandbox) instance.
@@ -85,6 +110,83 @@ Shuts down a VM by sandbox ID.
 ```typescript
 await sdk.sandboxes.shutdown("your-sandbox-id");
 ```
+
+---
+
+### `sdk.snapshots`
+
+Snapshot creation namespace. Snapshots are images you can pass to `sdk.sandboxes.start()`.
+
+#### `sdk.snapshots.fromBuild(dockerContext, params?): Promise<CreateSnapshotResult>`
+
+Build a Docker image from a local directory and register it as a snapshot. Requires Docker to be installed and running.
+
+```typescript
+const result = await sdk.snapshots.fromBuild("./my-app");
+
+// Use the snapshot ID to create a sandbox:
+const sandboxModel = await sdk.sandboxes.create({
+  snapshot_id: result.snapshotId,
+  millicpu: 1000,
+  memory_bytes: 512 * 1024 * 1024,
+  disk_bytes: 10 * 1024 * 1024 * 1024,
+});
+
+// With a custom Dockerfile and alias:
+const result = await sdk.snapshots.fromBuild("./my-app", {
+  dockerfile: "./my-app/Dockerfile.prod",
+  alias: "my-app@v1",
+  onProgress: (event) => console.log(event.output),
+});
+// Use the alias to create a sandbox:
+const sandboxModel = await sdk.sandboxes.create({
+  snapshot_alias: result.alias,
+  millicpu: 1000,
+  memory_bytes: 512 * 1024 * 1024,
+  disk_bytes: 10 * 1024 * 1024 * 1024,
+});
+```
+
+| Parameter             | Type                                    | Description                                                                                                 |
+| --------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `dockerContext`       | `string`                                | Path to the Docker build context directory.                                                                 |
+| `params.dockerfile`   | `string`                                | Path to a Dockerfile. Defaults to `Dockerfile` inside `dockerContext`.                                      |
+| `params.alias`        | `string`                                | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the context directory name. |
+| `params.onProgress`   | `(event: SnapshotProgress) => void`     | Optional progress callback. Receives `{ step, output }` at each stage.                                     |
+
+#### `sdk.snapshots.fromImage(image, params?): Promise<CreateSnapshotResult>`
+
+Register an existing public Docker image as a snapshot — no local build required.
+
+```typescript
+const result = await sdk.snapshots.fromImage("node:22");
+console.log(result.snapshotId);
+
+// With an alias:
+const result = await sdk.snapshots.fromImage("python:3.12-slim", {
+  alias: "my-python@latest",
+});
+```
+
+| Parameter           | Type                                | Description                                                                                     |
+| ------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `image`             | `string`                            | Docker image name or reference (e.g. `node:22`, `registry.example.com/org/app:tag`).           |
+| `params.alias`      | `string`                            | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the image name. |
+| `params.onProgress` | `(event: SnapshotProgress) => void` | Optional progress callback.                                                                     |
+
+#### `CreateSnapshotResult`
+
+| Property     | Type                  | Description                                               |
+| ------------ | --------------------- | --------------------------------------------------------- |
+| `snapshotId` | `string`              | ID of the created snapshot.                               |
+| `alias`      | `string \| undefined` | The full alias (`namespace@tag`) if one was assigned.     |
+
+#### `SnapshotProgress`
+
+| Property | Type     | Description                                                                                                                      |
+| -------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `step`   | `string` | Current stage: `"prepare"`, `"build"`, `"auth"`, `"push"`, `"register"`, `"memory-snapshot"`, or `"alias"`. |
+| `output` | `string` | Human-readable progress message.                                                                                                 |
 
 ---
 

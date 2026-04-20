@@ -40,11 +40,13 @@ from .api.client import AuthenticatedClient as ApiClient
 # ── Management API endpoint functions ─────────────────────────────────────────
 from .api.api.default.start_sandbox import asyncio as start_sandbox_api
 from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
+from .api.api.default.create_sandbox import asyncio as create_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
 from .api.models.stop_sandbox_body import StopSandboxBody
 from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
+from .api.models.create_sandbox_body import CreateSandboxBody
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -588,6 +590,13 @@ class SandboxesNamespace:
         )
 
         return Sandbox(vm_info, sandbox_client, self._api_client)
+
+    async def create(self, body: CreateSandboxBody) -> SandboxModel:
+        """Create a new sandbox (does not start the VM)."""
+        result = await create_sandbox_api(client=self._api_client, body=body)
+        if result is None:
+            raise RuntimeError("createSandbox returned None")
+        return result
 
     async def hibernate(self, sandbox_id: str) -> None:
         """Hibernate (suspend) a VM by sandbox ID."""
