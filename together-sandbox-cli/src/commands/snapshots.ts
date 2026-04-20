@@ -3,20 +3,29 @@ import { TogetherSandbox } from "@together-sandbox/sdk";
 import ora from "ora";
 
 export type CreateSnapshotArgs = {
-  directory: string;
+  dockerFile?: string;
+  image?: string;
   alias?: string;
-  memorySnapshot?: boolean;
+  // memorySnapshot?: boolean; // still commented out
 };
 
 export const createSnapshotCommand: yargs.CommandModule<
   Record<string, never>,
   CreateSnapshotArgs
 > = {
-  command: "create <directory>",
+  command: "create",
   describe:
     "Build a snapshot from a directory. This snapshot can be used to create sandboxes.",
   builder: (yargs: yargs.Argv) =>
     yargs
+      .option("dockerFile", {
+        describe: "Path to a Dockerfile to build a snapshot from",
+        type: "string",
+      })
+      .option("image", {
+        describe: "Docker image name or reference to create a snapshot from",
+        type: "string",
+      })
       .option("alias", {
         describe:
           "Alias that should point to the created snapshot. Alias namespace defaults to directory name, but you can explicitly pass `namespace@alias`",
@@ -30,10 +39,14 @@ export const createSnapshotCommand: yargs.CommandModule<
         type: "boolean",
       })
         */
-      .positional("directory", {
-        describe: "Path to the project that we'll create a snapshot from",
-        type: "string",
-        demandOption: "Path to the project is required",
+      .check((argv) => {
+        if (!argv.dockerFile && !argv.image) {
+          throw new Error("Provide either --dockerFile or --image");
+        }
+        if (argv.dockerFile && argv.image) {
+          throw new Error("--dockerFile and --image are mutually exclusive");
+        }
+        return true;
       }),
 
   handler: async (argv) => {
@@ -54,14 +67,15 @@ export async function createSnapshot(
   createSnapshotSpinner.start();
 
   try {
-    const result = await sdk.snapshots.create({
-      directory: argv.directory,
-      memorySnapshot: argv.memorySnapshot,
+    const params = {
       alias: argv.alias,
-      onProgress: (event) => {
+      onProgress: (event: { output: string }) => {
         createSnapshotSpinner.text = event.output;
       },
-    });
+    };
+    const result = argv.dockerFile
+      ? await sdk.snapshots.fromDockerFile(argv.dockerFile, params)
+      : await sdk.snapshots.fromImage(argv.image!, params);
     createSnapshotSpinner.succeed(
       `Snapshot created: ${result.alias || result.snapshotId}`,
     );

@@ -6,10 +6,12 @@ import { base32Encode, sleep } from "./utils.js";
 import { randomUUID } from "crypto";
 import {
   buildDockerImage,
+  createImageDockerfile,
   dockerLogin,
-  prepareDockerBuild,
+  isDockerAvailable,
   pushDockerImage,
 } from "./docker.js";
+import { rm } from "fs/promises";
 
 export type SnapshotProgress = { output: string } & (
   | { step: "prepare" }
@@ -22,16 +24,9 @@ export type SnapshotProgress = { output: string } & (
 );
 
 /**
- * Parameters for creating a snapshot.
+ * Parameters for creating a snapshot
  */
-export interface CreateSnapshotParams {
-  /**
-   * Absolute or relative path to the project directory to build the snapshot
-   * from. A Dockerfile is located in the root or `.codesandbox/` directory; if
-   * neither exists a default `FROM node:24` Dockerfile is generated.
-   */
-  directory: string;
-
+export type CreateSnapshotParams = {
   /**
    * Optional alias to assign to the snapshot after creation.
    * Format: `tag` (namespace defaults to the directory name) or `namespace@tag`.
@@ -51,17 +46,9 @@ export interface CreateSnapshotParams {
    * Optional progress callback. Receives a short step label and a human-readable
    * message — useful for driving spinners or structured logging without coupling
    * the SDK to a specific UI library.
-   *
-   * @example
-   * ```typescript
-   * sdk.snapshots.create({
-   *   directory: "./my-app",
-   *   onProgress: (step, msg) => console.log(`[${step}] ${msg}`),
-   * });
-   * ```
    */
   onProgress?: (event: SnapshotProgress) => void;
-}
+};
 
 /**
  * Result of a successful snapshot creation.
@@ -100,7 +87,7 @@ async function getMetaInfo(apiKey: string): Promise<{
 function stripAnsiCodes(str: string) {
   // Matches ESC [ params … finalChar
   //   \x1B       = ESC
-  //   \[         = literal “[”
+  //   \[         = literal "["
   //   [0-?]*     = any parameter bytes (digits, ;, ?)
   //   [ -/]*     = any intermediate bytes (space through /)
   //   [@-~]      = final byte ( @ A–Z [ \ ] ^ _ ` a–z { | } ~ )
@@ -108,7 +95,7 @@ function stripAnsiCodes(str: string) {
   return str.replace(CSI_REGEX, "");
 }
 
-function createAlias(directory: string, alias: string) {
+function createAlias(defaultNamespace: string, alias: string) {
   const aliasParts = alias.split("@");
 
   if (aliasParts.length > 2) {
@@ -117,8 +104,7 @@ function createAlias(directory: string, alias: string) {
     );
   }
 
-  const namespace =
-    aliasParts.length === 2 ? aliasParts[0] : path.basename(directory);
+  const namespace = aliasParts.length === 2 ? aliasParts[0] : defaultNamespace;
   alias = aliasParts.length === 2 ? aliasParts[1] : alias;
 
   if (namespace.length > 64 || alias.length > 64) {
@@ -139,6 +125,13 @@ function createAlias(directory: string, alias: string) {
   };
 }
 
+function extractImageName(image: string): string {
+  // "ghcr.io/org/node:24" → "node"
+  const withoutTag = image.split(":")[0];
+  const parts = withoutTag.split("/");
+  return parts[parts.length - 1];
+}
+
 /**
  * Snapshot build and management operations, accessed as `sdk.snapshots.*`.
  */
@@ -149,28 +142,97 @@ export class SnapshotsNamespace {
     private readonly _baseUrl: string,
   ) {}
 
+  // ─── Public entry points ──────────────────────────────────────────────────
+
   /**
-   * Build a Docker image from a local directory and register it as a Together
-   * Sandbox snapshot.
-   *
-   * @example
-   * ```typescript
-   * const { snapshotId } = await sdk.snapshots.create({
-   *   directory: "./my-app",
-   *   alias: "my-app@latest",
-   *   onProgress: (step, msg) => console.log(`[${step}] ${msg}`),
-   * });
-   * ```
+   * Build a Docker image from an existing Dockerfile and register it as a
+   * Together Sandbox snapshot. The build context is the parent directory of
+   * the Dockerfile.
    */
-  async create(params: CreateSnapshotParams): Promise<CreateSnapshotResult> {
-    let dockerFileCleanupFn: (() => Promise<void>) | undefined;
+  async fromDockerFile(
+    dockerFilePath: string,
+    params?: CreateSnapshotParams,
+  ): Promise<CreateSnapshotResult> {
+    const dockerAvailable = await isDockerAvailable();
+    if (!dockerAvailable) {
+      console.error(
+        "Docker is not available. Please install Docker to use beta build mode.",
+      );
+      process.exit(1);
+    }
+
+    const resolvedPath = path.resolve(dockerFilePath);
+    const context = path.dirname(resolvedPath);
+    const architecture: "amd64" | "arm64" =
+      process.arch === "arm64" && isLocalEnvironment(this._baseUrl)
+        ? "arm64"
+        : "amd64";
+
+    return this._buildAndRegister({
+      dockerfilePath: resolvedPath,
+      context,
+      architecture,
+      aliasDefaultNamespace: path.basename(context),
+      cleanupFn: async () => {},
+      params,
+    });
+  }
+
+  /**
+   * Pull a public Docker image and register it as a Together Sandbox snapshot.
+   */
+  async fromImage(
+    image: string,
+    params?: CreateSnapshotParams,
+  ): Promise<CreateSnapshotResult> {
+    const dockerAvailable = await isDockerAvailable();
+    if (!dockerAvailable) {
+      console.error(
+        "Docker is not available. Please install Docker to use beta build mode.",
+      );
+      process.exit(1);
+    }
+
+    const { dockerfilePath, tmpDir } = await createImageDockerfile(image);
+    const context = tmpDir;
+    const architecture: "amd64" | "arm64" =
+      process.arch === "arm64" && isLocalEnvironment(this._baseUrl)
+        ? "arm64"
+        : "amd64";
+
+    return this._buildAndRegister({
+      dockerfilePath,
+      context,
+      architecture,
+      aliasDefaultNamespace: extractImageName(image),
+      cleanupFn: () => rm(tmpDir, { recursive: true, force: true }),
+      params,
+    });
+  }
+
+  // ─── Private helpers ──────────────────────────────────────────────────────
+
+  private async _buildAndRegister(opts: {
+    dockerfilePath: string;
+    context: string;
+    architecture: "amd64" | "arm64";
+    aliasDefaultNamespace: string;
+    cleanupFn: () => Promise<void>;
+    params?: CreateSnapshotParams;
+  }): Promise<CreateSnapshotResult> {
+    const {
+      dockerfilePath,
+      context,
+      architecture,
+      aliasDefaultNamespace,
+      cleanupFn,
+      params,
+    } = opts;
 
     try {
       const apiKey = this._apiKey;
       const apiClient = this._apiClient;
-      const resolvedDirectory = path.resolve(params.directory);
 
-      // New api to get the registry + repository (First part of path)
       const metaInfoResult = await getMetaInfo(apiKey);
       const teamId = metaInfoResult.auth?.team;
 
@@ -188,64 +250,43 @@ export class SnapshotsNamespace {
       const tag = randomUUID().toLowerCase();
       const fullImageName = `${registry}/${repository}/${imageName}:${tag}`;
 
-      let architecture: "amd64" | "arm64" | undefined = "amd64";
-      // For dev environments with arm64 (Apple Silicon), use arm64 architecture
-      if (process.arch === "arm64" && isLocalEnvironment(this._baseUrl)) {
-        console.log("Using arm64 architecture for Docker build");
-        architecture = "arm64";
-      }
-
-      // Prepare Docker Build
-      params.onProgress?.({ step: "prepare", output: "Preparing snapshot..." });
-
-      let dockerfilePath: string;
-
-      try {
-        const result = await prepareDockerBuild(
-          resolvedDirectory,
-          (output: string) => {
-            params.onProgress?.({ step: "prepare", output });
-          },
-        );
-        dockerFileCleanupFn = result.cleanupFn;
-        dockerfilePath = result.dockerfilePath;
-      } catch (error) {
-        throw error;
-      }
-
       // Docker Build
-      params.onProgress?.({ step: "build", output: "Building snapshot..." });
+      params?.onProgress?.({
+        step: "prepare",
+        output: "Preparing snapshot...",
+      });
+      params?.onProgress?.({ step: "build", output: "Building snapshot..." });
       await buildDockerImage({
         dockerfilePath,
         imageName: fullImageName,
-        context: resolvedDirectory,
+        context,
         architecture,
         onOutput: (output: string) => {
           const cleanOutput = stripAnsiCodes(output);
-          params.onProgress?.({ step: "build", output: cleanOutput });
+          params?.onProgress?.({ step: "build", output: cleanOutput });
         },
       });
-      // Docker Login
 
-      params.onProgress?.({ step: "auth", output: "Authenticating..." });
+      // Docker Login
+      params?.onProgress?.({ step: "auth", output: "Authenticating..." });
       await dockerLogin({
         registry: registry,
         username: "_token",
         password: apiKey,
         onOutput: (output: string) => {
           const cleanOutput = stripAnsiCodes(output);
-          params.onProgress?.({ step: "auth", output: cleanOutput });
+          params?.onProgress?.({ step: "auth", output: cleanOutput });
         },
       });
 
       // Push Docker Image
-      params.onProgress?.({ step: "push", output: "Pushing Docker image..." });
+      params?.onProgress?.({ step: "push", output: "Pushing Docker image..." });
       await pushDockerImage(fullImageName, (output: string) => {
         const cleanOutput = stripAnsiCodes(output);
-        params.onProgress?.({ step: "push", output: cleanOutput });
+        params?.onProgress?.({ step: "push", output: cleanOutput });
       });
 
-      params.onProgress?.({
+      params?.onProgress?.({
         step: "register",
         output: "Registering snapshot...",
       });
@@ -265,7 +306,7 @@ export class SnapshotsNamespace {
 
       let snapshotId = snapshotData.data.id;
 
-      if (params.memorySnapshot) {
+      if (params?.memorySnapshot) {
         // Create a memory snapshot from a sandbox
         params.onProgress?.({
           step: "memory-snapshot",
@@ -340,13 +381,13 @@ export class SnapshotsNamespace {
       let alias;
 
       // Create alias if needed
-      if (params.alias) {
+      if (params?.alias) {
         params.onProgress?.({
           step: "alias",
           output: "Creating alias...",
         });
 
-        const aliasParts = createAlias(resolvedDirectory, params.alias);
+        const aliasParts = createAlias(aliasDefaultNamespace, params.alias);
         alias = `${aliasParts.namespace}@${aliasParts.alias}`;
         await api.aliasSnapshot({
           client: apiClient,
@@ -360,9 +401,7 @@ export class SnapshotsNamespace {
         alias,
       };
     } finally {
-      if (dockerFileCleanupFn) {
-        await dockerFileCleanupFn();
-      }
+      await cleanupFn();
     }
   }
 }

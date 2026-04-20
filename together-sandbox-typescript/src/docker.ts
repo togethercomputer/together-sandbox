@@ -18,57 +18,34 @@ export async function isDockerAvailable(): Promise<boolean> {
 
 export async function findDockerfile(
   templateDirectory: string,
-): Promise<{ exists: boolean; path: string | null; inCodesandbox: boolean }> {
-  // Check root directory
-  const rootDockerfilePath = path.join(templateDirectory, "Dockerfile");
+): Promise<{ exists: boolean; path: string | null }> {
+  const dockerfilePath = path.join(templateDirectory, "Dockerfile");
   try {
-    await fs.access(rootDockerfilePath);
-    return { exists: true, path: rootDockerfilePath, inCodesandbox: false };
+    await fs.access(dockerfilePath);
+    return { exists: true, path: dockerfilePath };
   } catch {
-    // Check .codesandbox directory
-    const codesandboxDockerfilePath = path.join(
-      templateDirectory,
-      ".codesandbox",
-      "Dockerfile",
-    );
-    try {
-      await fs.access(codesandboxDockerfilePath);
-      return {
-        exists: true,
-        path: codesandboxDockerfilePath,
-        inCodesandbox: true,
-      };
-    } catch {
-      return { exists: false, path: null, inCodesandbox: false };
-    }
+    return { exists: false, path: null };
   }
 }
 
-export async function createTemporaryDockerfile(
-  templateDirectory: string,
-  existingDockerfilePath: string | null,
-): Promise<string> {
+export async function createImageDockerfile(
+  image: string,
+): Promise<{ dockerfilePath: string; tmpDir: string }> {
   // Create a temporary directory for the Dockerfile
   const tmpDir = await mkdtemp(path.join(tmpdir(), "csb-docker-"));
   const tmpDockerfilePath = path.join(tmpDir, "Dockerfile");
 
-  let dockerfileContent = "";
-
-  if (existingDockerfilePath) {
-    // Read existing Dockerfile from .codesandbox
-    dockerfileContent = await fs.readFile(existingDockerfilePath, "utf-8");
-    dockerfileContent += "\n\n# Added by Together Sandbox SDK\n";
-  } else {
-    // Create a new Dockerfile with node:24 base
-    dockerfileContent = "FROM node:24\n\n";
-  }
-
-  // Add COPY command to copy files into /workspace
-  dockerfileContent += "WORKDIR /workspace\nCOPY . /workspace\n";
+  const dockerfileContent = `FROM ${image}\n`;
 
   await writeFile(tmpDockerfilePath, dockerfileContent);
 
-  return tmpDockerfilePath;
+  return { dockerfilePath: tmpDockerfilePath, tmpDir };
+}
+
+export async function createTemporaryDockerfile(): Promise<string> {
+  // Create a temporary directory for the Dockerfile
+  const result = await createImageDockerfile("node:24");
+  return result.dockerfilePath;
 }
 
 export type DockerBuildOptions = {
@@ -277,7 +254,7 @@ export async function pushDockerImage(
 /**
  * Prepares the Docker build environment for building a Docker image for a Together Sandbox snapshot.
  *
- * @param directory Directory where csb build is called on
+ * @param directory Directory where together-sandbox build is called on
  * @param onOutput Optional output callback for logging
  * @returns A cleanup function to remove temporary Dockerfile if created
  */
@@ -302,12 +279,9 @@ export async function prepareDockerBuild(
   let needsCleanup = false;
   let tmpDockerfilePath: string | null = null;
 
-  if (!dockerfileInfo.exists || dockerfileInfo.inCodesandbox) {
+  if (!dockerfileInfo.exists) {
     onOutput("Creating temporary Dockerfile...");
-    tmpDockerfilePath = await createTemporaryDockerfile(
-      directory,
-      dockerfileInfo.path,
-    );
+    tmpDockerfilePath = await createTemporaryDockerfile();
     dockerfilePath = tmpDockerfilePath;
     needsCleanup = true;
   } else {
