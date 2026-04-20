@@ -21,9 +21,18 @@ Usage::
 
 from __future__ import annotations
 
+import base64
 import os
+import platform
+import re
+from collections.abc import Callable
+from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, AsyncIterator, List, Optional
+from typing import Any, AsyncIterator, List
+from urllib.parse import urlparse
+from uuid import uuid4
+
+import httpx
 
 # ── Management API client ─────────────────────────────────────────────────────
 from .api.client import AuthenticatedClient as ApiClient
@@ -31,11 +40,13 @@ from .api.client import AuthenticatedClient as ApiClient
 # ── Management API endpoint functions ─────────────────────────────────────────
 from .api.api.default.start_sandbox import asyncio as start_sandbox_api
 from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
+from .api.api.default.create_sandbox import asyncio as create_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
 from .api.models.stop_sandbox_body import StopSandboxBody
 from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
+from .api.models.create_sandbox_body import CreateSandboxBody
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -77,6 +88,27 @@ from .sandbox.types import File
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
 from ._streaming import stream_sse_json
+
+# ── Snapshot API endpoint functions ──────────────────────────────────────────
+from .api.api.default.create_snapshot import asyncio as create_snapshot_api
+from .api.api.default.alias_snapshot import asyncio as alias_snapshot_api
+
+# ── Snapshot API models ───────────────────────────────────────────────────────
+from .api.models.alias_snapshot_body import AliasSnapshotBody
+from .api.models.create_snapshot_body import CreateSnapshotBody
+from .api.models.create_snapshot_body_image import CreateSnapshotBodyImage
+from .api.models.create_snapshot_body_image_architecture import CreateSnapshotBodyImageArchitecture
+from .api.types import UNSET
+
+# ── Docker helpers ────────────────────────────────────────────────────────────
+from .docker import (
+    DockerBuildOptions,
+    DockerLoginOptions,
+    build_docker_image,
+    docker_login,
+    is_docker_available,
+    push_docker_image,
+)
 
 
 # ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -559,6 +591,13 @@ class SandboxesNamespace:
 
         return Sandbox(vm_info, sandbox_client, self._api_client)
 
+    async def create(self, body: CreateSandboxBody) -> SandboxModel:
+        """Create a new sandbox (does not start the VM)."""
+        result = await create_sandbox_api(client=self._api_client, body=body)
+        if result is None:
+            raise RuntimeError("createSandbox returned None")
+        return result
+
     async def hibernate(self, sandbox_id: str) -> None:
         """Hibernate (suspend) a VM by sandbox ID."""
         await stop_sandbox_api(sandbox_id, client=self._api_client,
@@ -568,6 +607,349 @@ class SandboxesNamespace:
         """Shut down a VM by sandbox ID."""
         await stop_sandbox_api(sandbox_id, client=self._api_client,
                                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN))
+
+
+# ─── Snapshot types ──────────────────────────────────────────────────────────
+
+
+@dataclass
+class SnapshotProgress:
+    step: str
+    output: str
+
+
+@dataclass
+class CreateSnapshotResult:
+    snapshot_id: str
+    alias: str | None = None
+
+
+@dataclass
+class CreateSnapshotParams:
+
+    alias: str | None = None
+    memory_snapshot: bool | None = None
+    on_progress: Callable[[SnapshotProgress], None] | None = None
+
+@dataclass
+class BuildSnapshotParams(CreateSnapshotParams):
+    dockerfile: str | None = None
+
+# ─── Snapshot helpers ─────────────────────────────────────────────────────────
+
+_CSI_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+
+
+def _strip_ansi(s: str) -> str:
+    return _CSI_RE.sub("", s)
+
+
+def _base32_encode(s: str) -> str:
+    return base64.b32encode(s.encode()).decode().lower().rstrip("=")
+
+
+def _get_inferred_registry_url(base_url: str) -> str:
+    hostname = urlparse(base_url).hostname or ""
+    return hostname.replace("api.bartender.", "registry.")
+
+
+def _is_local_environment(base_url: str) -> bool:
+    return urlparse(base_url).hostname == "api.codesandbox.dev"
+
+
+def _parse_alias(default_namespace: str, alias: str) -> tuple[str, str]:
+    parts = alias.split("@")
+    if len(parts) > 2:
+        raise ValueError(f'Alias "{alias}" is invalid, must be in the format of name@tag')
+    namespace = parts[0] if len(parts) == 2 else default_namespace
+    tag = parts[1] if len(parts) == 2 else alias
+    if len(namespace) > 64 or len(tag) > 64:
+        raise ValueError(
+            f'Namespace "{namespace}" or tag "{tag}" exceeds 64 characters'
+        )
+    if not re.match(r"^[a-zA-Z0-9\-_]+$", namespace) or not re.match(r"^[a-zA-Z0-9\-_]+$", tag):
+        raise ValueError(
+            f'Namespace "{namespace}" or tag "{tag}" must only contain letters, digits, dashes and underscores'
+        )
+    return namespace, tag
+
+
+@dataclass
+class ImageReference:
+    """Parsed Docker image reference components."""
+    name: str
+    registry: str | None = None
+    repository: str | None = None
+    tag: str | None = None
+
+
+def _parse_image_reference(image: str) -> ImageReference:
+    """
+    Parse a Docker image reference into its components.
+
+    Handles formats like:
+    - ubuntu
+    - node:24
+    - org/myapp
+    - org/myapp:latest
+    - ghcr.io/org/node:24
+    - registry.example.com:5000/org/app:v1
+
+    A registry is present if the first path segment contains '.' or ':',
+    indicating a registry hostname.
+    """
+    # Find the last colon and check if the text after it contains a slash
+    last_colon = image.rfind(":")
+    if last_colon != -1:
+        after_colon = image[last_colon + 1:]
+        if "/" not in after_colon:
+            tag = after_colon
+            image_without_tag = image[:last_colon]
+        else:
+            image_without_tag = image
+            tag = None
+    else:
+        image_without_tag = image
+        tag = None
+
+    # Split the image part by "/"
+    parts = image_without_tag.split("/")
+
+    if len(parts) == 1:
+        # Just "name" or "name:tag"
+        return ImageReference(name=parts[0], tag=tag if tag else None)
+
+    if len(parts) == 2:
+        # Either "registry/name" or "repo/name"
+        first_part = parts[0]
+        second_part = parts[1]
+        if "." in first_part or ":" in first_part:
+            # It's a registry
+            return ImageReference(registry=first_part, name=second_part, tag=tag if tag else None)
+        else:
+            # It's a repository
+            return ImageReference(repository=first_part, name=second_part, tag=tag if tag else None)
+
+    if len(parts) >= 3:
+        # "registry/repo/name" or more
+        first_part = parts[0]
+        if "." in first_part or ":" in first_part:
+            # First part is a registry
+            registry = first_part
+            repository = parts[1]
+            name = parts[2]
+            return ImageReference(registry=registry, repository=repository, name=name, tag=tag if tag else None)
+        else:
+            # No registry, treat first two parts as namespace/repo hierarchy
+            # (unlikely but handle it as repo/name)
+            repository = parts[0]
+            name = parts[1]
+            return ImageReference(repository=repository, name=name, tag=tag if tag else None)
+
+    # Fallback (should not reach here)
+    return ImageReference(name=image_without_tag)
+
+
+async def _get_meta_info(api_key: str) -> dict:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "https://api.codesandbox.stream/meta/info",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+# ─── SnapshotsNamespace ───────────────────────────────────────────────────────
+
+
+class SnapshotsNamespace:
+    """
+    Snapshot build and management operations, accessed as ``sdk.snapshots.*``.
+    """
+
+    def __init__(
+        self,
+        api_client: ApiClient,
+        api_key: str,
+        base_url: str,
+    ) -> None:
+        self._api_client = api_client
+        self._api_key = api_key
+        self._base_url = base_url
+
+    # ─── Public entry points ──────────────────────────────────────────────────
+
+    async def from_build(
+        self,
+        docker_context: str,
+        params: BuildSnapshotParams | None = None,
+    ) -> CreateSnapshotResult:
+        """Build a Docker image from an existing Dockerfile and register it as a snapshot."""
+        if not await is_docker_available():
+            raise RuntimeError(
+                "Docker is not available. Please install Docker to use snapshot builds."
+            )
+
+        resolved_context = os.path.realpath(docker_context)
+        resolved_dockerfile = os.path.realpath(params.dockerfile) if params and params.dockerfile else None
+        
+        architecture = (
+            "arm64"
+            if platform.machine().lower() == "arm64" and _is_local_environment(self._base_url)
+            else "amd64"
+        )
+
+        async def noop() -> None:
+            pass
+
+        return await self._build_and_register(
+            dockerfile_path=resolved_dockerfile,
+            context=resolved_context,
+            architecture=architecture,
+            alias_default_namespace=os.path.basename(resolved_context),
+            cleanup_fn=noop,
+            params=params,
+        )
+
+    async def from_image(
+        self,
+        image: str,
+        params: CreateSnapshotParams | None = None,
+    ) -> CreateSnapshotResult:
+        """Create a snapshot from a public Docker image without building."""
+        # Parse the image reference into components
+        ref = _parse_image_reference(image)
+
+        def _emit(step: str, output: str) -> None:
+            if params and params.on_progress:
+                params.on_progress(SnapshotProgress(step=step, output=output))
+
+        # Build CreateSnapshotBodyImage, mapping None to UNSET
+        _emit("register", "Creating snapshot from image...")
+        snapshot_data = await create_snapshot_api(
+            client=self._api_client,
+            body=CreateSnapshotBody(
+                image=CreateSnapshotBodyImage(
+                    registry=ref.registry or UNSET,
+                    repository=ref.repository or UNSET,
+                    name=ref.name,
+                    tag=ref.tag or UNSET,
+                    architecture=CreateSnapshotBodyImageArchitecture("amd64"),
+                )
+            ),
+        )
+
+        if snapshot_data is None or not hasattr(snapshot_data, "id"):
+            raise RuntimeError("Snapshot creation returned no data")
+
+        snapshot_id = str(snapshot_data.id)
+        alias: str | None = None
+
+        if params and params.alias:
+            _emit("alias", "Creating alias...")
+            namespace, alias_tag = _parse_alias(ref.name, params.alias)
+            alias = f"{namespace}@{alias_tag}"
+            await alias_snapshot_api(
+                snapshot_data.id,
+                client=self._api_client,
+                body=AliasSnapshotBody(alias=alias),
+            )
+
+        return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
+
+    # ─── Private helpers ──────────────────────────────────────────────────────
+
+    async def _build_and_register(
+        self,
+        dockerfile_path: str | None,
+        context: str,
+        architecture: str,
+        alias_default_namespace: str,
+        cleanup_fn: Callable,
+        params: CreateSnapshotParams | None,
+    ) -> CreateSnapshotResult:
+        try:
+            meta_info = await _get_meta_info(self._api_key)
+            team_id = meta_info.get("auth", {}).get("team")
+            if not team_id:
+                raise RuntimeError(
+                    "Failed to fetch team information for the provided API key. "
+                    "Please ensure your TOGETHER_API_KEY is correct and has access to a team."
+                )
+
+            repository = _base32_encode(team_id)
+            registry = _get_inferred_registry_url(self._base_url)
+            image_name = f"image-{uuid4()}".lower()
+            image_tag = str(uuid4()).lower()
+            full_image_name = f"{registry}/{repository}/{image_name}:{image_tag}"
+
+            def _emit(step: str, output: str) -> None:
+                if params and params.on_progress:
+                    params.on_progress(SnapshotProgress(step=step, output=output))
+
+            _emit("prepare", "Preparing snapshot...")
+            _emit("build", "Building snapshot...")
+            await build_docker_image(
+                DockerBuildOptions(
+                    dockerfile_path=dockerfile_path,
+                    image_name=full_image_name,
+                    context=context,
+                    architecture=architecture,
+                    on_output=lambda out: _emit("build", _strip_ansi(out)),
+                )
+            )
+
+            _emit("auth", "Authenticating...")
+            await docker_login(
+                DockerLoginOptions(
+                    registry=registry,
+                    username="_token",
+                    password=self._api_key,
+                    on_output=lambda out: _emit("auth", _strip_ansi(out)),
+                )
+            )
+
+            _emit("push", "Pushing Docker image...")
+            await push_docker_image(
+                full_image_name,
+                on_output=lambda out: _emit("push", _strip_ansi(out)),
+            )
+
+            _emit("register", "Registering snapshot...")
+            snapshot_data = await create_snapshot_api(
+                client=self._api_client,
+                body=CreateSnapshotBody(
+                    image=CreateSnapshotBodyImage(
+                        registry=registry,
+                        repository=repository,
+                        name=image_name,
+                        tag=image_tag,
+                        architecture=CreateSnapshotBodyImageArchitecture(architecture),
+                    )
+                ),
+            )
+
+            if snapshot_data is None or not hasattr(snapshot_data, "id"):
+                raise RuntimeError("Snapshot creation returned no data")
+
+            snapshot_id = str(snapshot_data.id)
+            alias: str | None = None
+
+            if params and params.alias:
+                _emit("alias", "Creating alias...")
+                namespace, alias_tag = _parse_alias(alias_default_namespace, params.alias)
+                alias = f"{namespace}@{alias_tag}"
+                await alias_snapshot_api(
+                    snapshot_data.id,
+                    client=self._api_client,
+                    body=AliasSnapshotBody(alias=alias),
+                )
+
+            return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
+
+        finally:
+            await cleanup_fn()
 
 
 # ─── TogetherSandbox (main facade) ──────────────────────────────────────────
@@ -588,26 +970,29 @@ class TogetherSandbox:
 
     Args:
         api_key: Together AI API key. Falls back to ``TOGETHER_API_KEY`` env var.
-        base_url: Management API base URL. Defaults to ``https://api.codesandbox.io``.
+        base_url: Management API base URL. Defaults to ``https://api.bartender.codesandbox.io``.
     """
 
     def __init__(
         self,
         api_key: str | None = None,
-        base_url: str = "https://api.codesandbox.io",
+        base_url: str = "https://api.bartender.codesandbox.stream",
     ) -> None:
         resolved_key = api_key or os.environ.get("TOGETHER_API_KEY")
         if not resolved_key:
             raise ValueError(
                 "api_key must be provided or TOGETHER_API_KEY env var must be set"
             )
+        self._api_key = resolved_key
+        self._base_url = base_url
         self._api_client = ApiClient(
-            base_url=base_url,
+            base_url=base_url + "/api/v1",
             token=resolved_key,
             prefix="Bearer",
             raise_on_unexpected_status=True,
         )
         self.sandboxes = SandboxesNamespace(self._api_client)
+        self.snapshots = SnapshotsNamespace(self._api_client, self._api_key, self._base_url)
 
     # NOTE: sdk.api_client is removed from the public surface.
     # The internal _api_client is still used by sandboxes and tokens namespaces.

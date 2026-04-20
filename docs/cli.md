@@ -1,6 +1,6 @@
 # CLI — `@together-sandbox/cli`
 
-The `together-sandbox` CLI lets you build memory snapshots from local project directories and publish them as sandbox templates.
+The `together-sandbox` CLI lets you create snapshots from Dockerfiles or existing Docker images and publish them for use with Together Sandbox.
 
 ## Installation
 
@@ -11,7 +11,7 @@ npm install -g @together-sandbox/cli
 Or use it without installing via `npx`:
 
 ```bash
-npx @together-sandbox/cli build ./my-project
+npx @together-sandbox/cli snapshots from-build ./my-project
 ```
 
 ---
@@ -30,98 +30,132 @@ This must be set before running any command. The CLI will exit with an error if 
 
 ## Commands
 
-### `together-sandbox build <directory>`
+### `together-sandbox snapshots`
 
-Builds an efficient memory snapshot from a local project directory. The snapshot is used to spin up sandboxes quickly.
+Snapshot management commands.
+
+---
+
+### `together-sandbox snapshots from-build <dockerContext>`
+
+Build a snapshot from a Dockerfile. The build context is the directory passed as `<dockerContext>`.
 
 Under the hood this command:
 
-1. Prepares a Docker build environment (creates a Dockerfile if one isn't present).
-2. Builds a Docker image from the project directory.
-3. Authenticates with the CodeSandbox Docker registry.
-4. Pushes the image to the registry.
-5. Creates a sandbox template backed by that image.
-6. Starts the template sandbox, waits for it to initialise, then shuts it down to capture a memory snapshot.
-7. Optionally assigns an alias to the template for easy reference.
+1. Builds a Docker image from the context directory (using a Dockerfile in that directory, or one supplied via `--dockerFile`).
+2. Authenticates with the Together Sandbox Docker registry.
+3. Pushes the image to the registry.
+4. Registers a snapshot backed by that image.
+5. Optionally assigns an alias to the snapshot.
 
 ```bash
-together-sandbox build <directory> [options]
+together-sandbox snapshots from-build <dockerContext> [options]
 ```
 
 #### Arguments
 
-| Argument      | Description                                            |
-| ------------- | ------------------------------------------------------ |
-| `<directory>` | Path to the project directory to build from. Required. |
+| Argument          | Description                                           |
+| ----------------- | ----------------------------------------------------- |
+| `<dockerContext>` | Path to the Docker build context directory. Required. |
 
 #### Options
 
-| Option           | Type      | Default | Description                                                                                                                                                                  |
-| ---------------- | --------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--name`         | `string`  | —       | Display name for the resulting sandbox template.                                                                                                                             |
-| `--alias`        | `string`  | —       | Alias that points to the created template. Format: `alias` or `namespace@alias`. Namespace defaults to the directory name. Characters: `a-z A-Z 0-9 - _`, max 64 chars each. |
-| `--from-sandbox` | `string`  | —       | ID of an existing sandbox to use as the base template instead of the default.                                                                                                |
-| `--vm-tier`      | `string`  | `Micro` | VM size for the template sandbox. One of: `Pico`, `Nano`, `Micro`, `Small`, `Medium`, `Large`, `XLarge`.                                                                     |
-| `--ci`           | `boolean` | `false` | CI mode — exits the process with a non-zero code on any error.                                                                                                               |
-| `--log-path`     | `string`  | —       | Relative path to write log output to a file.                                                                                                                                 |
+| Option         | Type     | Description                                                                                                                                                      |
+| -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--dockerFile` | `string` | Path to a Dockerfile to use for the build. Defaults to `Dockerfile` inside `<dockerContext>`.                                                                    |
+| `--alias`      | `string` | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the `<dockerContext>` directory name. Max 64 characters each; `a-z A-Z 0-9 - _`. |
 
 #### Examples
 
-Build from the current directory with a name:
+Build from the current directory:
 
 ```bash
-together-sandbox build . --name "My Node App"
+together-sandbox snapshots from-build .
 ```
 
-Build and assign a simple alias:
+Build with a custom Dockerfile and assign an alias:
 
 ```bash
-together-sandbox build ./my-app --alias my-app
+together-sandbox snapshots from-build ./my-app --dockerFile ./my-app/Dockerfile.prod --alias my-app@v1
 ```
 
-Build and assign a namespaced alias:
+---
+
+### `together-sandbox snapshots from-image <image>`
+
+Create a snapshot from an existing public Docker image — no local build required.
 
 ```bash
-together-sandbox build ./my-app --alias my-namespace@v1
+together-sandbox snapshots from-image <image> [options]
 ```
 
-Build from an existing sandbox as a base, using a larger VM:
+#### Arguments
+
+| Argument  | Description                               |
+| --------- | ----------------------------------------- |
+| `<image>` | Docker image name or reference. Required. |
+
+#### Options
+
+| Option    | Type     | Description                                                                                                                                |
+| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--alias` | `string` | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the image name. Max 64 characters each; `a-z A-Z 0-9 - _`. |
+
+#### Examples
+
+Create a snapshot from a public image:
 
 ```bash
-together-sandbox build ./my-app --from-sandbox abc123 --vm-tier Large
+together-sandbox snapshots from-image node:22
 ```
 
-Run in CI (non-zero exit on failure):
+Create a snapshot with an alias:
 
 ```bash
-together-sandbox build . --ci
+together-sandbox snapshots from-image python:3.12-slim --alias my-python@latest
 ```
 
-#### Output
+---
 
-On success the CLI prints the sandbox template ID (or alias) and a code snippet for creating a sandbox from it:
+## Output
+
+On success, both subcommands print the snapshot ID or alias:
 
 ```
-✔ Template created with tag: tpl_abc123
+✔ Snapshot created: my-app@v1
+```
 
-  Create sandbox from template using
+Use the snapshot ID or alias to create new sandboxes via the SDK:
 
-  SDK:
+```typescript
+// TypeScript
+const sandboxModel = await sdk.sandboxes.create({
+  snapshot_alias: "my-app@v1",
+  millicpu: 1000,
+  memory_bytes: 512 * 1024 * 1024,
+  disk_bytes: 10 * 1024 * 1024 * 1024,
+});
+const sandbox = await sdk.sandboxes.start(sandboxModel.id);
+```
 
-    sdk.sandboxes.create({
-      id: "tpl_abc123"
-    })
+```python
+# Python
+from together_sandbox.api.models.create_sandbox_body import CreateSandboxBody
 
-  CLI:
-
-    csb sandboxes fork tpl_abc123
+sandbox_model = await sdk.sandboxes.create(CreateSandboxBody(
+    snapshot_alias="my-app@v1",
+    millicpu=1000,
+    memory_bytes=512 * 1024 * 1024,
+    disk_bytes=10 * 1024 * 1024 * 1024,
+))
+sandbox = await sdk.sandboxes.start(sandbox_model.id)
 ```
 
 ---
 
 ## Prerequisites
 
-- **Docker** must be installed and running. The `build` command calls Docker to build and push the image. The CLI will report an error if Docker is unavailable.
+- **Docker** must be installed and running for `snapshots from-build`. The CLI will report an error if Docker is unavailable. `snapshots from-image` does not require Docker.
 - **`TOGETHER_API_KEY`** environment variable must be set.
 
 ---

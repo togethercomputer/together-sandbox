@@ -36,3 +36,7 @@ together-sandbox-python/test.py
 
 # OS
 .DS_Store
+
+# Local env files
+.env
+.env.local

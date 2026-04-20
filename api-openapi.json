@@ -319,12 +319,51 @@
           }
         }
       },
+      "SnapshotAlias": {
+        "type": "object",
+        "required": [
+          "_type",
+          "id",
+          "snapshot_id",
+          "alias",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "_type": {
+            "type": "string",
+            "enum": [
+              "snapshot_alias"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "alias": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "Error": {
         "type": "object",
         "required": [
           "_type",
           "code",
-          "message"
+          "message",
+          "errors"
         ],
         "properties": {
           "_type": {
@@ -691,7 +730,7 @@
     },
     "/sandboxes/{id}/wait": {
       "post": {
-        "operationId": "waitSandbox",
+        "operationId": "waitForSandbox",
         "summary": "Wait for a sandbox to reach a terminal status",
         "parameters": [
           {
@@ -760,29 +799,29 @@
       }
     },
     "/sandboxes/{sandbox_id}/versions/{number}": {
+      "parameters": [
+        {
+          "name": "sandbox_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "description": "Sandbox ID (6\u20138 characters)."
+          }
+        },
+        {
+          "name": "number",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
       "get": {
         "operationId": "getSandboxVersionByNumber",
         "summary": "Get a sandbox version by sandbox ID and version number",
-        "parameters": [
-          {
-            "name": "sandbox_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Sandbox ID (6\u20138 characters)."
-            }
-          },
-          {
-            "name": "number",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "minimum": 1
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Sandbox version.",
@@ -793,6 +832,21 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSandboxVersionByNumber",
+        "summary": "Delete a sandbox version by sandbox ID and version number",
+        "responses": {
+          "204": {
+            "description": "Sandbox version deleted."
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -885,10 +939,9 @@
           }
         }
       },
-      "put": {
-        "operationId": "putSnapshot",
-        "summary": "Create or retrieve a snapshot for a container image",
-        "description": "Idempotent. If a snapshot already exists for the given image it is returned instead of creating a new one.\n",
+      "post": {
+        "operationId": "createSnapshot",
+        "summary": "Create a snapshot for a container image",
         "requestBody": {
           "required": true,
           "content": {
@@ -932,8 +985,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Snapshot.",
+          "201": {
+            "description": "Snapshot created.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1043,6 +1096,55 @@
         }
       }
     },
+    "/snapshots/@{alias}": {
+      "parameters": [
+        {
+          "name": "alias",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getSnapshotByAlias",
+        "summary": "Get a snapshot by alias",
+        "responses": {
+          "200": {
+            "description": "Snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSnapshotByAlias",
+        "summary": "Delete a snapshot by alias",
+        "responses": {
+          "204": {
+            "description": "Snapshot deleted."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/snapshots/{snapshot_id}/aliases": {
       "post": {
         "operationId": "aliasSnapshot",
@@ -1079,6 +1181,105 @@
         "responses": {
           "204": {
             "description": "Alias assigned."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/snapshot-aliases/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getSnapshotAlias",
+        "summary": "Get a snapshot alias by ID",
+        "responses": {
+          "200": {
+            "description": "Snapshot alias.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotAlias"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSnapshotAlias",
+        "summary": "Delete a snapshot alias by ID",
+        "responses": {
+          "204": {
+            "description": "Snapshot alias deleted."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/snapshot-aliases/@{alias}": {
+      "parameters": [
+        {
+          "name": "alias",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getSnapshotAliasByAlias",
+        "summary": "Get a snapshot alias by alias name",
+        "responses": {
+          "200": {
+            "description": "Snapshot alias.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotAlias"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSnapshotAliasByAlias",
+        "summary": "Delete a snapshot alias by alias name",
+        "responses": {
+          "204": {
+            "description": "Snapshot alias deleted."
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"

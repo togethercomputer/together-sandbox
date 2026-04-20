@@ -4,12 +4,16 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2020", "DOM"],
+    "types": ["node"],
     "jsx": "react-jsx",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@together-sandbox/sdk": ["../together-sandbox-typescript/src/index.ts"]
+    }
   },
-  "include": ["src"],
+  "include": ["src", "../together-sandbox-typescript/src/docker.ts"],
   "exclude": ["node_modules", "dist"]
 }
