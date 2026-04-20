@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.2.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.1.1...together-sandbox-v1.2.0) (2026-04-20)
+
+
+### Features
+
+* add python docker logic ([8e472a7](https://github.com/togethercomputer/together-sandbox/commit/8e472a7721054cfd654e7cec3ab11371b5d3242e))
+* adjust to bartender api and normalize return types ([2635bde](https://github.com/togethercomputer/together-sandbox/commit/2635bde7d2728c927b86fd1d77d80a801587c5b6))
+* docs updates and sandbox creation ([f87824f](https://github.com/togethercomputer/together-sandbox/commit/f87824fd8c65c63ed9ca7f4c03f7c161b57f4d7a))
+* normalize return types ([17882a7](https://github.com/togethercomputer/together-sandbox/commit/17882a76e8bb7753aa35c68cd49837a9646a05f2))
+* Normalize return types and use Bartender for api ([b0f9b58](https://github.com/togethercomputer/together-sandbox/commit/b0f9b5896b5d2b489346fa3645dca03313aa5f2e))
+* snapshot creation TS SDK, used by CLI ([f44d509](https://github.com/togethercomputer/together-sandbox/commit/f44d509ce9f035d87115513662d83c9cd53aa755))
+
+
+### Bug Fixes
+
+* adjust to from_build and from_image ([bee8477](https://github.com/togethercomputer/together-sandbox/commit/bee8477103538e5bc786fa4f3e3e4a4402f164f6))
+* Make python facade consistent ([e45460a](https://github.com/togethercomputer/together-sandbox/commit/e45460ae772c5e81dc75b94409450a5af0bb31a1))
+* no build on from_image ([bce3d39](https://github.com/togethercomputer/together-sandbox/commit/bce3d3932d160802c70316dac4cc8a98d757246e))
+
 ## [1.1.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.1.0...together-sandbox-v1.1.1) (2026-04-09)
 
 
