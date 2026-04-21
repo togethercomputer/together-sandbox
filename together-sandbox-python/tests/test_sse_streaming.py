@@ -7,7 +7,7 @@ import json
 import httpx
 import pytest
 
-from together_sandbox.facade import Execs, Files, Ports
+from together_sandbox._sandbox import Execs, Files, Ports
 from together_sandbox.sandbox.client import AuthenticatedClient as SandboxAuthClient
 
 

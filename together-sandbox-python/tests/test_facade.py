@@ -3,24 +3,18 @@
 from __future__ import annotations
 
 import io
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from together_sandbox.facade import (
+from together_sandbox._sandbox import Directories, Execs, Files, Ports, Sandbox, Tasks
+from together_sandbox._sandboxes import _resolve_connection
+from together_sandbox._snapshots import (
     _parse_image_reference,
-    _resolve_connection,
     CreateSnapshotParams,
-    Directories,
-    Execs,
-    Files,
-    Ports,
-    Sandbox,
     SnapshotsNamespace,
-    Tasks,
-    TogetherSandbox,
 )
+from together_sandbox._together_sandbox import TogetherSandbox
 from together_sandbox.sandbox.models.file_read_response import FileReadResponse
 from together_sandbox.sandbox.types import File
 from together_sandbox.api.models.sandbox import Sandbox as SandboxModel
@@ -150,7 +144,7 @@ class TestFiles:
         )
 
         with patch(
-            "together_sandbox.facade.create_file_api",
+            "together_sandbox._sandbox.create_file_api",
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_api:
@@ -194,7 +188,7 @@ class TestFiles:
         )
 
         with patch(
-            "together_sandbox.facade.create_file_api",
+            "together_sandbox._sandbox.create_file_api",
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_api:
@@ -232,7 +226,7 @@ class TestFiles:
         )
 
         with patch(
-            "together_sandbox.facade.create_file_api",
+            "together_sandbox._sandbox.create_file_api",
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_api:
@@ -265,7 +259,7 @@ class TestFiles:
         )
 
         with patch(
-            "together_sandbox.facade.create_file_api",
+            "together_sandbox._sandbox.create_file_api",
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_api:
@@ -354,7 +348,7 @@ class TestSnapshots:
         mock_response.id = "snap-123"
 
         with patch(
-            "together_sandbox.facade.create_snapshot_api",
+            "together_sandbox._snapshots.create_snapshot_api",
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_create_snapshot:
@@ -380,12 +374,12 @@ class TestSnapshots:
         mock_snapshot_response.id = "snap-456"
 
         with patch(
-            "together_sandbox.facade.create_snapshot_api",
+            "together_sandbox._snapshots.create_snapshot_api",
             new_callable=AsyncMock,
             return_value=mock_snapshot_response,
         ) as mock_create_snapshot:
             with patch(
-                "together_sandbox.facade.alias_snapshot_api",
+                "together_sandbox._snapshots.alias_snapshot_api",
                 new_callable=AsyncMock,
             ) as mock_alias:
                 result = await snapshots.from_image(

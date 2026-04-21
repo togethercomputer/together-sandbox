@@ -6,7 +6,8 @@ import tempfile
 
 import pytest
 
-from together_sandbox.facade import BuildSnapshotParams, CreateSnapshotResult, TogetherSandbox
+from together_sandbox._snapshots import BuildSnapshotParams, CreateSnapshotResult
+from together_sandbox._together_sandbox import TogetherSandbox
 
 pytestmark = [
     pytest.mark.e2e,
@@ -21,11 +22,10 @@ pytestmark = [
 
 
 @pytest.fixture(scope="module")
-def docker_context(tmp_path_factory: pytest.TempPathFactory) -> str:
-    """Create a temporary directory with a minimal Dockerfile."""
-    d = tmp_path_factory.mktemp("e2e-snapshot")
-    (d / "Dockerfile").write_text("FROM alpine:latest\n")
-    return str(d)
+def docker_context() -> str:
+    with tempfile.TemporaryDirectory(prefix="e2e-snapshot-") as d:
+        (pathlib.Path(d) / "Dockerfile").write_text("FROM alpine:latest\n")
+        yield d
 
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
