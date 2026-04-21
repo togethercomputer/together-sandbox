@@ -1,9 +1,3 @@
-// Generated clients as named namespaces.
-// Using namespaces avoids conflicts since both clients re-export the same
-// @hey-api/client-fetch internals (createClient, createConfig, Options, etc.)
-export * as api from "./api-clients/api/index.js";
-export * as sandbox from "./api-clients/sandbox/index.js";
-
 // Client factories re-exported from generated code so consumers don't need
 // to import from internal paths
 export {
@@ -22,3 +16,8 @@ export {
 // Unified facade — recommended entry point
 export { TogetherSandbox } from "./TogetherSandbox.js";
 export type { TogetherSandboxConfig } from "./configuration.js";
+
+// Public camelCase types and facade classes
+export type { SandboxInfo, CreateSandboxParams } from "./types.js";
+export { Sandbox } from "./Sandbox.js";
+export type { StartOptions, WatchOptions } from "./Sandbox.js";

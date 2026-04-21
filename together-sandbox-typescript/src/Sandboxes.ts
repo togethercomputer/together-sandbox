@@ -5,21 +5,22 @@ import {
 } from "./api-clients/sandbox/client/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { Sandbox, type StartOptions } from "./Sandbox.js";
-import type {
-  CreateSandboxData,
-  Sandbox as SandboxModel,
-} from "./api-clients/api/types.gen.js";
+import {
+  type SandboxInfo,
+  type CreateSandboxParams,
+  camelCaseKeys,
+} from "./types.js";
 
 /**
  * Extract the agent connection details from the Sandbox model.
  */
-function resolveConnectionDetails(sandbox: SandboxModel): {
+function resolveConnectionDetails(sandbox: SandboxInfo): {
   url: string;
   token: string;
 } {
-  if (!sandbox.agent_url || !sandbox.agent_token)
+  if (!sandbox.agentUrl || !sandbox.agentToken)
     throw new Error("Sandbox has no agent connection details");
-  return { url: sandbox.agent_url, token: sandbox.agent_token };
+  return { url: sandbox.agentUrl, token: sandbox.agentToken };
 }
 
 /**
@@ -31,13 +32,21 @@ export class SandboxesNamespace {
   /**
    * Create a new sandbox (does not start the VM).
    */
-  async create(body: CreateSandboxData["body"]): Promise<SandboxModel> {
+  async create(params: CreateSandboxParams): Promise<SandboxInfo> {
     const result = await api.createSandbox({
       client: this._apiClient,
-      body,
+      body: {
+        id: params.id,
+        snapshot_id: params.snapshotId,
+        snapshot_alias: params.snapshotAlias,
+        ephemeral: params.ephemeral,
+        millicpu: params.millicpu,
+        memory_bytes: params.memoryBytes,
+        disk_bytes: params.diskBytes,
+      },
       throwOnError: true,
     });
-    return result.data;
+    return camelCaseKeys(result.data);
   }
 
   /**
@@ -48,10 +57,13 @@ export class SandboxesNamespace {
     const result = await api.startSandbox({
       client: this._apiClient,
       path: { id: sandboxId },
-      body: options?.startOptions,
+      body:
+        options?.versionNumber !== undefined
+          ? { version_number: options.versionNumber }
+          : undefined,
       throwOnError: true,
     });
-    const data = result.data;
+    const data = camelCaseKeys(result.data);
     const { url, token } = resolveConnectionDetails(data);
 
     const sandboxClient = createSandboxClient(

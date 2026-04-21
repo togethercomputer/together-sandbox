@@ -2,7 +2,7 @@ import * as api from "./api-clients/api/index.js";
 import * as sandboxApi from "./api-clients/sandbox/index.js";
 import type { TaskActionType } from "./api-clients/sandbox/types.gen.js";
 import { type Client as SandboxApiClient } from "./api-clients/sandbox/client/index.js";
-import type { Sandbox as SandboxModel } from "./api-clients/api/types.gen.js";
+import type { SandboxInfo } from "./types.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import type { TogetherSandboxConfig } from "./configuration.js";
 import { TogetherSandbox } from "./TogetherSandbox.js";
@@ -21,8 +21,8 @@ export interface WatchOptions {
  * Options for starting a VM.
  */
 export interface StartOptions {
-  /** Additional sandbox start request body options. */
-  startOptions?: Parameters<typeof api.startSandbox>[0]["body"];
+  /** Version number to start. Uses the current version if not provided. */
+  versionNumber?: number;
 }
 
 /**
@@ -42,7 +42,7 @@ export interface StartOptions {
  */
 export class Sandbox {
   /** Raw VM start response data (id, cluster, workspace_path, etc.). */
-  readonly vmInfo: SandboxModel;
+  readonly vmInfo: SandboxInfo;
 
   /** The underlying sandbox API client (internal). */
   private readonly _sandboxClient: SandboxApiClient;
@@ -51,7 +51,7 @@ export class Sandbox {
   private readonly _apiClient: ApiClient;
 
   constructor(
-    vmInfo: SandboxModel,
+    vmInfo: SandboxInfo,
     sandboxClient: SandboxApiClient,
     apiClient: ApiClient,
   ) {
