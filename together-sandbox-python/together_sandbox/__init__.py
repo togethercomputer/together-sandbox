@@ -13,16 +13,12 @@ Low-level clients (advanced use)::
     from together_sandbox import ApiClient, SandboxClient
 """
 
+from ._together_sandbox import TogetherSandbox
+from ._sandboxes import SandboxesNamespace
+from ._snapshots import SnapshotsNamespace, CreateSnapshotParams, CreateSnapshotResult, SnapshotProgress
+from ._sandbox import Sandbox
 from .api.client import AuthenticatedClient as ApiClient
-from .facade import (
-    CreateSnapshotParams,
-    CreateSnapshotResult,
-    Sandbox,
-    SandboxesNamespace,
-    SnapshotProgress,
-    SnapshotsNamespace,
-    TogetherSandbox,
-)
+from .sandbox.client import AuthenticatedClient as SandboxClient
 from .sandbox.client import AuthenticatedClient as SandboxClient
 
 __all__ = [
