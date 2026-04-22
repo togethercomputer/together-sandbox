@@ -1,45 +1,66 @@
 import { describe, it, expect } from "vitest";
 import { TogetherSandbox } from "./TogetherSandbox.js";
 import { Sandbox } from "./Sandbox.js";
-import type { Sandbox as SandboxModel } from "./api-clients/api/types.gen.js";
+import { camelCaseKeys, type SandboxInfo } from "./types.js";
 import { parseImageReference } from "./Snapshots.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function makeVmInfo(overrides: Partial<SandboxModel> = {}): SandboxModel {
+function makeVmInfo(overrides: Partial<SandboxInfo> = {}): SandboxInfo {
   return {
     _type: "sandbox",
     id: "test-sandbox-123",
     status: "running",
     ephemeral: false,
-    cluster_name: "us-east-1",
-    current_version_number: 1,
-    next_version_number: 2,
+    clusterName: "us-east-1",
+    currentVersionNumber: 1,
+    nextVersionNumber: 2,
     millicpu: 2000,
     gpu: 0,
-    memory_bytes: 2147483648,
-    disk_bytes: 10737418240,
-    version_count: 1,
-    agent_version: "1.0.0",
-    agent_type: "bartender",
-    agent_token: "agent-tok",
-    agent_url: "https://agent.example.com",
-    created_at: "2026-04-13T00:00:00Z",
-    start_scheduled_at: null,
-    start_type: "cold_start",
-    started_at: "2026-04-13T00:00:01Z",
-    stop_scheduled_at: null,
-    scheduled_stop_type: null,
-    stopped_at: null,
-    stop_reason: null,
-    specs_updated_at: null,
-    recovery_status: null,
-    recovery_scheduled_at: null,
-    recovery_finished_at: null,
-    updated_at: "2026-04-13T00:00:01Z",
+    memoryBytes: 2147483648,
+    diskBytes: 10737418240,
+    versionCount: 1,
+    agentVersion: "1.0.0",
+    agentType: "bartender",
+    agentToken: "agent-tok",
+    agentUrl: "https://agent.example.com",
+    createdAt: "2026-04-13T00:00:00Z",
+    startScheduledAt: null,
+    startType: "cold_start",
+    startedAt: "2026-04-13T00:00:01Z",
+    stopScheduledAt: null,
+    scheduledStopType: null,
+    stoppedAt: null,
+    stopReason: null,
+    specsUpdatedAt: null,
+    recoveryStatus: null,
+    recoveryScheduledAt: null,
+    recoveryFinishedAt: null,
+    updatedAt: "2026-04-13T00:00:01Z",
     ...overrides,
   };
 }
+
+describe("camelCaseKeys", () => {
+  it("converts snake_case keys to camelCase", () => {
+    expect(
+      camelCaseKeys({ cluster_name: "us-east-1", memory_bytes: 1024 }),
+    ).toEqual({ clusterName: "us-east-1", memoryBytes: 1024 });
+  });
+
+  it("preserves leading underscores (_type)", () => {
+    expect(camelCaseKeys({ _type: "sandbox", stop_reason: null })).toEqual({
+      _type: "sandbox",
+      stopReason: null,
+    });
+  });
+
+  it("handles multi-segment keys (current_version_number)", () => {
+    expect(camelCaseKeys({ current_version_number: 3 })).toEqual({
+      currentVersionNumber: 3,
+    });
+  });
+});
 
 // ─── Sandbox tests ───────────────────────────────────────────────────────────
 
