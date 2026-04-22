@@ -387,44 +387,6 @@ const stream = await sandbox.execs.streamList();
 
 ---
 
-### `sandbox.tasks`
-
-Task operations.
-
-#### `tasks.list(): Promise<Task[]>`
-
-List all tasks defined in the sandbox.
-
-```typescript
-const tasks = await sandbox.tasks.list();
-```
-
-#### `tasks.listSetup(): Promise<SetupTask[]>`
-
-List setup tasks.
-
-```typescript
-const setup = await sandbox.tasks.listSetup();
-```
-
-#### `tasks.get(id): Promise<Task>`
-
-Get a task by ID.
-
-```typescript
-const task = await sandbox.tasks.get("task-id");
-```
-
-#### `tasks.action(id, actionType): Promise<TaskActionResponse>`
-
-Execute an action on a task (e.g. `"run"`, `"stop"`, `"restart"`).
-
-```typescript
-await sandbox.tasks.action("task-id", "run");
-```
-
----
-
 ### `sandbox.ports`
 
 Port discovery.

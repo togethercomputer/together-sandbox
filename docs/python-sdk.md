@@ -406,46 +406,6 @@ async for update in sandbox.execs.stream_list():
 
 ---
 
-### `sandbox.tasks`
-
-Task operations.
-
-#### `tasks.list() -> list[Task]`
-
-List all tasks.
-
-```python
-tasks = await sandbox.tasks.list()
-```
-
-#### `tasks.list_setup() -> list[SetupTask]`
-
-List setup tasks.
-
-```python
-setup = await sandbox.tasks.list_setup()
-```
-
-#### `tasks.get(id_) -> Task`
-
-Get a task by ID.
-
-```python
-task = await sandbox.tasks.get("task-id")
-```
-
-#### `tasks.action(id_, action_type: TaskActionType) -> TaskActionResponse`
-
-Execute an action on a task.
-
-```python
-from together_sandbox.sandbox.models.task_action_type import TaskActionType
-
-await sandbox.tasks.action("task-id", TaskActionType.RUN)
-```
-
----
-
 ### `sandbox.ports`
 
 Port discovery.
