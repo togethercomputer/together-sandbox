@@ -16,12 +16,14 @@ from ._configuration import is_local_environment, get_inferred_registry_url
 # ── Snapshot API endpoint functions ──────────────────────────────────────────
 from .api.api.default.create_snapshot import asyncio as create_snapshot_api
 from .api.api.default.alias_snapshot import asyncio as alias_snapshot_api
+from .api.api.default.get_snapshot_by_alias import asyncio as get_snapshot_by_alias_api
 
 # ── Snapshot API models ───────────────────────────────────────────────────────
 from .api.models.alias_snapshot_body import AliasSnapshotBody
 from .api.models.create_snapshot_body import CreateSnapshotBody
 from .api.models.create_snapshot_body_image import CreateSnapshotBodyImage
 from .api.models.create_snapshot_body_image_architecture import CreateSnapshotBodyImageArchitecture
+from .api.models.snapshot import Snapshot
 from .api.types import UNSET
 
 # ── Docker helpers ────────────────────────────────────────────────────────────
@@ -243,6 +245,38 @@ class SnapshotsNamespace:
                 )
 
             return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
+
+    async def get_snapshot(self, alias: str) -> Snapshot:
+        """
+        Get snapshot information by alias.
+
+        Args:
+            alias: Snapshot alias (format: "namespace@alias" or just "alias")
+
+        Returns:
+            Snapshot: Snapshot model with id, type, byte_size, and metadata
+
+        Raises:
+            RuntimeError: If the snapshot is not found or API returns no data
+            errors.UnexpectedStatus: If the API request fails
+
+        Example:
+            >>> snapshot = await sdk.snapshots.get_snapshot("my-app@latest")
+            >>> print(snapshot.id)
+            >>> print(snapshot.byte_size)
+        """
+        # Remove leading '@' if present (for consistency with API)
+        clean_alias = alias.lstrip("@")
+
+        snapshot_data = await get_snapshot_by_alias_api(
+            clean_alias,
+            client=self._api_client,
+        )
+
+        if snapshot_data is None:
+            raise RuntimeError(f"Snapshot with alias '{alias}' not found")
+
+        return snapshot_data
 
     # ─── Private helpers ──────────────────────────────────────────────────────
 
