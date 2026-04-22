@@ -15,10 +15,16 @@ Low-level clients (advanced use)::
 
 from ._together_sandbox import TogetherSandbox
 from ._sandboxes import SandboxesNamespace
-from ._snapshots import SnapshotsNamespace, CreateSnapshotParams, CreateSnapshotResult, SnapshotProgress
+from ._snapshots import (
+    SnapshotsNamespace,
+    CreateSnapshotParams,
+    CreateFromContextParams,
+    CreateFromImageParams,
+    CreateSnapshotResult,
+    SnapshotProgress,
+)
 from ._sandbox import Sandbox
 from .api.client import AuthenticatedClient as ApiClient
-from .sandbox.client import AuthenticatedClient as SandboxClient
 from .sandbox.client import AuthenticatedClient as SandboxClient
 
 __all__ = [
@@ -28,6 +34,8 @@ __all__ = [
     "SandboxesNamespace",
     "SnapshotsNamespace",
     "CreateSnapshotParams",
+    "CreateFromContextParams",
+    "CreateFromImageParams",
     "CreateSnapshotResult",
     "SnapshotProgress",
     # Low-level clients (advanced / direct use)

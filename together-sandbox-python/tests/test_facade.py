@@ -11,7 +11,8 @@ from together_sandbox._sandbox import Directories, Execs, Files, Ports, Sandbox,
 from together_sandbox._sandboxes import _resolve_connection
 from together_sandbox._snapshots import (
     _parse_image_reference,
-    CreateSnapshotParams,
+    CreateFromContextParams,
+    CreateFromImageParams,
     SnapshotsNamespace,
 )
 from together_sandbox._together_sandbox import TogetherSandbox
@@ -330,11 +331,11 @@ class TestParseImageReference:
 
 
 class TestSnapshots:
-    """Tests for Snapshots.from_image() method."""
+    """Tests for Snapshots.create() method."""
 
     @pytest.mark.asyncio
-    async def test_from_image_calls_create_snapshot_api(self):
-        """Test that from_image calls create_snapshot_api, not build_docker_image."""
+    async def test_create_with_image_calls_create_snapshot_api(self):
+        """Test that create with image params calls create_snapshot_api, not build_docker_image."""
         mock_api_client = MagicMock()
         
         snapshots = SnapshotsNamespace(
@@ -352,15 +353,15 @@ class TestSnapshots:
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_create_snapshot:
-            result = await snapshots.from_image("node:24")
+            result = await snapshots.create(CreateFromImageParams(image="node:24"))
 
             # Verify create_snapshot_api was called
             assert mock_create_snapshot.called
             assert result.snapshot_id == "snap-123"
 
     @pytest.mark.asyncio
-    async def test_from_image_with_alias(self):
-        """Test that from_image calls aliasSnapshot when alias is provided."""
+    async def test_create_with_image_and_alias(self):
+        """Test that create with image params calls aliasSnapshot when alias is provided."""
         mock_api_client = MagicMock()
         
         snapshots = SnapshotsNamespace(
@@ -382,9 +383,8 @@ class TestSnapshots:
                 "together_sandbox._snapshots.alias_snapshot_api",
                 new_callable=AsyncMock,
             ) as mock_alias:
-                result = await snapshots.from_image(
-                    "ubuntu:22.04",
-                    params=CreateSnapshotParams(alias="myimage@latest")
+                result = await snapshots.create(
+                    CreateFromImageParams(image="ubuntu:22.04", alias="myimage@latest")
                 )
 
                 # Verify both APIs were called
@@ -392,3 +392,14 @@ class TestSnapshots:
                 assert mock_alias.called
                 assert result.snapshot_id == "snap-456"
                 assert result.alias == "myimage@latest"
+
+    def test_create_method_exists_old_methods_removed(self):
+        """Test that create method exists and old from_build/from_image are removed."""
+        ns = SnapshotsNamespace(
+            api_client=MagicMock(),
+            api_key="k",
+            base_url="https://example.com",
+        )
+        assert hasattr(ns, "create")
+        assert not hasattr(ns, "from_build")
+        assert not hasattr(ns, "from_image")

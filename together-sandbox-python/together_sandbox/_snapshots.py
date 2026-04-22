@@ -51,15 +51,22 @@ class CreateSnapshotResult:
 
 
 @dataclass
-class CreateSnapshotParams:
-
+class CreateFromContextParams:
+    context: str
+    dockerfile: str | None = None
     alias: str | None = None
-    memory_snapshot: bool | None = None
     on_progress: Callable[[SnapshotProgress], None] | None = None
+    memory_snapshot: bool | None = None
+
 
 @dataclass
-class BuildSnapshotParams(CreateSnapshotParams):
-    dockerfile: str | None = None
+class CreateFromImageParams:
+    image: str
+    alias: str | None = None
+    on_progress: Callable[[SnapshotProgress], None] | None = None
+
+
+CreateSnapshotParams = CreateFromContextParams | CreateFromImageParams
 
 # ─── Snapshot helpers ─────────────────────────────────────────────────────────
 
@@ -187,152 +194,34 @@ class SnapshotsNamespace:
 
     # ─── Public entry points ──────────────────────────────────────────────────
 
-    async def from_build(
-        self,
-        docker_context: str,
-        params: BuildSnapshotParams | None = None,
-    ) -> CreateSnapshotResult:
-        """Build a Docker image from an existing Dockerfile and register it as a snapshot."""
-        if not await is_docker_available():
-            raise RuntimeError(
-                "Docker is not available. Please install Docker to use snapshot builds."
-            )
-
-        resolved_context = os.path.realpath(docker_context)
-        resolved_dockerfile = os.path.realpath(params.dockerfile) if params and params.dockerfile else None
-        
-        architecture = (
-            "arm64"
-            if platform.machine().lower() == "arm64" and is_local_environment(self._base_url)
-            else "amd64"
-        )
-
-        async def noop() -> None:
-            pass
-
-        return await self._build_and_register(
-            dockerfile_path=resolved_dockerfile,
-            context=resolved_context,
-            architecture=architecture,
-            alias_default_namespace=os.path.basename(resolved_context),
-            cleanup_fn=noop,
-            params=params,
-        )
-
-    async def from_image(
-        self,
-        image: str,
-        params: CreateSnapshotParams | None = None,
-    ) -> CreateSnapshotResult:
-        """Create a snapshot from a public Docker image without building."""
-        # Parse the image reference into components
-        ref = _parse_image_reference(image)
-
-        def _emit(step: str, output: str) -> None:
-            if params and params.on_progress:
-                params.on_progress(SnapshotProgress(step=step, output=output))
-
-        # Build CreateSnapshotBodyImage, mapping None to UNSET
-        _emit("register", "Creating snapshot from image...")
-        snapshot_data = await create_snapshot_api(
-            client=self._api_client,
-            body=CreateSnapshotBody(
-                image=CreateSnapshotBodyImage(
-                    registry=ref.registry or UNSET,
-                    repository=ref.repository or UNSET,
-                    name=ref.name,
-                    tag=ref.tag or UNSET,
-                    architecture=CreateSnapshotBodyImageArchitecture("amd64"),
-                )
-            ),
-        )
-
-        if snapshot_data is None or not hasattr(snapshot_data, "id"):
-            raise RuntimeError("Snapshot creation returned no data")
-
-        snapshot_id = str(snapshot_data.id)
-        alias: str | None = None
-
-        if params and params.alias:
-            _emit("alias", "Creating alias...")
-            namespace, alias_tag = _parse_alias(ref.name, params.alias)
-            alias = f"{namespace}@{alias_tag}"
-            await alias_snapshot_api(
-                snapshot_data.id,
-                client=self._api_client,
-                body=AliasSnapshotBody(alias=alias),
-            )
-
-        return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
-
-    # ─── Private helpers ──────────────────────────────────────────────────────
-
-    async def _build_and_register(
-        self,
-        dockerfile_path: str | None,
-        context: str,
-        architecture: str,
-        alias_default_namespace: str,
-        cleanup_fn: Callable,
-        params: CreateSnapshotParams | None,
-    ) -> CreateSnapshotResult:
-        try:
-            meta_info = await _get_meta_info(self._api_key)
-            team_id = meta_info.get("auth", {}).get("team")
-            if not team_id:
+    async def create(self, params: CreateSnapshotParams) -> CreateSnapshotResult:
+        """Create a snapshot from either a Docker context or a public Docker image."""
+        if isinstance(params, CreateFromContextParams):
+            # Context-based snapshot — requires Docker
+            if not await is_docker_available():
                 raise RuntimeError(
-                    "Failed to fetch team information for the provided API key. "
-                    "Please ensure your TOGETHER_API_KEY is correct and has access to a team."
+                    "Docker is not available. Please install Docker to use snapshot builds."
                 )
 
-            repository = _base32_encode(team_id)
-            registry = get_inferred_registry_url(self._base_url)
-            image_name = f"image-{uuid4()}".lower()
-            image_tag = str(uuid4()).lower()
-            full_image_name = f"{registry}/{repository}/{image_name}:{image_tag}"
+            return await self._build_and_register(params)
+        else:
+            # Image-based snapshot — no Docker required
+            ref = _parse_image_reference(params.image)
 
             def _emit(step: str, output: str) -> None:
-                if params and params.on_progress:
+                if params.on_progress:
                     params.on_progress(SnapshotProgress(step=step, output=output))
 
-            _emit("prepare", "Preparing snapshot...")
-            _emit("build", "Building snapshot...")
-            await build_docker_image(
-                DockerBuildOptions(
-                    dockerfile_path=dockerfile_path,
-                    image_name=full_image_name,
-                    context=context,
-                    architecture=architecture,
-                    on_output=lambda out: _emit("build", _strip_ansi(out)),
-                )
-            )
-
-            _emit("auth", "Authenticating...")
-            await docker_login(
-                DockerLoginOptions(
-                    registry=registry,
-                    username="_token",
-                    password=self._api_key,
-                    on_output=lambda out: _emit("auth", _strip_ansi(out)),
-                )
-            )
-
-            _emit("push", "Pushing Docker image...")
-            await push_docker_image(
-                full_image_name,
-                on_output=lambda out: _emit("push", _strip_ansi(out)),
-            )
-
-            _emit("register", "Registering snapshot...")
+            _emit("register", "Creating snapshot from image...")
             snapshot_data = await create_snapshot_api(
                 client=self._api_client,
                 body=CreateSnapshotBody(
                     image=CreateSnapshotBodyImage(
-                        registry=registry,
-                        repository=repository,
-                        name=image_name,
-                        tag=image_tag,
-                        architecture=CreateSnapshotBodyImageArchitecture(architecture),
+                        registry=ref.registry or UNSET,
+                        repository=ref.repository or UNSET,
+                        name=ref.name,
+                        tag=ref.tag or UNSET,
+                        architecture=CreateSnapshotBodyImageArchitecture("amd64"),
                     )
                 ),
             )
@@ -343,9 +232,9 @@ class SnapshotsNamespace:
             snapshot_id = str(snapshot_data.id)
             alias: str | None = None
 
-            if params and params.alias:
+            if params.alias:
                 _emit("alias", "Creating alias...")
-                namespace, alias_tag = _parse_alias(alias_default_namespace, params.alias)
+                namespace, alias_tag = _parse_alias(ref.name, params.alias)
                 alias = f"{namespace}@{alias_tag}"
                 await alias_snapshot_api(
                     snapshot_data.id,
@@ -355,5 +244,97 @@ class SnapshotsNamespace:
 
             return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
 
-        finally:
-            await cleanup_fn()
+    # ─── Private helpers ──────────────────────────────────────────────────────
+
+    async def _build_and_register(
+        self,
+        params: CreateFromContextParams,
+    ) -> CreateSnapshotResult:
+        architecture = (
+            "arm64"
+            if platform.machine().lower() == "arm64" and is_local_environment(self._base_url)
+            else "amd64"
+        )
+        context = os.path.realpath(params.context)
+        dockerfile_path = (
+            os.path.realpath(params.dockerfile) if params.dockerfile else None
+        )
+        alias_default_namespace = os.path.basename(context)
+
+        meta_info = await _get_meta_info(self._api_key)
+        team_id = meta_info.get("auth", {}).get("team")
+        if not team_id:
+            raise RuntimeError(
+                "Failed to fetch team information for the provided API key. "
+                "Please ensure your TOGETHER_API_KEY is correct and has access to a team."
+            )
+
+        repository = _base32_encode(team_id)
+        registry = get_inferred_registry_url(self._base_url)
+        image_name = f"image-{uuid4()}".lower()
+        image_tag = str(uuid4()).lower()
+        full_image_name = f"{registry}/{repository}/{image_name}:{image_tag}"
+
+        def _emit(step: str, output: str) -> None:
+            if params.on_progress:
+                params.on_progress(SnapshotProgress(step=step, output=output))
+
+        _emit("prepare", "Preparing snapshot...")
+        _emit("build", "Building snapshot...")
+        await build_docker_image(
+            DockerBuildOptions(
+                dockerfile_path=dockerfile_path,
+                image_name=full_image_name,
+                context=context,
+                architecture=architecture,
+                on_output=lambda out: _emit("build", _strip_ansi(out)),
+            )
+        )
+
+        _emit("auth", "Authenticating...")
+        await docker_login(
+            DockerLoginOptions(
+                registry=registry,
+                username="_token",
+                password=self._api_key,
+                on_output=lambda out: _emit("auth", _strip_ansi(out)),
+            )
+        )
+
+        _emit("push", "Pushing Docker image...")
+        await push_docker_image(
+            full_image_name,
+            on_output=lambda out: _emit("push", _strip_ansi(out)),
+        )
+
+        _emit("register", "Registering snapshot...")
+        snapshot_data = await create_snapshot_api(
+            client=self._api_client,
+            body=CreateSnapshotBody(
+                image=CreateSnapshotBodyImage(
+                    registry=registry,
+                    repository=repository,
+                    name=image_name,
+                    tag=image_tag,
+                    architecture=CreateSnapshotBodyImageArchitecture(architecture),
+                )
+            ),
+        )
+
+        if snapshot_data is None or not hasattr(snapshot_data, "id"):
+            raise RuntimeError("Snapshot creation returned no data")
+
+        snapshot_id = str(snapshot_data.id)
+        alias: str | None = None
+
+        if params.alias:
+            _emit("alias", "Creating alias...")
+            namespace, alias_tag = _parse_alias(alias_default_namespace, params.alias)
+            alias = f"{namespace}@{alias_tag}"
+            await alias_snapshot_api(
+                snapshot_data.id,
+                client=self._api_client,
+                body=AliasSnapshotBody(alias=alias),
+            )
+
+        return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
