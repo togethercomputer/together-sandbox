@@ -20,4 +20,11 @@ export type { TogetherSandboxConfig } from "./configuration.js";
 // Public camelCase types and facade classes
 export type { SandboxInfo, CreateSandboxParams } from "./types.js";
 export { Sandbox } from "./Sandbox.js";
+export type {
+  CreateSnapshotParams,
+  CreateContextSnapshotParams,
+  CreateImageSnapshotParams,
+  CreateSnapshotResult,
+  SnapshotProgress,
+} from "./Snapshots.js";
 export type { StartOptions, WatchOptions } from "./Sandbox.js";

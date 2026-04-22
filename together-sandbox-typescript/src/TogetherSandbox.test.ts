@@ -152,6 +152,15 @@ describe("TogetherSandbox", () => {
     const sdk = new TogetherSandbox({ apiKey: "test-key" });
     expect((sdk as any).apiClient).toBeUndefined();
   });
+
+  describe("snapshots namespace", () => {
+    it("has create method and old methods are removed", () => {
+      const sdk = new TogetherSandbox({ apiKey: "test-key" });
+      expect(sdk.snapshots).toHaveProperty("create");
+      expect(sdk.snapshots).not.toHaveProperty("fromBuild");
+      expect(sdk.snapshots).not.toHaveProperty("fromImage");
+    });
+  });
 });
 
 // ─── parseImageReference tests ───────────────────────────────────────────────
