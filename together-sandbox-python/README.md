@@ -113,6 +113,13 @@ result = await sdk.snapshots.create(
 
 print(result.snapshot_id)  # pass to sdk.sandboxes.start()
 print(result.alias)        # "my-app@latest"
+
+# Get snapshot information by alias
+snapshot = await sdk.snapshots.get_snapshot("my-app@latest")
+print(snapshot.id)          # UUID
+print(snapshot.byte_size)   # Size in bytes
+print(snapshot.optimized)   # Whether snapshot is optimized
+print(snapshot.created_at)  # Creation timestamp
 ```
 
 ## Environment variables
