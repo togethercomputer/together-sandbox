@@ -11,7 +11,7 @@ npm install -g @together-sandbox/cli
 Or use it without installing via `npx`:
 
 ```bash
-npx @together-sandbox/cli snapshots from-build ./my-project
+npx @together-sandbox/cli snapshots create --context ./my-project
 ```
 
 ---
@@ -36,83 +36,57 @@ Snapshot management commands.
 
 ---
 
-### `together-sandbox snapshots from-build <dockerContext>`
+### `together-sandbox snapshots create [options]`
 
-Build a snapshot from a Dockerfile. The build context is the directory passed as `<dockerContext>`.
+Create a snapshot from a Dockerfile (local build) or an existing public Docker image.
 
-Under the hood this command:
+Under the hood for `--context`, this command:
 
-1. Builds a Docker image from the context directory (using a Dockerfile in that directory, or one supplied via `--dockerFile`).
+1. Builds a Docker image from the context directory (using a Dockerfile in that directory, or one supplied via `--dockerfile`).
 2. Authenticates with the Together Sandbox Docker registry.
 3. Pushes the image to the registry.
 4. Registers a snapshot backed by that image.
 5. Optionally assigns an alias to the snapshot.
 
+For `--image`, the image reference is registered directly as a snapshot without a local build.
+
 ```bash
-together-sandbox snapshots from-build <dockerContext> [options]
+together-sandbox snapshots create [options]
 ```
-
-#### Arguments
-
-| Argument          | Description                                           |
-| ----------------- | ----------------------------------------------------- |
-| `<dockerContext>` | Path to the Docker build context directory. Required. |
 
 #### Options
 
-| Option         | Type     | Description                                                                                                                                                      |
-| -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--dockerFile` | `string` | Path to a Dockerfile to use for the build. Defaults to `Dockerfile` inside `<dockerContext>`.                                                                    |
-| `--alias`      | `string` | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the `<dockerContext>` directory name. Max 64 characters each; `a-z A-Z 0-9 - _`. |
+| Option                | Type     | Description                                                                                |
+| --------------------- | -------- | ------------------------------------------------------------------------------------------ |
+| `--context <dir>`     | `string` | Path to the Docker build context directory. Mutually exclusive with `--image`.             |
+| `--dockerfile <file>` | `string` | Path to a Dockerfile (only with `--context`). Defaults to `Dockerfile` inside `--context`. |
+| `--image <ref>`       | `string` | Docker image reference. Mutually exclusive with `--context`.                               |
+| `--alias <alias>`     | `string` | Alias for the snapshot (`tag` or `namespace@tag`).                                         |
 
 #### Examples
 
 Build from the current directory:
 
 ```bash
-together-sandbox snapshots from-build .
+together-sandbox snapshots create --context .
 ```
 
 Build with a custom Dockerfile and assign an alias:
 
 ```bash
-together-sandbox snapshots from-build ./my-app --dockerFile ./my-app/Dockerfile.prod --alias my-app@v1
+together-sandbox snapshots create --context ./my-app --dockerfile ./my-app/Dockerfile.prod --alias my-app@v1
 ```
-
----
-
-### `together-sandbox snapshots from-image <image>`
-
-Create a snapshot from an existing public Docker image — no local build required.
-
-```bash
-together-sandbox snapshots from-image <image> [options]
-```
-
-#### Arguments
-
-| Argument  | Description                               |
-| --------- | ----------------------------------------- |
-| `<image>` | Docker image name or reference. Required. |
-
-#### Options
-
-| Option    | Type     | Description                                                                                                                                |
-| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--alias` | `string` | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the image name. Max 64 characters each; `a-z A-Z 0-9 - _`. |
-
-#### Examples
 
 Create a snapshot from a public image:
 
 ```bash
-together-sandbox snapshots from-image node:22
+together-sandbox snapshots create --image node:22
 ```
 
-Create a snapshot with an alias:
+Create a snapshot from a public image with an alias:
 
 ```bash
-together-sandbox snapshots from-image python:3.12-slim --alias my-python@latest
+together-sandbox snapshots create --image python:3.12-slim --alias my-python@latest
 ```
 
 ---
@@ -155,7 +129,7 @@ sandbox = await sdk.sandboxes.start(sandbox_model.id)
 
 ## Prerequisites
 
-- **Docker** must be installed and running for `snapshots from-build`. The CLI will report an error if Docker is unavailable. `snapshots from-image` does not require Docker.
+- **Docker** must be installed and running for `snapshots create --context`. The CLI will report an error if Docker is unavailable. `snapshots create --image` does not require Docker.
 - **`TOGETHER_API_KEY`** environment variable must be set.
 
 ---
