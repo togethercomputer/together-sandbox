@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.2.0...together-sandbox-v1.3.0) (2026-04-22)
+
+
+### Features
+
+* Change to create signature for sdks and cli ([fe9f89c](https://github.com/togethercomputer/together-sandbox/commit/fe9f89c56ca56a50e7b244c1f3c744694e5aaef5))
+* move to create signature for CLI and TS SDK ([0c710ba](https://github.com/togethercomputer/together-sandbox/commit/0c710bad698e27c4fc136c30999f70fec2714f13))
+* python SDK create signature ([f23811e](https://github.com/togethercomputer/together-sandbox/commit/f23811e06979b968d6e6e78d778ef80db5a9878d))
+
+
+### Bug Fixes
+
+* return generated code ([5b30bf2](https://github.com/togethercomputer/together-sandbox/commit/5b30bf2cb7d72159b14d72013a13b739eedd37c4))
+* use camel case typing and options for TypeScript SDK ([4d07e38](https://github.com/togethercomputer/together-sandbox/commit/4d07e38113be7c480a71c416897f3250a1e8d0cc))
+* use camel case typing and options for TypeScript SDK ([94bae2c](https://github.com/togethercomputer/together-sandbox/commit/94bae2c5d2536a64baac2392d68b1f6cf9d2b573))
+
 ## [1.2.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.1.1...together-sandbox-v1.2.0) (2026-04-20)
 
 
