@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.3.0...together-sandbox-v1.4.0) (2026-04-22)
+
+
+### Features
+
+* add get snapshot by alias api ([69a0e4e](https://github.com/togethercomputer/together-sandbox/commit/69a0e4e37fab4cb0a28d231c2be08f903b4b46a4))
+
 ## [1.3.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.2.0...together-sandbox-v1.3.0) (2026-04-22)
 
 
