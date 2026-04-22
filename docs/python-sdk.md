@@ -85,15 +85,15 @@ sandbox_model = await sdk.sandboxes.create(CreateSandboxBody(
 sandbox = await sdk.sandboxes.start(sandbox_model.id)
 ```
 
-| Parameter        | Type           | Required | Description                                                                        |
-| ---------------- | -------------- | -------- | ---------------------------------------------------------------------------------- |
-| `snapshot_id`    | `UUID \| Unset` | *       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.  |
-| `snapshot_alias` | `str \| Unset` | *        | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required. |
-| `millicpu`       | `int`          | Yes      | CPU allocation in millicpu (must be > 0, multiple of 250).                         |
-| `memory_bytes`   | `int`          | Yes      | Memory allocation in bytes.                                                        |
-| `disk_bytes`     | `int`          | Yes      | Disk allocation in bytes.                                                          |
-| `id`             | `str \| Unset` | No       | Sandbox ID (6–8 characters). Generated if not provided.                            |
-| `ephemeral`      | `bool \| Unset` | No      | Mark the sandbox as ephemeral.                                                     |
+| Parameter        | Type            | Required | Description                                                                         |
+| ---------------- | --------------- | -------- | ----------------------------------------------------------------------------------- |
+| `snapshot_id`    | `UUID \| Unset` | \*       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.    |
+| `snapshot_alias` | `str \| Unset`  | \*       | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required. |
+| `millicpu`       | `int`           | Yes      | CPU allocation in millicpu (must be > 0, multiple of 250).                          |
+| `memory_bytes`   | `int`           | Yes      | Memory allocation in bytes.                                                         |
+| `disk_bytes`     | `int`           | Yes      | Disk allocation in bytes.                                                           |
+| `id`             | `str \| Unset`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                             |
+| `ephemeral`      | `bool \| Unset` | No       | Mark the sandbox as ephemeral.                                                      |
 
 #### `sdk.sandboxes.start(sandbox_id, *, start_options=None): Coroutine[Sandbox]`
 
@@ -126,16 +126,26 @@ await sdk.sandboxes.shutdown("your-sandbox-id")
 
 ### `sdk.snapshots`
 
-Snapshot creation namespace. Snapshots are images you can pass to `sdk.sandboxes.start()`.
+Snapshot creation namespace. Snapshots are images you can pass to `sdk.sandboxes.create()`.
 
-#### `sdk.snapshots.from_build(docker_context, params=None): Coroutine[CreateSnapshotResult]`
+#### `sdk.snapshots.create(params): Coroutine[CreateSnapshotResult]`
+
+Create a snapshot from either a local Docker context or an existing public Docker image.
+
+**From a local Dockerfile:**
 
 Build a Docker image from a local directory and register it as a snapshot. Requires Docker to be installed and running.
 
 ```python
+from together_sandbox import CreateFromContextParams
 from together_sandbox.api.models.create_sandbox_body import CreateSandboxBody
 
-result = await sdk.snapshots.from_build("./my-app")
+result = await sdk.snapshots.create(CreateFromContextParams(
+    context="./my-app",
+    dockerfile="./my-app/Dockerfile.prod",  # optional
+    alias="my-app@v1",                      # optional
+    on_progress=lambda e: print(e.output),
+))
 
 # Use the snapshot ID to create a sandbox:
 sandbox_model = await sdk.sandboxes.create(CreateSandboxBody(
@@ -144,66 +154,48 @@ sandbox_model = await sdk.sandboxes.create(CreateSandboxBody(
     memory_bytes=512 * 1024 * 1024,
     disk_bytes=10 * 1024 * 1024 * 1024,
 ))
-
-# With a custom Dockerfile and alias:
-from together_sandbox import BuildSnapshotParams
-
-result = await sdk.snapshots.from_build("./my-app", BuildSnapshotParams(
-    dockerfile="./my-app/Dockerfile.prod",
-    alias="my-app@v1",
-    on_progress=lambda event: print(event.output),
-))
-# Use the alias to create a sandbox:
-sandbox_model = await sdk.sandboxes.create(CreateSandboxBody(
-    snapshot_alias=result.alias,
-    millicpu=1000,
-    memory_bytes=512 * 1024 * 1024,
-    disk_bytes=10 * 1024 * 1024 * 1024,
-))
 ```
 
-| Parameter              | Type                                      | Description                                                                                                 |
-| ---------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `docker_context`       | `str`                                     | Path to the Docker build context directory.                                                                 |
-| `params.dockerfile`    | `str \| None`                             | Path to a Dockerfile. Defaults to `Dockerfile` inside `docker_context`.                                     |
-| `params.alias`         | `str \| None`                             | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the context directory name. |
-| `params.on_progress`   | `Callable[[SnapshotProgress], None] \| None` | Optional progress callback. Receives a `SnapshotProgress` at each stage.                                 |
+| Parameter     | Type                                         | Description                                                                                                 |
+| ------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `context`     | `str`                                        | Path to the Docker build context directory.                                                                 |
+| `dockerfile`  | `str \| None`                                | Path to a Dockerfile. Defaults to `Dockerfile` inside `context`.                                            |
+| `alias`       | `str \| None`                                | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the context directory name. |
+| `on_progress` | `Callable[[SnapshotProgress], None] \| None` | Optional progress callback. Receives a `SnapshotProgress` at each stage.                                    |
 
-#### `sdk.snapshots.from_image(image, params=None): Coroutine[CreateSnapshotResult]`
+**From a public Docker image:**
 
 Register an existing public Docker image as a snapshot — no local build required.
 
 ```python
-result = await sdk.snapshots.from_image("node:22")
-print(result.snapshot_id)
+from together_sandbox import CreateFromImageParams
 
-# With an alias:
-from together_sandbox import CreateSnapshotParams
-
-result = await sdk.snapshots.from_image("python:3.12-slim", CreateSnapshotParams(
-    alias="my-python@latest",
+result = await sdk.snapshots.create(CreateFromImageParams(
+    image="node:22",
+    alias="my-node@latest",  # optional
 ))
+print(result.snapshot_id)
 ```
 
-| Parameter            | Type                                         | Description                                                                                     |
-| -------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `image`              | `str`                                        | Docker image name or reference (e.g. `node:22`, `registry.example.com/org/app:tag`).           |
-| `params.alias`       | `str \| None`                                | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the image name. |
-| `params.on_progress` | `Callable[[SnapshotProgress], None] \| None` | Optional progress callback.                                                                     |
+| Parameter     | Type                                         | Description                                                                                     |
+| ------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `image`       | `str`                                        | Docker image name or reference (e.g. `node:22`, `registry.example.com/org/app:tag`).            |
+| `alias`       | `str \| None`                                | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the image name. |
+| `on_progress` | `Callable[[SnapshotProgress], None] \| None` | Optional progress callback.                                                                     |
 
 #### `CreateSnapshotResult`
 
-| Property      | Type          | Description                                               |
-| ------------- | ------------- | --------------------------------------------------------- |
-| `snapshot_id` | `str`         | ID of the created snapshot.                               |
-| `alias`       | `str \| None` | The full alias (`namespace@tag`) if one was assigned.     |
+| Property      | Type          | Description                                           |
+| ------------- | ------------- | ----------------------------------------------------- |
+| `snapshot_id` | `str`         | ID of the created snapshot.                           |
+| `alias`       | `str \| None` | The full alias (`namespace@tag`) if one was assigned. |
 
 #### `SnapshotProgress`
 
-| Property | Type  | Description                                                                                                                      |
-| -------- | ----- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Property | Type  | Description                                                                                                 |
+| -------- | ----- | ----------------------------------------------------------------------------------------------------------- |
 | `step`   | `str` | Current stage: `"prepare"`, `"build"`, `"auth"`, `"push"`, `"register"`, `"memory-snapshot"`, or `"alias"`. |
-| `output` | `str` | Human-readable progress message.                                                                                                 |
+| `output` | `str` | Human-readable progress message.                                                                            |
 
 ---
 

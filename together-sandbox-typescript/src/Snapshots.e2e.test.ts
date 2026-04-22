@@ -10,9 +10,7 @@ import { TogetherSandbox } from "./TogetherSandbox.js";
 const apiKey = process.env.CSB_API_KEY;
 const describeIfKey = apiKey ? describe : describe.skip;
 
-// ─── snapshots.fromBuild ───────────────────────────────────────────────────
-
-describeIfKey("snapshots.fromBuild", () => {
+describeIfKey("snapshots.create (context)", () => {
   let sdk: TogetherSandbox;
   let tmpDir: string;
 
@@ -29,7 +27,8 @@ describeIfKey("snapshots.fromBuild", () => {
   });
 
   it("should build and register a snapshot with alias", async () => {
-    const result = await sdk.snapshots.fromBuild(tmpDir, {
+    const result = await sdk.snapshots.create({
+      context: tmpDir,
       alias: "e2e-build",
     });
 

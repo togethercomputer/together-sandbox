@@ -80,6 +80,28 @@ const sandbox = await Sandbox.start("your-sandbox-id", {
 });
 ```
 
+## Snapshots
+
+Snapshots let you create pre-configured sandbox environments from a Dockerfile or public Docker image:
+
+```typescript
+// Build from a local Dockerfile
+const result = await sdk.snapshots.create({
+  context: "./my-app", // path to the Docker build context
+  dockerfile: "./Dockerfile", // optional — defaults to Dockerfile in context
+  alias: "my-app@latest", // optional
+});
+
+// Register a public Docker image
+const result = await sdk.snapshots.create({
+  image: "node:20-alpine",
+  alias: "node@20", // optional
+});
+
+console.log(result.snapshotId); // pass to sdk.sandboxes.start()
+console.log(result.alias); // "my-app@latest"
+```
+
 ## Low-level Usage (Advanced)
 
 The generated clients are still fully exported for direct use:
@@ -143,7 +165,7 @@ await api.vmShutdown({ client, path: { id: sandboxId } });
 
 ## Environment Variables
 
-| Variable | Description |
-|---|---|
-| `TOGETHER_API_KEY` | Your Together / CodeSandbox API key |
+| Variable            | Description                                                       |
+| ------------------- | ----------------------------------------------------------------- |
+| `TOGETHER_API_KEY`  | Your Together / CodeSandbox API key                               |
 | `TOGETHER_BASE_URL` | Override the API base URL (default: `https://api.codesandbox.io`) |
