@@ -58,11 +58,11 @@ class SandboxesNamespace:
         Returns:
             A ready-to-use :class:`Sandbox` with all sub-namespaces.
         """
-        body = None
-        if start_options is not None:
-            body = StartSandboxBody(
-                version_number=start_options.version_number if start_options.version_number is not None else UNSET
-            )
+        version_number = UNSET
+        if start_options is not None and start_options.version_number is not None:
+            version_number = start_options.version_number
+
+        body = StartSandboxBody(version_number=version_number)
 
         # start_sandbox_api returns Error | Sandbox | None directly (not wrapped in response)
         vm_info = await start_sandbox_api(sandbox_id, client=self._api_client, body=body)
