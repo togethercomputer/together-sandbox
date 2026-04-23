@@ -104,7 +104,7 @@ class TestSnapshotsNamespace:
             assert received_alias == "my-app@latest"
 
     async def test_get_snapshot_not_found_raises_error(self):
-        """Test that get_snapshot raises RuntimeError when snapshot not found."""
+        """Test that get_snapshot raises RuntimeError when API returns None."""
         mock_api_client = MagicMock()
 
         snapshots = SnapshotsNamespace(
@@ -115,15 +115,15 @@ class TestSnapshotsNamespace:
 
         with pytest.MonkeyPatch.context() as mp:
             async def mock_get_snapshot_by_alias_api(alias: str, *, client):
-                return None  # Simulate not found
+                return None  # Simulate unexpected response
 
             mp.setattr(
                 "together_sandbox._snapshots.get_snapshot_by_alias_api",
                 mock_get_snapshot_by_alias_api,
             )
 
-            # Should raise RuntimeError
-            with pytest.raises(RuntimeError, match="not found"):
+            # Should raise RuntimeError with unexpected response message
+            with pytest.raises(RuntimeError, match="unexpected response"):
                 await snapshots.get_snapshot("nonexistent@alias")
 
     async def test_get_snapshot_error_response_raises_error(self):
