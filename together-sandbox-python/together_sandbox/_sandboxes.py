@@ -16,6 +16,7 @@ from .api.models.stop_sandbox_body import StopSandboxBody
 from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 from .api.models.create_sandbox_body import CreateSandboxBody
 from .api.models.start_sandbox_body import StartSandboxBody
+from .api.models.error import Error
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -68,6 +69,12 @@ class SandboxesNamespace:
                 "Check that the sandbox ID is valid and your API key has the required scopes."
             )
 
+        if isinstance(vm_info, Error):
+            error_msg = f"Failed to start sandbox '{sandbox_id}': {vm_info.message}"
+            if hasattr(vm_info, 'code'):
+                error_msg = f"{error_msg} (code: {vm_info.code})"
+            raise RuntimeError(error_msg)
+
         url, token = _resolve_connection(vm_info)
 
         sandbox_client = SandboxClient(
@@ -93,6 +100,11 @@ class SandboxesNamespace:
         result = await create_sandbox_api(client=self._api_client, body=body)
         if result is None:
             raise RuntimeError("createSandbox returned None")
+        if isinstance(result, Error):
+            error_msg = f"Failed to create sandbox: {result.message}"
+            if hasattr(result, 'code'):
+                error_msg = f"{error_msg} (code: {result.code})"
+            raise RuntimeError(error_msg)
         return result
 
     async def hibernate(self, sandbox_id: str) -> None:
