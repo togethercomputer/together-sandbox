@@ -1,5 +1,4 @@
 import * as api from "./api-clients/api/index.js";
-import * as path from "path";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { getInferredRegistryUrl, isLocalEnvironment } from "./configuration.js";
 import { base32Encode, sleep } from "./utils.js";
@@ -20,6 +19,8 @@ export type SnapshotProgress = { output: string } & (
   | { step: "memory-snapshot" }
   | { step: "alias" }
 );
+
+export type Snapshot = api.Snapshot;
 
 /**
  * Parameters for creating a snapshot
@@ -48,7 +49,7 @@ export type CreateSnapshotParams =
 export interface CreateSnapshotResult {
   /** ID of the created (or memory-snapshotted) snapshot. */
   snapshotId: string;
-  /** The full alias string that was applied (`namespace@tag`), if any. */
+  /** The alias that was applied, if any. */
   alias?: string;
 }
 
@@ -85,36 +86,6 @@ function stripAnsiCodes(str: string) {
   //   [@-~]      = final byte ( @ A–Z [ \ ] ^ _ ` a–z { | } ~ )
   const CSI_REGEX = /\x1B\[[0-?]*[ -/]*[@-~]/g;
   return str.replace(CSI_REGEX, "");
-}
-
-function createAlias(defaultNamespace: string, alias: string) {
-  const aliasParts = alias.split("@");
-
-  if (aliasParts.length > 2) {
-    throw new Error(
-      `Alias name "${alias}" is invalid, must be in the format of name@tag`,
-    );
-  }
-
-  const namespace = aliasParts.length === 2 ? aliasParts[0] : defaultNamespace;
-  alias = aliasParts.length === 2 ? aliasParts[1] : alias;
-
-  if (namespace.length > 64 || alias.length > 64) {
-    throw new Error(
-      `Alias name "${namespace}" or tag "${alias}" is too long, must be 64 characters or less`,
-    );
-  }
-
-  if (!/^[a-zA-Z0-9-_]+$/.test(namespace) || !/^[a-zA-Z0-9-_]+$/.test(alias)) {
-    throw new Error(
-      `Alias name "${namespace}" or tag "${alias}" is invalid, must only contain upper/lower case letters, numbers, dashes and underscores`,
-    );
-  }
-
-  return {
-    namespace,
-    alias,
-  };
 }
 
 export type ImageReference = {
@@ -199,6 +170,66 @@ export class SnapshotsNamespace {
 
   // ─── Public entry points ──────────────────────────────────────────────────
 
+  async getById(id: string): Promise<Snapshot> {
+    const result = await api.getSnapshot({
+      client: this._apiClient,
+      path: { id },
+      throwOnError: true,
+    });
+
+    return result.data;
+  }
+
+  async getByAlias(alias: string): Promise<Snapshot> {
+    // Ensure consistency with API
+    const cleanAlias = alias.startsWith("@") ? alias.slice(1) : alias;
+
+    const result = await api.getSnapshotByAlias({
+      client: this._apiClient,
+      path: { alias: cleanAlias },
+      throwOnError: true,
+    });
+
+    return result.data;
+  }
+
+  async list(): Promise<Snapshot[]> {
+    const result = await api.listSnapshots({
+      client: this._apiClient,
+      throwOnError: true,
+    });
+
+    return result.data;
+  }
+
+  async alias(snapshotId: string, alias: string): Promise<void> {
+    await api.aliasSnapshot({
+      client: this._apiClient,
+      path: { snapshot_id: snapshotId },
+      body: { alias },
+      throwOnError: true,
+    });
+  }
+
+  async deleteById(id: string): Promise<void> {
+    await api.deleteSnapshot({
+      client: this._apiClient,
+      path: { id },
+      throwOnError: true,
+    });
+  }
+
+  async deleteByAlias(alias: string): Promise<void> {
+    // Ensure consistency with API
+    const cleanAlias = alias.startsWith("@") ? alias.slice(1) : alias;
+
+    await api.deleteSnapshotByAlias({
+      client: this._apiClient,
+      path: { alias: cleanAlias },
+      throwOnError: true,
+    });
+  }
+
   /**
    * Create a snapshot from a Docker build context or a public Docker image.
    *
@@ -250,12 +281,10 @@ export class SnapshotsNamespace {
           output: "Creating alias...",
         });
 
-        const aliasParts = createAlias(extractedName, params.alias);
-        alias = `${aliasParts.namespace}@${aliasParts.alias}`;
         await api.aliasSnapshot({
           client: this._apiClient,
           path: { snapshot_id: snapshotData.data.id },
-          body: { alias },
+          body: { alias: params.alias },
           throwOnError: true,
         });
       }
@@ -278,7 +307,6 @@ export class SnapshotsNamespace {
         : "amd64";
     const dockerfilePath = params.dockerfile;
     const context = params.context;
-    const aliasDefaultNamespace = path.basename(params.context);
     const apiKey = this._apiKey;
     const apiClient = this._apiClient;
 
@@ -435,12 +463,10 @@ export class SnapshotsNamespace {
         output: "Creating alias...",
       });
 
-      const aliasParts = createAlias(aliasDefaultNamespace, params.alias);
-      alias = `${aliasParts.namespace}@${aliasParts.alias}`;
       await api.aliasSnapshot({
         client: apiClient,
         path: { snapshot_id: snapshotId },
-        body: { alias },
+        body: { alias: params.alias },
         throwOnError: true,
       });
     }

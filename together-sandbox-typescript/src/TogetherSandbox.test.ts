@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { TogetherSandbox } from "./TogetherSandbox.js";
 import { Sandbox } from "./Sandbox.js";
 import { camelCaseKeys, type SandboxInfo } from "./types.js";
 import { parseImageReference } from "./Snapshots.js";
+import * as api from "./api-clients/api/index.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -150,6 +151,37 @@ describe("TogetherSandbox", () => {
       expect(sdk.snapshots).toHaveProperty("create");
       expect(sdk.snapshots).not.toHaveProperty("fromBuild");
       expect(sdk.snapshots).not.toHaveProperty("fromImage");
+    });
+
+    it("has get and getByAlias methods", () => {
+      const sdk = new TogetherSandbox({ apiKey: "test-key" });
+      expect(sdk.snapshots).toHaveProperty("getById");
+      expect(sdk.snapshots).toHaveProperty("getByAlias");
+      expect(sdk.snapshots).not.toHaveProperty("getSnapshot");
+    });
+
+    it("getByAlias strips leading @ from alias", async () => {
+      const spy = vi.spyOn(api, "getSnapshotByAlias").mockResolvedValue({
+        data: {
+          id: "snap-1",
+          _type: "snapshot",
+          byte_size: 0,
+          protected: false,
+          optimized: false,
+          includes_memory_snapshot: false,
+          created_at: "",
+          optimized_at: null,
+          updated_at: "",
+        },
+      } as any);
+
+      const sdk = new TogetherSandbox({ apiKey: "test-key" });
+      await sdk.snapshots.getByAlias("@my-app@latest");
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({ path: { alias: "my-app@latest" } }),
+      );
+      spy.mockRestore();
     });
   });
 });

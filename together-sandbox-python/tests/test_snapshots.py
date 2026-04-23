@@ -16,7 +16,7 @@ from together_sandbox.api.models.error_type import ErrorType
 
 @pytest.mark.asyncio
 class TestSnapshotsNamespace:
-    """Tests for SnapshotsNamespace.get_snapshot()."""
+    """Tests for SnapshotsNamespace.get_by_alias()."""
 
     async def test_get_snapshot_by_alias(self):
         """Test retrieving snapshot information by alias."""
@@ -55,7 +55,7 @@ class TestSnapshotsNamespace:
             )
 
             # Call the method
-            result = await snapshots.get_snapshot("my-app@latest")
+            result = await snapshots.get_by_alias("my-app@latest")
 
             # Verify result
             assert result.id == UUID("12345678-1234-5678-1234-567812345678")
@@ -98,7 +98,7 @@ class TestSnapshotsNamespace:
             )
 
             # Call with @ prefix
-            await snapshots.get_snapshot("@my-app@latest")
+            await snapshots.get_by_alias("@my-app@latest")
 
             # Verify @ was stripped
             assert received_alias == "my-app@latest"
@@ -124,7 +124,7 @@ class TestSnapshotsNamespace:
 
             # Should raise RuntimeError with unexpected response message
             with pytest.raises(RuntimeError, match="unexpected response"):
-                await snapshots.get_snapshot("nonexistent@alias")
+                await snapshots.get_by_alias("nonexistent@alias")
 
     async def test_get_snapshot_error_response_raises_error(self):
         """Test that get_snapshot raises RuntimeError when API returns Error."""
@@ -155,8 +155,8 @@ class TestSnapshotsNamespace:
 
             # Should raise RuntimeError with error details
             with pytest.raises(RuntimeError, match="SNAPSHOT_NOT_FOUND"):
-                await snapshots.get_snapshot("nonexistent@alias")
+                await snapshots.get_by_alias("nonexistent@alias")
 
             # Verify the error message contains both the message and code
             with pytest.raises(RuntimeError, match="Snapshot with alias 'nonexistent@alias' not found"):
-                await snapshots.get_snapshot("nonexistent@alias")
+                await snapshots.get_by_alias("nonexistent@alias")
