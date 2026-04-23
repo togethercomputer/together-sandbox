@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.5.0...together-sandbox-v1.5.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* Fix harbor integration issues ([aabaf39](https://github.com/togethercomputer/together-sandbox/commit/aabaf3968efeea0298b7c021cf7670cbce891cf9))
+
 ## [1.5.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.4.1...together-sandbox-v1.5.0) (2026-04-23)
 
 
