@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.5.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.4.1...together-sandbox-v1.5.0) (2026-04-23)
+
+
+### Features
+
+* add alias snapshot feature, also fixes a type for get_by_id ([38393e4](https://github.com/togethercomputer/together-sandbox/commit/38393e4ca4d32a9f1e8d473724185e3a874eefeb))
+* add delete snapshot methods ([0a8eec3](https://github.com/togethercomputer/together-sandbox/commit/0a8eec314a9c68bbf66d69b4b40f9e60e1c23df6))
+* Add get, alias, list and delete snapshot methods ([205ec97](https://github.com/togethercomputer/together-sandbox/commit/205ec97ec04ea1a40ef996d9c59cb7177c0cedad))
+* add snapshot list ([4b8f643](https://github.com/togethercomputer/together-sandbox/commit/4b8f643e24ca8038b32111ec46a7c01dbb3f0e25))
+* Add snapshots getByAlias and get ([1759f6d](https://github.com/togethercomputer/together-sandbox/commit/1759f6da768e2144d820bd4bcad9785507649ed8))
+
+
+### Bug Fixes
+
+* fix api responses handling ([7bdebad](https://github.com/togethercomputer/together-sandbox/commit/7bdebad84de23d18bee1edd0c24f0cfdfba415f9))
+
 ## [1.4.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.4.0...together-sandbox-v1.4.1) (2026-04-23)
 
 
