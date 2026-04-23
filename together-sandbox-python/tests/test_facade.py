@@ -8,16 +8,19 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from together_sandbox._sandbox import Directories, Execs, Files, Ports, Sandbox
-from together_sandbox._sandboxes import _resolve_connection
+from together_sandbox._sandboxes import SandboxesNamespace, _resolve_connection
 from together_sandbox._snapshots import (
     _parse_image_reference,
     SnapshotsNamespace,
     CreateImageSnapshotParams
 )
 from together_sandbox._together_sandbox import TogetherSandbox
+from together_sandbox._types import StartOptions
 from together_sandbox.sandbox.models.file_read_response import FileReadResponse
 from together_sandbox.sandbox.types import File
 from together_sandbox.api.models.sandbox import Sandbox as SandboxModel
+from together_sandbox.api.models.start_sandbox_body import StartSandboxBody
+from together_sandbox.api.types import UNSET
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -58,7 +61,70 @@ class TestResolveConnection:
             _resolve_connection(sandbox)
 
 
-# ─── TogetherSandbox tests ───────────────────────────────────────────────────
+# ─── SandboxesNamespace.start() body construction tests ──────────────────────
+
+
+class TestSandboxesNamespaceStart:
+    """Tests that SandboxesNamespace.start() builds the correct body argument."""
+
+    def _make_namespace(self) -> SandboxesNamespace:
+        return SandboxesNamespace(api_client=MagicMock())
+
+    @pytest.mark.asyncio
+    async def test_start_without_options_passes_unset_body(self):
+        """When start_options is None, body must be UNSET (not None or empty dict)."""
+        ns = self._make_namespace()
+        vm_info = _make_sandbox_model()
+
+        with patch(
+            "together_sandbox._sandboxes.start_sandbox_api",
+            new_callable=AsyncMock,
+            return_value=vm_info,
+        ) as mock_api:
+            with patch("together_sandbox._sandboxes.SandboxClient"):
+                await ns.start("sandbox-1")
+
+            call_kwargs = mock_api.call_args.kwargs
+            assert call_kwargs["body"] is UNSET
+
+    @pytest.mark.asyncio
+    async def test_start_with_version_number_passes_body(self):
+        """When start_options has version_number, body must be StartSandboxBody with that value."""
+        ns = self._make_namespace()
+        vm_info = _make_sandbox_model()
+
+        with patch(
+            "together_sandbox._sandboxes.start_sandbox_api",
+            new_callable=AsyncMock,
+            return_value=vm_info,
+        ) as mock_api:
+            with patch("together_sandbox._sandboxes.SandboxClient"):
+                await ns.start("sandbox-1", start_options=StartOptions(version_number=123))
+
+            call_kwargs = mock_api.call_args.kwargs
+            body = call_kwargs["body"]
+            assert isinstance(body, StartSandboxBody)
+            assert body.version_number == 123
+
+    @pytest.mark.asyncio
+    async def test_start_with_version_number_none_passes_unset_body(self):
+        """When start_options.version_number is None, body must be UNSET."""
+        ns = self._make_namespace()
+        vm_info = _make_sandbox_model()
+
+        with patch(
+            "together_sandbox._sandboxes.start_sandbox_api",
+            new_callable=AsyncMock,
+            return_value=vm_info,
+        ) as mock_api:
+            with patch("together_sandbox._sandboxes.SandboxClient"):
+                await ns.start("sandbox-1", start_options=StartOptions(version_number=None))
+
+            call_kwargs = mock_api.call_args.kwargs
+            assert call_kwargs["body"] is UNSET
+
+
+
 
 
 class TestTogetherSandbox:
