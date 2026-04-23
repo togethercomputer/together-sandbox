@@ -11,9 +11,8 @@ from together_sandbox._sandbox import Directories, Execs, Files, Ports, Sandbox,
 from together_sandbox._sandboxes import _resolve_connection
 from together_sandbox._snapshots import (
     _parse_image_reference,
-    CreateFromContextParams,
-    CreateFromImageParams,
     SnapshotsNamespace,
+    CreateImageSnapshotParams
 )
 from together_sandbox._together_sandbox import TogetherSandbox
 from together_sandbox.sandbox.models.file_read_response import FileReadResponse
@@ -353,7 +352,7 @@ class TestSnapshots:
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_create_snapshot:
-            result = await snapshots.create(CreateFromImageParams(image="node:24"))
+            result = await snapshots.create(CreateImageSnapshotParams(image="node:24"))
 
             # Verify create_snapshot_api was called
             assert mock_create_snapshot.called
@@ -384,7 +383,7 @@ class TestSnapshots:
                 new_callable=AsyncMock,
             ) as mock_alias:
                 result = await snapshots.create(
-                    CreateFromImageParams(image="ubuntu:22.04", alias="myimage@latest")
+                    CreateImageSnapshotParams(image="ubuntu:22.04", alias="myimage@latest")
                 )
 
                 # Verify both APIs were called

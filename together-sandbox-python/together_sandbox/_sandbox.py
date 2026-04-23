@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, List
+import io
+from typing import Any, AsyncIterator
 from types import TracebackType
+
+# ── Facade types ─────────────────────────────────────────────────────
+from ._types import StartOptions
 
 # ── Management API client ─────────────────────────────────────────────────────
 from .api.client import AuthenticatedClient as ApiClient
@@ -13,7 +17,6 @@ from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
 from .api.models.sandbox import Sandbox as SandboxModel
 from .api.models.stop_sandbox_body import StopSandboxBody
 from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
-from .api.models.create_sandbox_body import CreateSandboxBody
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -44,10 +47,7 @@ from .sandbox.api.tasks.execute_task_action import asyncio as execute_task_actio
 from .sandbox.models.create_exec_request import CreateExecRequest
 from .sandbox.models.file_action_request import FileActionRequest
 from .sandbox.models.file_action_request_action import FileActionRequestAction
-from .sandbox.models.file_action_response import FileActionResponse
 from .sandbox.models.file_info import FileInfo
-from .sandbox.models.file_operation_response import FileOperationResponse
-from .sandbox.models.file_read_response import FileReadResponse
 from .sandbox.models.exec_stdin import ExecStdin
 from .sandbox.models.task_action_type import TaskActionType
 from .sandbox.models.update_exec_request import UpdateExecRequest
@@ -58,7 +58,6 @@ from ._streaming import stream_sse_json
 
 
 # ─── Files facade ─────────────────────────────────────────────────────────────
-
 
 class Files:
     """
@@ -89,8 +88,6 @@ class Files:
         Returns:
             The created file content
         """
-        import io
-
         # Convert string to bytes if necessary
         if isinstance(content, str):
             content_bytes = content.encode('utf-8')
@@ -137,7 +134,7 @@ class Files:
         self,
         path: str,
         recursive: bool | None = None,
-        ignore_patterns: List[str] | None = None,
+        ignore_patterns: list[str] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """
         Watch a directory for file system changes via SSE.
@@ -187,7 +184,8 @@ class Execs:
     async def get(self, id_: str):
         """Get exec by ID."""
         result = await get_exec_api(id_, client=self._client)
-        assert result is not None
+        if result is None:
+            raise RuntimeError(f"getExec returned None for id {id_!r}")
         return result
 
     async def update(self, id_: str, body: UpdateExecRequest):
@@ -228,7 +226,8 @@ class Execs:
     async def send_stdin(self, id_: str, body: ExecStdin):
         """Send stdin to an exec (renamed from exec_exec_stdin)."""
         result = await exec_exec_stdin_api(id_, client=self._client, body=body)
-        assert result is not None
+        if result is None:
+            raise RuntimeError(f"execExecStdin returned None for id {id_!r}")
         return result
 
     def stream_list(self) -> AsyncIterator[dict[str, Any]]:
@@ -326,15 +325,15 @@ class Sandbox:
 
     Access sandbox operations through the sub-namespaces::
 
-        await sandbox.files.read_file("/path")
-        await sandbox.files.move_file("/src", "/dest")
-        await sandbox.files.copy_file("/src", "/dest")
-        await sandbox.execs.create_exec(CreateExecRequest(...))
+        await sandbox.files.read("/path")
+        await sandbox.files.move("/src", "/dest")
+        await sandbox.files.copy("/src", "/dest")
+        await sandbox.execs.create(CreateExecRequest(...))
         await sandbox.execs.send_stdin(id_, body)
         async for event in sandbox.execs.stream_output(id_):
             ...
-        await sandbox.tasks.list_tasks()
-        await sandbox.ports.list_ports()
+        await sandbox.tasks.list()
+        await sandbox.ports.list()
 
     Lifecycle methods call back to the management API::
 
@@ -344,7 +343,7 @@ class Sandbox:
     Can be used as an async context manager::
 
         async with await sdk.sandboxes.start(id) as sandbox:
-            await sandbox.files.read_file("/path")
+            await sandbox.files.read("/path")
         # Closes the sandbox HTTP connection on exit.
         # Does NOT automatically shut down the VM — call shutdown() explicitly.
     """
@@ -441,7 +440,7 @@ class Sandbox:
         *,
         api_key: str | None = None,
         base_url: str = "https://api.codesandbox.io",
-        start_options: dict | None = None,
+        start_options: StartOptions | None = None,
     ) -> "Sandbox":
         """
         Start a sandbox in a single call (classmethod factory).

@@ -3,6 +3,7 @@ from __future__ import annotations
 from .api.client import AuthenticatedClient as ApiClient
 
 from ._sandbox import Sandbox
+from ._types import CreateSandboxParams, StartOptions
 
 # ── Management API endpoint functions ─────────────────────────────────────────
 from .api.api.default.start_sandbox import asyncio as start_sandbox_api
@@ -14,6 +15,7 @@ from .api.models.sandbox import Sandbox as SandboxModel
 from .api.models.stop_sandbox_body import StopSandboxBody
 from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 from .api.models.create_sandbox_body import CreateSandboxBody
+from .api.models.start_sandbox_body import StartSandboxBody
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -41,7 +43,7 @@ class SandboxesNamespace:
         self,
         sandbox_id: str,
         *,
-        start_options: dict | None = None,
+        start_options: StartOptions | None = None,
     ) -> Sandbox:
         """
         Start the VM for the given sandbox and return a :class:`Sandbox`
@@ -54,7 +56,10 @@ class SandboxesNamespace:
         Returns:
             A ready-to-use :class:`Sandbox` with all sub-namespaces.
         """
-        response = await start_sandbox_api(sandbox_id, client=self._api_client, body=start_options)
+        body = None
+        if start_options is not None:
+            body = StartSandboxBody(version_number=start_options.version_number)
+        response = await start_sandbox_api(sandbox_id, client=self._api_client, body=body)
         vm_info = response.data
 
         if vm_info is None:
@@ -74,8 +79,17 @@ class SandboxesNamespace:
 
         return Sandbox(vm_info, sandbox_client, self._api_client)
 
-    async def create(self, body: CreateSandboxBody) -> SandboxModel:
+    async def create(self, params: CreateSandboxParams) -> SandboxModel:
         """Create a new sandbox (does not start the VM)."""
+        body = CreateSandboxBody(
+            id=params.id,
+            snapshot_id=params.snapshot_id,
+            snapshot_alias=params.snapshot_alias,
+            ephemeral=params.ephemeral,
+            millicpu=params.millicpu,
+            memory_bytes=params.memory_bytes,
+            disk_bytes=params.disk_bytes,
+        )
         result = await create_sandbox_api(client=self._api_client, body=body)
         if result is None:
             raise RuntimeError("createSandbox returned None")

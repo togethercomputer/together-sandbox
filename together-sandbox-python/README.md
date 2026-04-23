@@ -1,27 +1,34 @@
-# together-sandbox
+# together-sandbox (Python)
 
-Python SDK for the Together Sandbox API.
+Developer guide for the `together-sandbox` Python SDK.
 
-## Installation
+> **Note:** The generated OpenAPI clients (`together_sandbox/api/` and
+> `together_sandbox/sandbox/`) are committed to the repository temporarily until
+> the package is published to PyPI. Once published they will be removed from
+> version control and regenerated as part of the install/build step instead.
 
-### From GitHub (Recommended)
+## Generating the OpenAPI clients
 
-Since the package is not published to PyPI, install it directly from the GitHub repository:
+The SDK wraps two auto-generated OpenAPI clients. Regenerate them whenever an
+OpenAPI spec changes (both specs live in the repo root):
 
 ```bash
-# Latest from main branch
-pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
-
-# Specific version (tag)
-pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git@v1.0.0#subdirectory=together-sandbox-python"
-
-# Specific commit
-pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git@abc123#subdirectory=together-sandbox-python"
+# From the repo root
+bash generate.sh
 ```
 
-### With Authentication (Private Repositories)
+This runs `together-sandbox-python/generate.sh` which invokes
+`openapi-python-client` against `api-openapi.json` and `sandbox-openapi.json`
+and writes the output to:
 
-For private repositories, use SSH or a Personal Access Token:
+- `together_sandbox/api/` — management API client
+- `together_sandbox/sandbox/` — in-VM sandbox API client
+
+**Never edit those directories by hand** — they are overwritten on every run.
+
+## Running the tests
+
+### Unit tests
 
 ```bash
 # Using SSH (recommended for developers)
@@ -31,100 +38,21 @@ pip install "git+ssh://git@github.com/togethercomputer/together-sandbox.git#subd
 pip install "git+https://YOUR_TOKEN@github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
 ```
 
-### In requirements.txt
+E2E tests are excluded by default (see below).
 
-```text
-together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python
-```
+### End-to-end tests
 
-### In pyproject.toml
-
-```toml
-[project]
-dependencies = [
-    "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python",
-]
-```
-
-### From PyPI (When Available)
+E2E tests hit the real API and require Docker to be running locally (snapshot
+builds use a Docker context under the hood). They are skipped automatically
+unless `CSB_API_KEY` is set and the `-m e2e` flag is passed.
 
 ```bash
-pip install together-sandbox
+CSB_API_KEY=your-api-key pytest tests/ -v -m e2e
 ```
 
-Requires Python 3.12+.
+> E2E tests have a 300 s timeout per test. Make sure Docker is running before
+> starting them.
 
-## Quick Start
-
-```python
-import asyncio
-from together_sandbox import TogetherSandbox
-
-async def main():
-    # api_key defaults to TOGETHER_API_KEY environment variable
-    sdk = TogetherSandbox(api_key="your-api-key")
-
-    # Start a sandbox — URL/token wiring is handled automatically
-    async with await sdk.sandboxes.start("your-sandbox-id") as sb:
-        # Read a file
-        content = await sb.files.read_file("/package.json")
-        print(content)
-
-        # Run a command
-        from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
-        exec_item = await sb.execs.create_exec(
-            CreateExecRequest(command="echo", args=["Hello, sandbox!"])
-        )
-
-asyncio.run(main())
-```
-
-### Classmethod factory
-
-```python
-from together_sandbox import Sandbox
-
-sandbox = await Sandbox.start("your-sandbox-id", api_key="your-key")
-```
-
-## Snapshots
-
-```python
-from together_sandbox import TogetherSandbox, CreateFromContextParams, CreateFromImageParams
-
-sdk = TogetherSandbox()  # reads TOGETHER_API_KEY from env
-
-# Build from a local Dockerfile
-result = await sdk.snapshots.create(
-    CreateFromContextParams(
-        context="./my-app",
-        dockerfile="./Dockerfile",  # optional
-        alias="my-app@latest",      # optional
-    )
-)
-
-# Register a public Docker image
-result = await sdk.snapshots.create(
-    CreateFromImageParams(
-        image="node:20-alpine",
-        alias="node@20",  # optional
-    )
-)
-
-print(result.snapshot_id)  # pass to sdk.sandboxes.start()
-print(result.alias)        # "my-app@latest"
-
-# Get snapshot information by alias
-snapshot = await sdk.snapshots.get_snapshot("my-app@latest")
-print(snapshot.id)          # UUID
-print(snapshot.byte_size)   # Size in bytes
-print(snapshot.optimized)   # Whether snapshot is optimized
-print(snapshot.created_at)  # Creation timestamp
-```
-
-## Environment variables
-
-| Variable            | Description                                                       |
-| ------------------- | ----------------------------------------------------------------- |
-| `TOGETHER_API_KEY`  | Your Together / CodeSandbox API key                               |
-| `TOGETHER_BASE_URL` | Override the API base URL (default: `https://api.codesandbox.io`) |
+Tests use `pytest` with `asyncio_mode = "auto"` (configured in `pyproject.toml`)
+and `unittest.mock.AsyncMock` for mocking API calls in unit tests. See
+`CLAUDE.md` for fuller testing conventions.

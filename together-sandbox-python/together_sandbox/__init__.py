@@ -6,7 +6,7 @@ Recommended entry point::
 
     sdk = TogetherSandbox()  # reads TOGETHER_API_KEY from env
     async with await sdk.sandboxes.start("sandbox-id") as sb:
-        content = await sb.files.read_file("/package.json")
+        content = await sb.files.read("/package.json")
 
 Low-level clients (advanced use)::
 
@@ -15,11 +15,12 @@ Low-level clients (advanced use)::
 
 from ._together_sandbox import TogetherSandbox
 from ._sandboxes import SandboxesNamespace
+from ._types import StartOptions, CreateSandboxParams
 from ._snapshots import (
     SnapshotsNamespace,
     CreateSnapshotParams,
-    CreateFromContextParams,
-    CreateFromImageParams,
+    CreateContextSnapshotParams,
+    CreateImageSnapshotParams,
     CreateSnapshotResult,
     SnapshotProgress,
 )
@@ -33,9 +34,11 @@ __all__ = [
     "Sandbox",
     "SandboxesNamespace",
     "SnapshotsNamespace",
+    "StartOptions",
+    "CreateSandboxParams",
     "CreateSnapshotParams",
-    "CreateFromContextParams",
-    "CreateFromImageParams",
+    "CreateContextSnapshotParams",
+    "CreateImageSnapshotParams",
     "CreateSnapshotResult",
     "SnapshotProgress",
     # Low-level clients (advanced / direct use)
