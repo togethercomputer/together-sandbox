@@ -4,27 +4,25 @@ from __future__ import annotations
 import os
 import platform
 import re
-import httpx
 
 from collections.abc import Callable
 from dataclasses import dataclass
 from uuid import uuid4
 from .api.client import AuthenticatedClient as ApiClient
-from ._utils import _base32_encode, _strip_ansi
-from ._configuration import is_local_environment, get_inferred_registry_url
+from ._utils import _strip_ansi
+from ._configuration import is_local_environment
 
 # ── Snapshot API endpoint functions ──────────────────────────────────────────
 from .api.api.default.create_snapshot import asyncio as create_snapshot_api
 from .api.api.default.alias_snapshot import asyncio as alias_snapshot_api
 from .api.api.default.get_snapshot_by_alias import asyncio as get_snapshot_by_alias_api
+from .api.api.default.issue_container_registry_credential import asyncio as issue_container_registry_credential_api
 
 # ── Snapshot API models ───────────────────────────────────────────────────────
 from .api.models.alias_snapshot_body import AliasSnapshotBody
 from .api.models.create_snapshot_body import CreateSnapshotBody
-from .api.models.create_snapshot_body_image import CreateSnapshotBodyImage
-from .api.models.create_snapshot_body_image_architecture import CreateSnapshotBodyImageArchitecture
+from .api.models.container_registry_credential import ContainerRegistryCredential
 from .api.models.snapshot import Snapshot
-from .api.types import UNSET
 
 # ── Docker helpers ────────────────────────────────────────────────────────────
 from .docker import (
@@ -166,16 +164,6 @@ def _parse_image_reference(image: str) -> ImageReference:
     return ImageReference(name=image_without_tag)
 
 
-async def _get_meta_info(api_key: str) -> dict:
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            "https://api.codesandbox.stream/meta/info",
-            headers={"Authorization": f"Bearer {api_key}"},
-        )
-        response.raise_for_status()
-        return response.json()
-
-
 # ─── SnapshotsNamespace ───────────────────────────────────────────────────────
 
 
@@ -187,11 +175,9 @@ class SnapshotsNamespace:
     def __init__(
         self,
         api_client: ApiClient,
-        api_key: str,
         base_url: str,
     ) -> None:
         self._api_client = api_client
-        self._api_key = api_key
         self._base_url = base_url
 
     # ─── Public entry points ──────────────────────────────────────────────────
@@ -218,13 +204,8 @@ class SnapshotsNamespace:
             snapshot_data = await create_snapshot_api(
                 client=self._api_client,
                 body=CreateSnapshotBody(
-                    image=CreateSnapshotBodyImage(
-                        registry=ref.registry or UNSET,
-                        repository=ref.repository or UNSET,
-                        name=ref.name,
-                        tag=ref.tag or UNSET,
-                        architecture=CreateSnapshotBodyImageArchitecture("amd64"),
-                    )
+                    image=params.image,
+                    architecture="amd64",
                 ),
             )
 
@@ -295,19 +276,14 @@ class SnapshotsNamespace:
         )
         alias_default_namespace = os.path.basename(context)
 
-        meta_info = await _get_meta_info(self._api_key)
-        team_id = meta_info.get("auth", {}).get("team")
-        if not team_id:
-            raise RuntimeError(
-                "Failed to fetch team information for the provided API key. "
-                "Please ensure your TOGETHER_API_KEY is correct and has access to a team."
-            )
-
-        repository = _base32_encode(team_id)
-        registry = get_inferred_registry_url(self._base_url)
+        credential = await issue_container_registry_credential_api(client=self._api_client)
+        if not isinstance(credential, ContainerRegistryCredential):
+            raise RuntimeError("Failed to issue container registry credentials")
+        registry_url = credential.registry_url
+        registry_host = registry_url.split('/')[0]
         image_name = f"image-{uuid4()}".lower()
         image_tag = str(uuid4()).lower()
-        full_image_name = f"{registry}/{repository}/{image_name}:{image_tag}"
+        full_image_name = f"{registry_url}/{image_name}:{image_tag}"
 
         def _emit(step: str, output: str) -> None:
             if params.on_progress:
@@ -328,9 +304,9 @@ class SnapshotsNamespace:
         _emit("auth", "Authenticating...")
         await docker_login(
             DockerLoginOptions(
-                registry=registry,
-                username="_token",
-                password=self._api_key,
+                registry=registry_host,
+                username=credential.username,
+                password=credential.password,
                 on_output=lambda out: _emit("auth", _strip_ansi(out)),
             )
         )
@@ -345,13 +321,8 @@ class SnapshotsNamespace:
         snapshot_data = await create_snapshot_api(
             client=self._api_client,
             body=CreateSnapshotBody(
-                image=CreateSnapshotBodyImage(
-                    registry=registry,
-                    repository=repository,
-                    name=image_name,
-                    tag=image_tag,
-                    architecture=CreateSnapshotBodyImageArchitecture(architecture),
-                )
+                image=full_image_name,
+                architecture=architecture,
             ),
         )
 

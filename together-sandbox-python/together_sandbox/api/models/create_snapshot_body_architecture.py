@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class CreateSnapshotBodyImageArchitecture(str, Enum):
+class CreateSnapshotBodyArchitecture(str, Enum):
     AMD64 = "amd64"
     ARM64 = "arm64"
 

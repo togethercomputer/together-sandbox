@@ -1,8 +1,8 @@
 import * as api from "./api-clients/api/index.js";
 import * as path from "path";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
-import { getInferredRegistryUrl, isLocalEnvironment } from "./configuration.js";
-import { base32Encode, sleep } from "./utils.js";
+import { isLocalEnvironment } from "./configuration.js";
+import { sleep } from "./utils.js";
 import {
   buildDockerImage,
   dockerLogin,
@@ -50,30 +50,6 @@ export interface CreateSnapshotResult {
   snapshotId: string;
   /** The full alias string that was applied (`namespace@tag`), if any. */
   alias?: string;
-}
-
-async function getMetaInfo(apiKey: string): Promise<{
-  auth?: {
-    scopes: Array<string>;
-    team: string | null;
-    version: string;
-  };
-}> {
-  const response = await fetch("https://api.codesandbox.stream/meta/info", {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Request failed with status ${response.status}: ${response.statusText}`,
-    );
-  }
-
-  const json = await response.json();
-
-  return json;
 }
 
 function stripAnsiCodes(str: string) {
@@ -193,7 +169,6 @@ export function parseImageReference(image: string): ImageReference {
 export class SnapshotsNamespace {
   constructor(
     private readonly _apiClient: ApiClient,
-    private readonly _apiKey: string,
     private readonly _baseUrl: string,
   ) {}
 
@@ -229,15 +204,7 @@ export class SnapshotsNamespace {
 
       const snapshotData = await api.createSnapshot({
         client: this._apiClient,
-        body: {
-          image: {
-            registry: imageRef.registry,
-            repository: imageRef.repository,
-            name: imageRef.name,
-            tag: imageRef.tag,
-            architecture: "amd64",
-          },
-        },
+        body: { image: params.image, architecture: "amd64" },
         throwOnError: true,
       });
 
@@ -279,24 +246,17 @@ export class SnapshotsNamespace {
     const dockerfilePath = params.dockerfile;
     const context = params.context;
     const aliasDefaultNamespace = path.basename(params.context);
-    const apiKey = this._apiKey;
     const apiClient = this._apiClient;
 
-    const metaInfoResult = await getMetaInfo(apiKey);
-    const teamId = metaInfoResult.auth?.team;
-
-    if (!teamId) {
-      throw new Error(
-        "Failed to fetch team information for the provided API key. Please ensure your TOGETHER_API_KEY is correct and has access to a team.",
-      );
-    }
-
-    const base32EncodedTeamId = base32Encode(teamId);
-    const registry = getInferredRegistryUrl(this._baseUrl);
-    const repository = base32EncodedTeamId;
+    const credential = await api.issueContainerRegistryCredential({
+      client: this._apiClient,
+      throwOnError: true,
+    });
+    const registryUrl = credential.data.registry_url;
+    const registryHost = registryUrl.split("/")[0];
     const imageName = `image-${randomUUID().toLowerCase()}`;
     const tag = randomUUID().toLowerCase();
-    const fullImageName = `${registry}/${repository}/${imageName}:${tag}`;
+    const fullImageName = `${registryUrl}/${imageName}:${tag}`;
 
     // Docker Build
     params.onProgress?.({
@@ -318,9 +278,9 @@ export class SnapshotsNamespace {
     // Docker Login
     params.onProgress?.({ step: "auth", output: "Authenticating..." });
     await dockerLogin({
-      registry: registry,
-      username: "_token",
-      password: apiKey,
+      registry: registryHost,
+      username: credential.data.username,
+      password: credential.data.password,
       onOutput: (output: string) => {
         const cleanOutput = stripAnsiCodes(output);
         params.onProgress?.({ step: "auth", output: cleanOutput });
@@ -340,15 +300,7 @@ export class SnapshotsNamespace {
     });
     const snapshotData = await api.createSnapshot({
       client: apiClient,
-      body: {
-        image: {
-          registry: registry,
-          repository: repository,
-          name: imageName,
-          architecture: architecture,
-          tag: tag,
-        },
-      },
+      body: { image: fullImageName, architecture },
       throwOnError: true,
     });
 

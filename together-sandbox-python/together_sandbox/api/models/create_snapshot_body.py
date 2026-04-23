@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-if TYPE_CHECKING:
-    from ..models.create_snapshot_body_image import CreateSnapshotBodyImage
-
+from ..models.create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="CreateSnapshotBody")
 
@@ -17,14 +16,20 @@ T = TypeVar("T", bound="CreateSnapshotBody")
 class CreateSnapshotBody:
     """
     Attributes:
-        image (CreateSnapshotBodyImage):
+        image (str): Full image reference (e.g. registry.example.com/repo/name:tag).
+        architecture (CreateSnapshotBodyArchitecture | Unset):
     """
 
-    image: CreateSnapshotBodyImage
+    image: str
+    architecture: CreateSnapshotBodyArchitecture | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        image = self.image.to_dict()
+        image = self.image
+
+        architecture: str | Unset = UNSET
+        if not isinstance(self.architecture, Unset):
+            architecture = self.architecture.value
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -33,18 +38,26 @@ class CreateSnapshotBody:
                 "image": image,
             }
         )
+        if architecture is not UNSET:
+            field_dict["architecture"] = architecture
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.create_snapshot_body_image import CreateSnapshotBodyImage
-
         d = dict(src_dict)
-        image = CreateSnapshotBodyImage.from_dict(d.pop("image"))
+        image = d.pop("image")
+
+        _architecture = d.pop("architecture", UNSET)
+        architecture: CreateSnapshotBodyArchitecture | Unset
+        if isinstance(_architecture, Unset):
+            architecture = UNSET
+        else:
+            architecture = CreateSnapshotBodyArchitecture(_architecture)
 
         create_snapshot_body = cls(
             image=image,
+            architecture=architecture,
         )
 
         create_snapshot_body.additional_properties = d
