@@ -124,7 +124,7 @@ class TestSnapshotsNamespace:
 
             # Should raise RuntimeError with unexpected response message
             with pytest.raises(RuntimeError, match="unexpected response"):
-                await snapshots.get_snapshot("nonexistent@alias")
+                await snapshots.get_by_alias("nonexistent@alias")
 
     async def test_get_snapshot_error_response_raises_error(self):
         """Test that get_snapshot raises RuntimeError when API returns Error."""
@@ -155,8 +155,8 @@ class TestSnapshotsNamespace:
 
             # Should raise RuntimeError with error details
             with pytest.raises(RuntimeError, match="SNAPSHOT_NOT_FOUND"):
-                await snapshots.get_snapshot("nonexistent@alias")
+                await snapshots.get_by_alias("nonexistent@alias")
 
             # Verify the error message contains both the message and code
             with pytest.raises(RuntimeError, match="Snapshot with alias 'nonexistent@alias' not found"):
-                await snapshots.get_snapshot("nonexistent@alias")
+                await snapshots.get_by_alias("nonexistent@alias")
