@@ -17,6 +17,8 @@ from .api.api.default.create_snapshot import asyncio as create_snapshot_api
 from .api.api.default.alias_snapshot import asyncio as alias_snapshot_api
 from .api.api.default.get_snapshot_by_alias import asyncio as get_snapshot_by_alias_api
 from .api.api.default.get_snapshot import asyncio as get_snapshot_api
+from .api.api.default.delete_snapshot import asyncio as delete_snapshot_api
+from .api.api.default.delete_snapshot_by_alias import asyncio as delete_snapshot_by_alias_api
 
 # ── Snapshot API models ───────────────────────────────────────────────────────
 from .api.models.alias_snapshot_body import AliasSnapshotBody
@@ -288,6 +290,36 @@ class SnapshotsNamespace:
             raise RuntimeError(f"Snapshot with alias '{alias}' not found")
 
         return snapshot_data
+
+    async def delete_by_id(self, id: str) -> None:
+        """
+        Delete a snapshot by id.
+
+        Args:
+            id: Snapshot id
+
+        Raises:
+            errors.UnexpectedStatus: If the API request fails
+        """
+        await delete_snapshot_api(UUID(id), client=self._api_client)
+
+    async def delete_by_alias(self, alias: str) -> None:
+        """
+        Delete a snapshot by alias.
+
+        Args:
+            alias: Snapshot alias
+
+        Raises:
+            errors.UnexpectedStatus: If the API request fails
+        """
+        # Remove leading '@' if present (for consistency with API)
+        clean_alias = alias.lstrip("@")
+
+        await delete_snapshot_by_alias_api(
+            clean_alias,
+            client=self._api_client,
+        )
 
     # ─── Private helpers ──────────────────────────────────────────────────────
 

@@ -202,6 +202,25 @@ export class SnapshotsNamespace {
     });
   }
 
+  async deleteById(id: string): Promise<void> {
+    await api.deleteSnapshot({
+      client: this._apiClient,
+      path: { id },
+      throwOnError: true,
+    });
+  }
+
+  async deleteByAlias(alias: string): Promise<void> {
+    // Ensure consistency with API
+    const cleanAlias = alias.startsWith("@") ? alias.slice(1) : alias;
+
+    await api.deleteSnapshotByAlias({
+      client: this._apiClient,
+      path: { alias: cleanAlias },
+      throwOnError: true,
+    });
+  }
+
   /**
    * Create a snapshot from a Docker build context or a public Docker image.
    *
