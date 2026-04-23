@@ -258,7 +258,11 @@ class SnapshotsNamespace:
             Snapshot: Snapshot model with id, type, byte_size, and metadata
 
         Raises:
-            RuntimeError: If the snapshot is not found or API returns an error
+            RuntimeError: If the snapshot is not found or the API returns an
+                application-level error response.
+            errors.UnexpectedStatus: If the generated API client receives an
+                unexpected HTTP status response.
+            httpx.TimeoutException: If the request to the snapshot API times out.
 
         Example:
             >>> snapshot = await sdk.snapshots.get_snapshot("my-app@latest")
@@ -273,9 +277,12 @@ class SnapshotsNamespace:
             client=self._api_client,
         )
 
-        # Handle None response
+        # A None response from the generated client indicates an
+        # unexpected/undocumented API response, not "not found".
         if snapshot_data is None:
-            raise RuntimeError(f"Snapshot with alias '{alias}' not found")
+            raise RuntimeError(
+                f"Failed to get snapshot '{alias}': received an unexpected response from the snapshot API"
+            )
 
         # Handle Error response (400/404)
         if isinstance(snapshot_data, Error):
