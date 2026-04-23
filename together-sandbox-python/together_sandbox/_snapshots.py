@@ -258,7 +258,11 @@ class SnapshotsNamespace:
             Snapshot: Snapshot model with id, type, byte_size, and metadata
 
         Raises:
-            RuntimeError: If the snapshot is not found or API returns an error
+            RuntimeError: If the snapshot is not found or the API returns an
+                application-level error response.
+            errors.UnexpectedStatus: If the generated API client receives an
+                unexpected HTTP status response.
+            httpx.TimeoutException: If the request to the snapshot API times out.
 
         Example:
             >>> snapshot = await sdk.snapshots.get_snapshot("my-app@latest")
