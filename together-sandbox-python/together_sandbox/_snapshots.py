@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import os
 import platform
-import re
 import httpx
 
 from collections.abc import Callable
@@ -70,26 +69,6 @@ class CreateImageSnapshotParams:
 
 
 CreateSnapshotParams = CreateContextSnapshotParams | CreateImageSnapshotParams
-
-# ─── Snapshot helpers ─────────────────────────────────────────────────────────
-
-
-def _parse_alias(default_namespace: str, alias: str) -> tuple[str, str]:
-    parts = alias.split("@")
-    if len(parts) > 2:
-        raise ValueError(f'Alias "{alias}" is invalid, must be in the format of name@tag')
-    namespace = parts[0] if len(parts) == 2 else default_namespace
-    tag = parts[1] if len(parts) == 2 else alias
-    if len(namespace) > 64 or len(tag) > 64:
-        raise ValueError(
-            f'Namespace "{namespace}" or tag "{tag}" exceeds 64 characters'
-        )
-    if not re.match(r"^[a-zA-Z0-9\-_]+$", namespace) or not re.match(r"^[a-zA-Z0-9\-_]+$", tag):
-        raise ValueError(
-            f'Namespace "{namespace}" or tag "{tag}" must only contain letters, digits, dashes and underscores'
-        )
-    return namespace, tag
-
 
 @dataclass
 class ImageReference:
@@ -233,21 +212,18 @@ class SnapshotsNamespace:
                 raise RuntimeError("Snapshot creation returned no data")
 
             snapshot_id = str(snapshot_data.id)
-            alias: str | None = None
 
             if params.alias:
                 _emit("alias", "Creating alias...")
-                namespace, alias_tag = _parse_alias(ref.name, params.alias)
-                alias = f"{namespace}@{alias_tag}"
                 await alias_snapshot_api(
                     snapshot_data.id,
                     client=self._api_client,
-                    body=AliasSnapshotBody(alias=alias),
+                    body=AliasSnapshotBody(alias=params.alias),
                 )
 
-            return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
+            return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)
         
-    async def get(self, id: UUID) -> Snapshot:
+    async def get_by_id(self, id: UUID) -> Snapshot:
         """
         Get snapshot information by id.
 
@@ -278,7 +254,7 @@ class SnapshotsNamespace:
         Get snapshot information by alias.
 
         Args:
-            alias: Snapshot alias (format: "namespace@alias" or just "alias")
+            alias: Snapshot alias
 
         Returns:
             Snapshot: Snapshot model with id, type, byte_size, and metadata
@@ -320,7 +296,6 @@ class SnapshotsNamespace:
         dockerfile_path = (
             os.path.realpath(params.dockerfile) if params.dockerfile else None
         )
-        alias_default_namespace = os.path.basename(context)
 
         meta_info = await _get_meta_info(self._api_key)
         team_id = meta_info.get("auth", {}).get("team")
@@ -386,16 +361,13 @@ class SnapshotsNamespace:
             raise RuntimeError("Snapshot creation returned no data")
 
         snapshot_id = str(snapshot_data.id)
-        alias: str | None = None
 
         if params.alias:
             _emit("alias", "Creating alias...")
-            namespace, alias_tag = _parse_alias(alias_default_namespace, params.alias)
-            alias = f"{namespace}@{alias_tag}"
             await alias_snapshot_api(
                 snapshot_data.id,
                 client=self._api_client,
-                body=AliasSnapshotBody(alias=alias),
+                body=AliasSnapshotBody(alias=params.alias),
             )
 
-        return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
+        return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)

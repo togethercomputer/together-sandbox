@@ -26,5 +26,6 @@ export type {
   CreateImageSnapshotParams,
   CreateSnapshotResult,
   SnapshotProgress,
+  Snapshot,
 } from "./Snapshots.js";
 export type { StartOptions, WatchOptions } from "./Sandbox.js";
