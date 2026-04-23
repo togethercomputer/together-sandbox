@@ -17,6 +17,7 @@ from .api.api.default.create_snapshot import asyncio as create_snapshot_api
 from .api.api.default.alias_snapshot import asyncio as alias_snapshot_api
 from .api.api.default.get_snapshot_by_alias import asyncio as get_snapshot_by_alias_api
 from .api.api.default.get_snapshot import asyncio as get_snapshot_api
+from .api.api.default.list_snapshots import asyncio as list_snapshots_api
 from .api.api.default.delete_snapshot import asyncio as delete_snapshot_api
 from .api.api.default.delete_snapshot_by_alias import asyncio as delete_snapshot_by_alias_api
 
@@ -290,6 +291,31 @@ class SnapshotsNamespace:
             raise RuntimeError(f"Snapshot with alias '{alias}' not found")
 
         return snapshot_data
+
+    async def list(self) -> list[Snapshot]:
+        """
+        List snapshots.
+
+        Returns:
+            list[Snapshot]: List of snapshot models with id, type, byte_size, and metadata
+
+        Raises:
+            RuntimeError: If the API returns no data
+            errors.UnexpectedStatus: If the API request fails
+
+        Example:
+            >>> snapshots = await sdk.snapshots.list()
+            >>> for snapshot in snapshots:
+            ...     print(snapshot.id)
+        """
+        snapshot_list = await list_snapshots_api(
+            client=self._api_client,
+        )
+
+        if snapshot_list is None:
+            raise RuntimeError("List snapshots returned no data")
+
+        return snapshot_list
 
     async def delete_by_id(self, id: str) -> None:
         """

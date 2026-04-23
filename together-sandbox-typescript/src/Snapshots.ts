@@ -193,6 +193,15 @@ export class SnapshotsNamespace {
     return result.data;
   }
 
+  async list(): Promise<Snapshot[]> {
+    const result = await api.listSnapshots({
+      client: this._apiClient,
+      throwOnError: true,
+    });
+
+    return result.data;
+  }
+
   async alias(snapshotId: string, alias: string): Promise<void> {
     await api.aliasSnapshot({
       client: this._apiClient,
