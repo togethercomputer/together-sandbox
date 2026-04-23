@@ -277,9 +277,12 @@ class SnapshotsNamespace:
             client=self._api_client,
         )
 
-        # Handle None response
+        # A None response from the generated client indicates an
+        # unexpected/undocumented API response, not "not found".
         if snapshot_data is None:
-            raise RuntimeError(f"Snapshot with alias '{alias}' not found")
+            raise RuntimeError(
+                f"Failed to get snapshot '{alias}': received an unexpected response from the snapshot API"
+            )
 
         # Handle Error response (400/404)
         if isinstance(snapshot_data, Error):
