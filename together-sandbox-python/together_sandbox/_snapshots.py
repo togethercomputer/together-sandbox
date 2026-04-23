@@ -24,6 +24,7 @@ from .api.models.create_snapshot_body import CreateSnapshotBody
 from .api.models.create_snapshot_body_image import CreateSnapshotBodyImage
 from .api.models.create_snapshot_body_image_architecture import CreateSnapshotBodyImageArchitecture
 from .api.models.snapshot import Snapshot
+from .api.models.error import Error
 from .api.types import UNSET
 
 # ── Docker helpers ────────────────────────────────────────────────────────────
@@ -273,9 +274,17 @@ class SnapshotsNamespace:
             client=self._api_client,
         )
 
+        # Handle None response
         if snapshot_data is None:
             raise RuntimeError(f"Snapshot with alias '{alias}' not found")
 
+        # Handle Error response (400/404)
+        if isinstance(snapshot_data, Error):
+            raise RuntimeError(
+                f"Failed to get snapshot '{alias}': {snapshot_data.message} (code: {snapshot_data.code})"
+            )
+
+        # At this point, snapshot_data must be a Snapshot
         return snapshot_data
 
     # ─── Private helpers ──────────────────────────────────────────────────────
