@@ -1,6 +1,5 @@
 import * as api from "./api-clients/api/index.js";
 import * as sandboxApi from "./api-clients/sandbox/index.js";
-import type { TaskActionType } from "./api-clients/sandbox/types.gen.js";
 import { type Client as SandboxApiClient } from "./api-clients/sandbox/client/index.js";
 import type { SandboxInfo } from "./types.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
@@ -28,7 +27,7 @@ export interface StartOptions {
 /**
  * A running VM with a pre-configured sandbox client attached.
  *
- * All sandbox sub-namespaces (`.files`, `.execs`, `.tasks`, etc.) are
+ * All sandbox sub-namespaces (`.files`, `.execs`, etc.) are
  * delegated directly to the underlying sandbox client, so callers never
  * need to think about client instantiation or URL/token wiring.
  *
@@ -256,44 +255,6 @@ export class Sandbox {
           throwOnError: true,
         });
         return result.stream;
-      },
-    };
-  }
-
-  /** Task operations (list, get, action, setup). */
-  get tasks() {
-    const client = this._sandboxClient;
-    return {
-      list: async () => {
-        const result = await sandboxApi.listTasks({
-          client,
-          throwOnError: true,
-        });
-        return result.data.tasks;
-      },
-      get: async (id: string) => {
-        const result = await sandboxApi.getTask({
-          client,
-          path: { id },
-          throwOnError: true,
-        });
-        return result.data.task;
-      },
-      action: async (id: string, actionType: TaskActionType) => {
-        const result = await sandboxApi.executeTaskAction({
-          client,
-          path: { id },
-          query: { actionType },
-          throwOnError: true,
-        });
-        return result.data;
-      },
-      listSetup: async () => {
-        const result = await sandboxApi.listSetupTasks({
-          client,
-          throwOnError: true,
-        });
-        return result.data.setupTasks;
       },
     };
   }

@@ -16,7 +16,7 @@ class TogetherSandbox:
     The main entry point for the Together Sandbox SDK.
 
     Provides a unified interface over both the management API (sandboxes,
-    VMs, templates) and the in-VM Sandbox API (files, execs, tasks).
+    VMs, templates) and the in-VM Sandbox API (files, execs).
 
     Example::
 

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from together_sandbox._sandbox import Directories, Execs, Files, Ports, Sandbox, Tasks
+from together_sandbox._sandbox import Directories, Execs, Files, Ports, Sandbox
 from together_sandbox._sandboxes import _resolve_connection
 from together_sandbox._snapshots import (
     _parse_image_reference,
@@ -114,11 +114,6 @@ class TestSandbox:
         mock_sandbox_client = MagicMock()
         sb = Sandbox(_make_sandbox_model(), mock_sandbox_client, MagicMock())
         assert isinstance(sb.execs, Execs)
-
-    def test_delegates_tasks_namespace(self):
-        mock_sandbox_client = MagicMock()
-        sb = Sandbox(_make_sandbox_model(), mock_sandbox_client, MagicMock())
-        assert isinstance(sb.tasks, Tasks)
 
     def test_delegates_ports_namespace(self):
         mock_sandbox_client = MagicMock()
