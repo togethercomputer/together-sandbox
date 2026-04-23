@@ -176,6 +176,14 @@ class SnapshotsNamespace:
 
     # ─── Public entry points ──────────────────────────────────────────────────
 
+    async def alias(self, snapshot_id: str, alias: str) -> None:
+        """Create an alias for an existing snapshot"""
+        await alias_snapshot_api(
+            UUID(snapshot_id),
+            client=self._api_client,
+            body=AliasSnapshotBody(alias=alias),
+        )
+
     async def create(self, params: CreateSnapshotParams) -> CreateSnapshotResult:
         """Create a snapshot from either a Docker context or a public Docker image."""
         if isinstance(params, CreateContextSnapshotParams):
@@ -223,7 +231,7 @@ class SnapshotsNamespace:
 
             return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)
         
-    async def get_by_id(self, id: UUID) -> Snapshot:
+    async def get_by_id(self, id: str) -> Snapshot:
         """
         Get snapshot information by id.
 

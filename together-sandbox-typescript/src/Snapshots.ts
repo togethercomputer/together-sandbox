@@ -193,6 +193,15 @@ export class SnapshotsNamespace {
     return result.data;
   }
 
+  async alias(snapshotId: string, alias: string): Promise<void> {
+    await api.aliasSnapshot({
+      client: this._apiClient,
+      path: { snapshot_id: snapshotId },
+      body: { alias },
+      throwOnError: true,
+    });
+  }
+
   /**
    * Create a snapshot from a Docker build context or a public Docker image.
    *
