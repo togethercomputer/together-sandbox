@@ -6,7 +6,7 @@ import tempfile
 
 import pytest
 
-from together_sandbox._snapshots import CreateFromContextParams, CreateSnapshotResult
+from together_sandbox._snapshots import CreateSnapshotResult, CreateContextSnapshotParams
 from together_sandbox._together_sandbox import TogetherSandbox
 
 pytestmark = [
@@ -39,7 +39,7 @@ class TestSnapshots:
         """Test snapshot creation from Docker build with alias."""
         sdk = TogetherSandbox(api_key=os.environ["CSB_API_KEY"])
         result: CreateSnapshotResult = await sdk.snapshots.create(
-            CreateFromContextParams(context=docker_context, alias="e2e-build")
+            CreateContextSnapshotParams(context=docker_context, alias="e2e-build")
         )
         assert result.snapshot_id
         assert isinstance(result.snapshot_id, str)

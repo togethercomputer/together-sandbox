@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, List
+import io
+from typing import Any, AsyncIterator
 from types import TracebackType
+
+# ── Facade types ─────────────────────────────────────────────────────
+from ._types import StartOptions
 
 # ── Management API client ─────────────────────────────────────────────────────
 from .api.client import AuthenticatedClient as ApiClient
@@ -50,7 +54,6 @@ from ._streaming import stream_sse_json
 
 # ─── Files facade ─────────────────────────────────────────────────────────────
 
-
 class Files:
     """
     File operations facade that wraps the low-level files client.
@@ -80,8 +83,6 @@ class Files:
         Returns:
             The created file content
         """
-        import io
-
         # Convert string to bytes if necessary
         if isinstance(content, str):
             content_bytes = content.encode('utf-8')
@@ -128,7 +129,7 @@ class Files:
         self,
         path: str,
         recursive: bool | None = None,
-        ignore_patterns: List[str] | None = None,
+        ignore_patterns: list[str] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """
         Watch a directory for file system changes via SSE.
@@ -178,7 +179,8 @@ class Execs:
     async def get(self, id_: str):
         """Get exec by ID."""
         result = await get_exec_api(id_, client=self._client)
-        assert result is not None
+        if result is None:
+            raise RuntimeError(f"getExec returned None for id {id_!r}")
         return result
 
     async def update(self, id_: str, body: UpdateExecRequest):
@@ -219,7 +221,8 @@ class Execs:
     async def send_stdin(self, id_: str, body: ExecStdin):
         """Send stdin to an exec (renamed from exec_exec_stdin)."""
         result = await exec_exec_stdin_api(id_, client=self._client, body=body)
-        assert result is not None
+        if result is None:
+            raise RuntimeError(f"execExecStdin returned None for id {id_!r}")
         return result
 
     def stream_list(self) -> AsyncIterator[dict[str, Any]]:
@@ -287,10 +290,10 @@ class Sandbox:
 
     Access sandbox operations through the sub-namespaces::
 
-        await sandbox.files.read_file("/path")
-        await sandbox.files.move_file("/src", "/dest")
-        await sandbox.files.copy_file("/src", "/dest")
-        await sandbox.execs.create_exec(CreateExecRequest(...))
+        await sandbox.files.read("/path")
+        await sandbox.files.move("/src", "/dest")
+        await sandbox.files.copy("/src", "/dest")
+        await sandbox.execs.create(CreateExecRequest(...))
         await sandbox.execs.send_stdin(id_, body)
         async for event in sandbox.execs.stream_output(id_):
             ...
@@ -304,7 +307,7 @@ class Sandbox:
     Can be used as an async context manager::
 
         async with await sdk.sandboxes.start(id) as sandbox:
-            await sandbox.files.read_file("/path")
+            await sandbox.files.read("/path")
         # Closes the sandbox HTTP connection on exit.
         # Does NOT automatically shut down the VM — call shutdown() explicitly.
     """
@@ -396,7 +399,7 @@ class Sandbox:
         *,
         api_key: str | None = None,
         base_url: str = "https://api.codesandbox.io",
-        start_options: dict | None = None,
+        start_options: StartOptions | None = None,
     ) -> "Sandbox":
         """
         Start a sandbox in a single call (classmethod factory).

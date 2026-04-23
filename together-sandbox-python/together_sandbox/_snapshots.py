@@ -53,7 +53,7 @@ class CreateSnapshotResult:
 
 
 @dataclass
-class CreateFromContextParams:
+class CreateContextSnapshotParams:
     context: str
     dockerfile: str | None = None
     alias: str | None = None
@@ -62,13 +62,13 @@ class CreateFromContextParams:
 
 
 @dataclass
-class CreateFromImageParams:
+class CreateImageSnapshotParams:
     image: str
     alias: str | None = None
     on_progress: Callable[[SnapshotProgress], None] | None = None
 
 
-CreateSnapshotParams = CreateFromContextParams | CreateFromImageParams
+CreateSnapshotParams = CreateContextSnapshotParams | CreateImageSnapshotParams
 
 # ─── Snapshot helpers ─────────────────────────────────────────────────────────
 
@@ -198,7 +198,7 @@ class SnapshotsNamespace:
 
     async def create(self, params: CreateSnapshotParams) -> CreateSnapshotResult:
         """Create a snapshot from either a Docker context or a public Docker image."""
-        if isinstance(params, CreateFromContextParams):
+        if isinstance(params, CreateContextSnapshotParams):
             # Context-based snapshot — requires Docker
             if not await is_docker_available():
                 raise RuntimeError(
@@ -282,7 +282,7 @@ class SnapshotsNamespace:
 
     async def _build_and_register(
         self,
-        params: CreateFromContextParams,
+        params: CreateContextSnapshotParams,
     ) -> CreateSnapshotResult:
         architecture = (
             "arm64"
