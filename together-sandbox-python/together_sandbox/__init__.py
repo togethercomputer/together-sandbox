@@ -23,13 +23,11 @@ from ._snapshots import (
     CreateImageSnapshotParams,
     CreateSnapshotResult,
     SnapshotProgress,
+    Snapshot
 )
 from ._sandbox import Sandbox
-from .api.client import AuthenticatedClient as ApiClient
-from .sandbox.client import AuthenticatedClient as SandboxClient
 
 __all__ = [
-    # High-level facade (recommended)
     "TogetherSandbox",
     "Sandbox",
     "SandboxesNamespace",
@@ -41,7 +39,5 @@ __all__ = [
     "CreateImageSnapshotParams",
     "CreateSnapshotResult",
     "SnapshotProgress",
-    # Low-level clients (advanced / direct use)
-    "ApiClient",
-    "SandboxClient",
+    "Snapshot"
 ]

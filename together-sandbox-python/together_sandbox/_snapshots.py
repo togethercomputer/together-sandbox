@@ -8,7 +8,7 @@ import httpx
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from uuid import uuid4
+from uuid import uuid4, UUID
 from .api.client import AuthenticatedClient as ApiClient
 from ._utils import _base32_encode, _strip_ansi
 from ._configuration import is_local_environment, get_inferred_registry_url
@@ -17,6 +17,7 @@ from ._configuration import is_local_environment, get_inferred_registry_url
 from .api.api.default.create_snapshot import asyncio as create_snapshot_api
 from .api.api.default.alias_snapshot import asyncio as alias_snapshot_api
 from .api.api.default.get_snapshot_by_alias import asyncio as get_snapshot_by_alias_api
+from .api.api.default.get_snapshot import asyncio as get_snapshot_api
 
 # ── Snapshot API models ───────────────────────────────────────────────────────
 from .api.models.alias_snapshot_body import AliasSnapshotBody
@@ -245,8 +246,34 @@ class SnapshotsNamespace:
                 )
 
             return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
+        
+    async def get(self, id: UUID) -> Snapshot:
+        """
+        Get snapshot information by id.
 
-    async def get_snapshot(self, alias: str) -> Snapshot:
+        Args:
+            id: Snapshot id
+
+        Returns:
+            Snapshot: Snapshot model with id, type, byte_size, and metadata
+
+        Raises:
+            RuntimeError: If the snapshot is not found or API returns no data
+            errors.UnexpectedStatus: If the API request fails
+
+        Example:
+            >>> snapshot = await sdk.snapshots.get("some-id")
+            >>> print(snapshot.id)
+            >>> print(snapshot.byte_size)
+        """
+        snapshot_data = await get_snapshot_api(UUID(id), client=self._api_client)
+
+        if snapshot_data is None:
+            raise RuntimeError(f"Snapshot with id '{id}' not found")
+        
+        return snapshot_data
+
+    async def get_by_alias(self, alias: str) -> Snapshot:
         """
         Get snapshot information by alias.
 
@@ -261,7 +288,7 @@ class SnapshotsNamespace:
             errors.UnexpectedStatus: If the API request fails
 
         Example:
-            >>> snapshot = await sdk.snapshots.get_snapshot("my-app@latest")
+            >>> snapshot = await sdk.snapshots.get_by_alias("my-app@latest")
             >>> print(snapshot.id)
             >>> print(snapshot.byte_size)
         """
