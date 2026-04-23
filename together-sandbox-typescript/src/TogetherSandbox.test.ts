@@ -123,15 +123,6 @@ describe("Sandbox", () => {
     expect(execs).not.toHaveProperty("stream");
   });
 
-  it("tasks namespace has expected methods", () => {
-    const sandbox = new Sandbox(makeVmInfo(), {} as any, {} as any);
-    const tasks = sandbox.tasks;
-    expect(tasks).toHaveProperty("list");
-    expect(tasks).toHaveProperty("get");
-    expect(tasks).toHaveProperty("action");
-    expect(tasks).toHaveProperty("listSetup");
-  });
-
   it("ports namespace has streamList (renamed from stream)", () => {
     const sandbox = new Sandbox(makeVmInfo(), {} as any, {} as any);
     const ports = sandbox.ports;

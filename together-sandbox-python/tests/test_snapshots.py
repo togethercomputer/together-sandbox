@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from uuid import UUID
 from datetime import datetime
 
 from together_sandbox._snapshots import SnapshotsNamespace
 from together_sandbox.api.models.snapshot import Snapshot
 from together_sandbox.api.models.snapshot_type import SnapshotType
+from together_sandbox.api.models.error import Error
+from together_sandbox.api.models.error_type import ErrorType
 
 
 @pytest.mark.asyncio
@@ -102,7 +104,7 @@ class TestSnapshotsNamespace:
             assert received_alias == "my-app@latest"
 
     async def test_get_snapshot_not_found_raises_error(self):
-        """Test that get_snapshot raises RuntimeError when snapshot not found."""
+        """Test that get_snapshot raises RuntimeError when API returns None."""
         mock_api_client = MagicMock()
 
         snapshots = SnapshotsNamespace(
@@ -113,13 +115,48 @@ class TestSnapshotsNamespace:
 
         with pytest.MonkeyPatch.context() as mp:
             async def mock_get_snapshot_by_alias_api(alias: str, *, client):
-                return None  # Simulate not found
+                return None  # Simulate unexpected response
 
             mp.setattr(
                 "together_sandbox._snapshots.get_snapshot_by_alias_api",
                 mock_get_snapshot_by_alias_api,
             )
 
-            # Should raise RuntimeError
-            with pytest.raises(RuntimeError, match="not found"):
-                await snapshots.get_by_alias("nonexistent@alias")
+            # Should raise RuntimeError with unexpected response message
+            with pytest.raises(RuntimeError, match="unexpected response"):
+                await snapshots.get_snapshot("nonexistent@alias")
+
+    async def test_get_snapshot_error_response_raises_error(self):
+        """Test that get_snapshot raises RuntimeError when API returns Error."""
+        mock_api_client = MagicMock()
+
+        snapshots = SnapshotsNamespace(
+            api_client=mock_api_client,
+            api_key="test-api-key",
+            base_url="https://api.codesandbox.io",
+        )
+
+        # Create a mock Error response (404)
+        mock_error = Error(
+            field_type_=ErrorType.ERROR,
+            code="SNAPSHOT_NOT_FOUND",
+            message="Snapshot with alias 'nonexistent@alias' not found",
+            errors=[],
+        )
+
+        with pytest.MonkeyPatch.context() as mp:
+            async def mock_get_snapshot_by_alias_api(alias: str, *, client):
+                return mock_error  # Simulate API error response
+
+            mp.setattr(
+                "together_sandbox._snapshots.get_snapshot_by_alias_api",
+                mock_get_snapshot_by_alias_api,
+            )
+
+            # Should raise RuntimeError with error details
+            with pytest.raises(RuntimeError, match="SNAPSHOT_NOT_FOUND"):
+                await snapshots.get_snapshot("nonexistent@alias")
+
+            # Verify the error message contains both the message and code
+            with pytest.raises(RuntimeError, match="Snapshot with alias 'nonexistent@alias' not found"):
+                await snapshots.get_snapshot("nonexistent@alias")

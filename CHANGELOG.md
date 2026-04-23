@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.4.0...together-sandbox-v1.4.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* Remove tasks from SDK surface ([4da2283](https://github.com/togethercomputer/together-sandbox/commit/4da22833ce75d342dd71e9a1e019193c7a3910c5))
+
 ## [1.4.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.3.0...together-sandbox-v1.4.0) (2026-04-22)
 
 

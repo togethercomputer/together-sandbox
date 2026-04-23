@@ -38,10 +38,6 @@ from .sandbox.api.ports.list_ports import asyncio as list_ports_api
 from .sandbox.api.directories.list_directory import asyncio as list_directory_api
 from .sandbox.api.directories.create_directory import asyncio as create_directory_api
 from .sandbox.api.directories.delete_directory import asyncio as delete_directory_api
-from .sandbox.api.tasks.list_tasks import asyncio as list_tasks_api
-from .sandbox.api.tasks.list_setup_tasks import asyncio as list_setup_tasks_api
-from .sandbox.api.tasks.get_task import asyncio as get_task_api
-from .sandbox.api.tasks.execute_task_action import asyncio as execute_task_action_api
 
 # ── Sandbox API models ────────────────────────────────────────────────────────
 from .sandbox.models.create_exec_request import CreateExecRequest
@@ -49,7 +45,6 @@ from .sandbox.models.file_action_request import FileActionRequest
 from .sandbox.models.file_action_request_action import FileActionRequestAction
 from .sandbox.models.file_info import FileInfo
 from .sandbox.models.exec_stdin import ExecStdin
-from .sandbox.models.task_action_type import TaskActionType
 from .sandbox.models.update_exec_request import UpdateExecRequest
 from .sandbox.types import File
 
@@ -286,36 +281,6 @@ class Directories:
         """Delete a directory."""
         await delete_directory_api(path, client=self._client)
 
-
-# ─── Tasks facade ─────────────────────────────────────────────────────────────
-
-
-class Tasks:
-    """Task operations (list, list_setup, get, action)."""
-
-    def __init__(self, sandbox_client: SandboxClient) -> None:
-        self._client = sandbox_client
-
-    async def list(self):
-        """List all tasks."""
-        result = await list_tasks_api(client=self._client)
-        return result.tasks
-
-    async def list_setup(self):
-        """List setup tasks."""
-        result = await list_setup_tasks_api(client=self._client)
-        return result.setup_tasks
-
-    async def get(self, id_: str):
-        """Get task by ID."""
-        result = await get_task_api(id_, client=self._client)
-        return result.task
-
-    async def action(self, id_: str, action_type: TaskActionType):
-        """Execute an action on a task."""
-        return await execute_task_action_api(id_, client=self._client, action_type=action_type)
-
-
 # ─── Sandbox (connected sandbox) ─────────────────────────────────────────────
 
 
@@ -332,8 +297,7 @@ class Sandbox:
         await sandbox.execs.send_stdin(id_, body)
         async for event in sandbox.execs.stream_output(id_):
             ...
-        await sandbox.tasks.list()
-        await sandbox.ports.list()
+        await sandbox.ports.list_ports()
 
     Lifecycle methods call back to the management API::
 
@@ -388,11 +352,6 @@ class Sandbox:
     def execs(self) -> Execs:
         """Shell exec operations (create, get, update, stream_output, send_stdin, stream_list)."""
         return Execs(self._sandbox_client)
-
-    @property
-    def tasks(self) -> Tasks:
-        """Task operations (list, list_setup, get, action)."""
-        return Tasks(self._sandbox_client)
 
     @property
     def ports(self) -> Ports:
