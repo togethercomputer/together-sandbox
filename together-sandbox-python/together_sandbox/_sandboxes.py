@@ -17,6 +17,7 @@ from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 from .api.models.create_sandbox_body import CreateSandboxBody
 from .api.models.start_sandbox_body import StartSandboxBody
 from .api.models.error import Error
+from .api.types import UNSET
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -59,7 +60,9 @@ class SandboxesNamespace:
         """
         body = None
         if start_options is not None:
-            body = StartSandboxBody(version_number=start_options.version_number)
+            body = StartSandboxBody(
+                version_number=start_options.version_number if start_options.version_number is not None else UNSET
+            )
 
         # start_sandbox_api returns Error | Sandbox | None directly (not wrapped in response)
         vm_info = await start_sandbox_api(sandbox_id, client=self._api_client, body=body)
@@ -88,11 +91,13 @@ class SandboxesNamespace:
 
     async def create(self, params: CreateSandboxParams) -> SandboxModel:
         """Create a new sandbox (does not start the VM)."""
+       
+
         body = CreateSandboxBody(
-            id=params.id,
-            snapshot_id=params.snapshot_id,
-            snapshot_alias=params.snapshot_alias,
-            ephemeral=params.ephemeral,
+            id=params.id if params.id is not None else UNSET,
+            snapshot_id=params.snapshot_id if params.snapshot_id is not None else UNSET,
+            snapshot_alias=params.snapshot_alias if params.snapshot_alias is not None else UNSET,
+            ephemeral=params.ephemeral if params.ephemeral is not None else UNSET,
             millicpu=params.millicpu,
             memory_bytes=params.memory_bytes,
             disk_bytes=params.disk_bytes,
