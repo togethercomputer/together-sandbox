@@ -60,8 +60,9 @@ class SandboxesNamespace:
         body = None
         if start_options is not None:
             body = StartSandboxBody(version_number=start_options.version_number)
-        response = await start_sandbox_api(sandbox_id, client=self._api_client, body=body)
-        vm_info = response.data
+
+        # start_sandbox_api returns Error | Sandbox | None directly (not wrapped in response)
+        vm_info = await start_sandbox_api(sandbox_id, client=self._api_client, body=body)
 
         if vm_info is None:
             raise RuntimeError(
@@ -70,10 +71,9 @@ class SandboxesNamespace:
             )
 
         if isinstance(vm_info, Error):
-            error_msg = f"Failed to start sandbox '{sandbox_id}': {vm_info.message}"
-            if hasattr(vm_info, 'code'):
-                error_msg = f"{error_msg} (code: {vm_info.code})"
-            raise RuntimeError(error_msg)
+            raise RuntimeError(
+                f"Failed to start sandbox '{sandbox_id}': {vm_info.message} (code: {vm_info.code})"
+            )
 
         url, token = _resolve_connection(vm_info)
 
@@ -101,10 +101,9 @@ class SandboxesNamespace:
         if result is None:
             raise RuntimeError("createSandbox returned None")
         if isinstance(result, Error):
-            error_msg = f"Failed to create sandbox: {result.message}"
-            if hasattr(result, 'code'):
-                error_msg = f"{error_msg} (code: {result.code})"
-            raise RuntimeError(error_msg)
+            raise RuntimeError(
+                f"Failed to create sandbox: {result.message} (code: {result.code})"
+            )
         return result
 
     async def hibernate(self, sandbox_id: str) -> None:
