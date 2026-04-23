@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import os
 import platform
-import re
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from uuid import uuid4
+from uuid import uuid4, UUID
 from .api.client import AuthenticatedClient as ApiClient
 from ._utils import _strip_ansi
 from ._configuration import is_local_environment
@@ -17,12 +16,17 @@ from .api.api.default.create_snapshot import asyncio as create_snapshot_api
 from .api.api.default.alias_snapshot import asyncio as alias_snapshot_api
 from .api.api.default.get_snapshot_by_alias import asyncio as get_snapshot_by_alias_api
 from .api.api.default.issue_container_registry_credential import asyncio as issue_container_registry_credential_api
+from .api.api.default.get_snapshot import asyncio as get_snapshot_api
+from .api.api.default.list_snapshots import asyncio as list_snapshots_api
+from .api.api.default.delete_snapshot import asyncio as delete_snapshot_api
+from .api.api.default.delete_snapshot_by_alias import asyncio as delete_snapshot_by_alias_api
 
 # ── Snapshot API models ───────────────────────────────────────────────────────
 from .api.models.alias_snapshot_body import AliasSnapshotBody
 from .api.models.create_snapshot_body import CreateSnapshotBody
 from .api.models.container_registry_credential import ContainerRegistryCredential
 from .api.models.snapshot import Snapshot
+from .api.models.error import Error
 
 # ── Docker helpers ────────────────────────────────────────────────────────────
 from .docker import (
@@ -68,102 +72,6 @@ class CreateImageSnapshotParams:
 
 CreateSnapshotParams = CreateContextSnapshotParams | CreateImageSnapshotParams
 
-# ─── Snapshot helpers ─────────────────────────────────────────────────────────
-
-
-def _parse_alias(default_namespace: str, alias: str) -> tuple[str, str]:
-    parts = alias.split("@")
-    if len(parts) > 2:
-        raise ValueError(f'Alias "{alias}" is invalid, must be in the format of name@tag')
-    namespace = parts[0] if len(parts) == 2 else default_namespace
-    tag = parts[1] if len(parts) == 2 else alias
-    if len(namespace) > 64 or len(tag) > 64:
-        raise ValueError(
-            f'Namespace "{namespace}" or tag "{tag}" exceeds 64 characters'
-        )
-    if not re.match(r"^[a-zA-Z0-9\-_]+$", namespace) or not re.match(r"^[a-zA-Z0-9\-_]+$", tag):
-        raise ValueError(
-            f'Namespace "{namespace}" or tag "{tag}" must only contain letters, digits, dashes and underscores'
-        )
-    return namespace, tag
-
-
-@dataclass
-class ImageReference:
-    """Parsed Docker image reference components."""
-    name: str
-    registry: str | None = None
-    repository: str | None = None
-    tag: str | None = None
-
-
-def _parse_image_reference(image: str) -> ImageReference:
-    """
-    Parse a Docker image reference into its components.
-
-    Handles formats like:
-    - ubuntu
-    - node:24
-    - org/myapp
-    - org/myapp:latest
-    - ghcr.io/org/node:24
-    - registry.example.com:5000/org/app:v1
-
-    A registry is present if the first path segment contains '.' or ':',
-    indicating a registry hostname.
-    """
-    # Find the last colon and check if the text after it contains a slash
-    last_colon = image.rfind(":")
-    if last_colon != -1:
-        after_colon = image[last_colon + 1:]
-        if "/" not in after_colon:
-            tag = after_colon
-            image_without_tag = image[:last_colon]
-        else:
-            image_without_tag = image
-            tag = None
-    else:
-        image_without_tag = image
-        tag = None
-
-    # Split the image part by "/"
-    parts = image_without_tag.split("/")
-
-    if len(parts) == 1:
-        # Just "name" or "name:tag"
-        return ImageReference(name=parts[0], tag=tag if tag else None)
-
-    if len(parts) == 2:
-        # Either "registry/name" or "repo/name"
-        first_part = parts[0]
-        second_part = parts[1]
-        if "." in first_part or ":" in first_part:
-            # It's a registry
-            return ImageReference(registry=first_part, name=second_part, tag=tag if tag else None)
-        else:
-            # It's a repository
-            return ImageReference(repository=first_part, name=second_part, tag=tag if tag else None)
-
-    if len(parts) >= 3:
-        # "registry/repo/name" or more
-        first_part = parts[0]
-        if "." in first_part or ":" in first_part:
-            # First part is a registry
-            registry = first_part
-            repository = parts[1]
-            name = parts[2]
-            return ImageReference(registry=registry, repository=repository, name=name, tag=tag if tag else None)
-        else:
-            # No registry, treat first two parts as namespace/repo hierarchy
-            # (unlikely but handle it as repo/name)
-            repository = parts[0]
-            name = parts[1]
-            return ImageReference(repository=repository, name=name, tag=tag if tag else None)
-
-    # Fallback (should not reach here)
-    return ImageReference(name=image_without_tag)
-
-
 # ─── SnapshotsNamespace ───────────────────────────────────────────────────────
 
 
@@ -182,6 +90,14 @@ class SnapshotsNamespace:
 
     # ─── Public entry points ──────────────────────────────────────────────────
 
+    async def alias(self, snapshot_id: str, alias: str) -> None:
+        """Create an alias for an existing snapshot"""
+        await alias_snapshot_api(
+            UUID(snapshot_id),
+            client=self._api_client,
+            body=AliasSnapshotBody(alias=alias),
+        )
+
     async def create(self, params: CreateSnapshotParams) -> CreateSnapshotResult:
         """Create a snapshot from either a Docker context or a public Docker image."""
         if isinstance(params, CreateContextSnapshotParams):
@@ -194,8 +110,6 @@ class SnapshotsNamespace:
             return await self._build_and_register(params)
         else:
             # Image-based snapshot — no Docker required
-            ref = _parse_image_reference(params.image)
-
             def _emit(step: str, output: str) -> None:
                 if params.on_progress:
                     params.on_progress(SnapshotProgress(step=step, output=output))
@@ -213,26 +127,52 @@ class SnapshotsNamespace:
                 raise RuntimeError("Snapshot creation returned no data")
 
             snapshot_id = str(snapshot_data.id)
-            alias: str | None = None
 
             if params.alias:
                 _emit("alias", "Creating alias...")
-                namespace, alias_tag = _parse_alias(ref.name, params.alias)
-                alias = f"{namespace}@{alias_tag}"
                 await alias_snapshot_api(
                     snapshot_data.id,
                     client=self._api_client,
-                    body=AliasSnapshotBody(alias=alias),
+                    body=AliasSnapshotBody(alias=params.alias),
                 )
 
-            return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
+            return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)
+        
+    async def get_by_id(self, id: str) -> Snapshot:
+        """
+        Get snapshot information by id.
 
-    async def get_snapshot(self, alias: str) -> Snapshot:
+        Args:
+            id: Snapshot id
+
+        Returns:
+            Snapshot: Snapshot model with id, type, byte_size, and metadata
+
+        Raises:
+            RuntimeError: If the snapshot is not found or the API returns an
+                application-level error response.
+            errors.UnexpectedStatus: If the generated API client receives an
+                unexpected HTTP status response.
+            httpx.TimeoutException: If the request to the snapshot API times out.
+
+        Example:
+            >>> snapshot = await sdk.snapshots.get("some-id")
+            >>> print(snapshot.id)
+            >>> print(snapshot.byte_size)
+        """
+        snapshot_data = await get_snapshot_api(UUID(id), client=self._api_client)
+
+        if snapshot_data is None:
+            raise RuntimeError(f"Snapshot with id '{id}' not found")
+        
+        return snapshot_data
+
+    async def get_by_alias(self, alias: str) -> Snapshot:
         """
         Get snapshot information by alias.
 
         Args:
-            alias: Snapshot alias (format: "namespace@alias" or just "alias")
+            alias: Snapshot alias
 
         Returns:
             Snapshot: Snapshot model with id, type, byte_size, and metadata
@@ -242,7 +182,7 @@ class SnapshotsNamespace:
             errors.UnexpectedStatus: If the API request fails
 
         Example:
-            >>> snapshot = await sdk.snapshots.get_snapshot("my-app@latest")
+            >>> snapshot = await sdk.snapshots.get_by_alias("my-app@latest")
             >>> print(snapshot.id)
             >>> print(snapshot.byte_size)
         """
@@ -254,10 +194,76 @@ class SnapshotsNamespace:
             client=self._api_client,
         )
 
+        # A None response from the generated client indicates an
+        # unexpected/undocumented API response, not "not found".
         if snapshot_data is None:
-            raise RuntimeError(f"Snapshot with alias '{alias}' not found")
+            raise RuntimeError(
+                f"Failed to get snapshot '{alias}': received an unexpected response from the snapshot API"
+            )
 
+        # Handle Error response (400/404)
+        if isinstance(snapshot_data, Error):
+            raise RuntimeError(
+                f"Failed to get snapshot '{alias}': {snapshot_data.message} (code: {snapshot_data.code})"
+            )
+
+        # At this point, snapshot_data must be a Snapshot
         return snapshot_data
+
+    async def list(self) -> list[Snapshot]:
+        """
+        List snapshots.
+
+        Returns:
+            list[Snapshot]: List of snapshot models with id, type, byte_size, and metadata
+
+        Raises:
+            RuntimeError: If the API returns no data
+            errors.UnexpectedStatus: If the API request fails
+
+        Example:
+            >>> snapshots = await sdk.snapshots.list()
+            >>> for snapshot in snapshots:
+            ...     print(snapshot.id)
+        """
+        snapshot_list = await list_snapshots_api(
+            client=self._api_client,
+        )
+
+        if snapshot_list is None:
+            raise RuntimeError("List snapshots returned no data")
+
+        return snapshot_list
+
+    async def delete_by_id(self, id: str) -> None:
+        """
+        Delete a snapshot by id.
+
+        Args:
+            id: Snapshot id
+
+        Raises:
+            errors.UnexpectedStatus: If the API request fails
+        """
+        await delete_snapshot_api(UUID(id), client=self._api_client)
+
+    async def delete_by_alias(self, alias: str) -> None:
+        """
+        Delete a snapshot by alias.
+
+        Args:
+            alias: Snapshot alias
+
+        Raises:
+            errors.UnexpectedStatus: If the API request fails
+        """
+        # Remove leading '@' if present (for consistency with API)
+        clean_alias = alias.lstrip("@")
+
+        await delete_snapshot_by_alias_api(
+            clean_alias,
+            client=self._api_client,
+        )
 
     # ─── Private helpers ──────────────────────────────────────────────────────
 
@@ -274,7 +280,6 @@ class SnapshotsNamespace:
         dockerfile_path = (
             os.path.realpath(params.dockerfile) if params.dockerfile else None
         )
-        alias_default_namespace = os.path.basename(context)
 
         credential = await issue_container_registry_credential_api(client=self._api_client)
         if not isinstance(credential, ContainerRegistryCredential):
@@ -330,16 +335,13 @@ class SnapshotsNamespace:
             raise RuntimeError("Snapshot creation returned no data")
 
         snapshot_id = str(snapshot_data.id)
-        alias: str | None = None
 
         if params.alias:
             _emit("alias", "Creating alias...")
-            namespace, alias_tag = _parse_alias(alias_default_namespace, params.alias)
-            alias = f"{namespace}@{alias_tag}"
             await alias_snapshot_api(
                 snapshot_data.id,
                 client=self._api_client,
-                body=AliasSnapshotBody(alias=alias),
+                body=AliasSnapshotBody(alias=params.alias),
             )
 
-        return CreateSnapshotResult(snapshot_id=snapshot_id, alias=alias)
+        return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)

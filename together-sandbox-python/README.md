@@ -28,14 +28,16 @@ and writes the output to:
 
 ## Running the tests
 
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
 ### Unit tests
 
 ```bash
-# Using SSH (recommended for developers)
-pip install "git+ssh://git@github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
-
-# Using a GitHub PAT
-pip install "git+https://YOUR_TOKEN@github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
+pip install ".[dev]"
+pytest tests/ -v
 ```
 
 E2E tests are excluded by default (see below).

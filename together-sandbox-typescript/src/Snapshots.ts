@@ -1,5 +1,4 @@
 import * as api from "./api-clients/api/index.js";
-import * as path from "path";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { isLocalEnvironment } from "./configuration.js";
 import { sleep } from "./utils.js";
@@ -20,6 +19,8 @@ export type SnapshotProgress = { output: string } & (
   | { step: "memory-snapshot" }
   | { step: "alias" }
 );
+
+export type Snapshot = api.Snapshot;
 
 /**
  * Parameters for creating a snapshot
@@ -48,7 +49,7 @@ export type CreateSnapshotParams =
 export interface CreateSnapshotResult {
   /** ID of the created (or memory-snapshotted) snapshot. */
   snapshotId: string;
-  /** The full alias string that was applied (`namespace@tag`), if any. */
+  /** The alias that was applied, if any. */
   alias?: string;
 }
 
@@ -63,105 +64,12 @@ function stripAnsiCodes(str: string) {
   return str.replace(CSI_REGEX, "");
 }
 
-function createAlias(defaultNamespace: string, alias: string) {
-  const aliasParts = alias.split("@");
-
-  if (aliasParts.length > 2) {
-    throw new Error(
-      `Alias name "${alias}" is invalid, must be in the format of name@tag`,
-    );
-  }
-
-  const namespace = aliasParts.length === 2 ? aliasParts[0] : defaultNamespace;
-  alias = aliasParts.length === 2 ? aliasParts[1] : alias;
-
-  if (namespace.length > 64 || alias.length > 64) {
-    throw new Error(
-      `Alias name "${namespace}" or tag "${alias}" is too long, must be 64 characters or less`,
-    );
-  }
-
-  if (!/^[a-zA-Z0-9-_]+$/.test(namespace) || !/^[a-zA-Z0-9-_]+$/.test(alias)) {
-    throw new Error(
-      `Alias name "${namespace}" or tag "${alias}" is invalid, must only contain upper/lower case letters, numbers, dashes and underscores`,
-    );
-  }
-
-  return {
-    namespace,
-    alias,
-  };
-}
-
 export type ImageReference = {
   registry?: string;
   repository?: string;
   name: string;
   tag?: string;
 };
-
-export function parseImageReference(image: string): ImageReference {
-  // Split tag from the end
-  let tag: string | undefined;
-  let withoutTag = image;
-
-  const tagIndex = image.lastIndexOf(":");
-  if (tagIndex !== -1) {
-    // Check if the part after ':' contains '/' — if so, it's not a tag
-    // (e.g., "registry.example.com:5000/org/app" shouldn't treat ":5000" as a tag)
-    const afterColon = image.slice(tagIndex + 1);
-    if (!afterColon.includes("/")) {
-      tag = afterColon;
-      withoutTag = image.slice(0, tagIndex);
-    }
-  }
-
-  // Split path segments
-  const parts = withoutTag.split("/");
-
-  let registry: string | undefined;
-  let repository: string | undefined;
-  let name: string;
-
-  if (parts.length === 1) {
-    // Just "node" or "ubuntu"
-    name = parts[0];
-  } else if (parts.length === 2) {
-    // Either "org/myapp" or "registry.example.com/myapp"
-    const firstPart = parts[0];
-    if (firstPart.includes(".") || firstPart.includes(":")) {
-      // It's a registry
-      registry = firstPart;
-      name = parts[1];
-    } else {
-      // It's a repository
-      repository = firstPart;
-      name = parts[1];
-    }
-  } else if (parts.length >= 3) {
-    // "registry/org/myapp" or more
-    const firstPart = parts[0];
-    if (firstPart.includes(".") || firstPart.includes(":")) {
-      // First part is registry
-      registry = firstPart;
-      repository = parts[1];
-      name = parts[2];
-    } else {
-      // No registry, first part is repository
-      repository = firstPart;
-      name = parts[1];
-    }
-  } else {
-    throw new Error(`Invalid image reference: ${image}`);
-  }
-
-  return {
-    registry,
-    repository,
-    name,
-    tag,
-  };
-}
 
 /**
  * Snapshot build and management operations, accessed as `sdk.snapshots.*`.
@@ -173,6 +81,66 @@ export class SnapshotsNamespace {
   ) {}
 
   // ─── Public entry points ──────────────────────────────────────────────────
+
+  async getById(id: string): Promise<Snapshot> {
+    const result = await api.getSnapshot({
+      client: this._apiClient,
+      path: { id },
+      throwOnError: true,
+    });
+
+    return result.data;
+  }
+
+  async getByAlias(alias: string): Promise<Snapshot> {
+    // Ensure consistency with API
+    const cleanAlias = alias.startsWith("@") ? alias.slice(1) : alias;
+
+    const result = await api.getSnapshotByAlias({
+      client: this._apiClient,
+      path: { alias: cleanAlias },
+      throwOnError: true,
+    });
+
+    return result.data;
+  }
+
+  async list(): Promise<Snapshot[]> {
+    const result = await api.listSnapshots({
+      client: this._apiClient,
+      throwOnError: true,
+    });
+
+    return result.data;
+  }
+
+  async alias(snapshotId: string, alias: string): Promise<void> {
+    await api.aliasSnapshot({
+      client: this._apiClient,
+      path: { snapshot_id: snapshotId },
+      body: { alias },
+      throwOnError: true,
+    });
+  }
+
+  async deleteById(id: string): Promise<void> {
+    await api.deleteSnapshot({
+      client: this._apiClient,
+      path: { id },
+      throwOnError: true,
+    });
+  }
+
+  async deleteByAlias(alias: string): Promise<void> {
+    // Ensure consistency with API
+    const cleanAlias = alias.startsWith("@") ? alias.slice(1) : alias;
+
+    await api.deleteSnapshotByAlias({
+      client: this._apiClient,
+      path: { alias: cleanAlias },
+      throwOnError: true,
+    });
+  }
 
   /**
    * Create a snapshot from a Docker build context or a public Docker image.
@@ -194,9 +162,6 @@ export class SnapshotsNamespace {
       return this._buildAndRegister(params);
     } else {
       // Create from image
-      const imageRef = parseImageReference(params.image);
-      const extractedName = imageRef.name;
-
       params.onProgress?.({
         step: "register",
         output: "Registering snapshot...",
@@ -208,8 +173,6 @@ export class SnapshotsNamespace {
         throwOnError: true,
       });
 
-      let alias;
-
       // Create alias if needed
       if (params.alias) {
         params.onProgress?.({
@@ -217,19 +180,17 @@ export class SnapshotsNamespace {
           output: "Creating alias...",
         });
 
-        const aliasParts = createAlias(extractedName, params.alias);
-        alias = `${aliasParts.namespace}@${aliasParts.alias}`;
         await api.aliasSnapshot({
           client: this._apiClient,
           path: { snapshot_id: snapshotData.data.id },
-          body: { alias },
+          body: { alias: params.alias },
           throwOnError: true,
         });
       }
 
       return {
         snapshotId: snapshotData.data.id,
-        alias,
+        alias: params.alias,
       };
     }
   }
@@ -245,7 +206,6 @@ export class SnapshotsNamespace {
         : "amd64";
     const dockerfilePath = params.dockerfile;
     const context = params.context;
-    const aliasDefaultNamespace = path.basename(params.context);
     const apiClient = this._apiClient;
 
     const credential = await api.issueContainerRegistryCredential({
@@ -378,8 +338,6 @@ export class SnapshotsNamespace {
       snapshotId = snapshot.data.id;
     }
 
-    let alias;
-
     // Create alias if needed
     if (params.alias) {
       params.onProgress?.({
@@ -387,19 +345,17 @@ export class SnapshotsNamespace {
         output: "Creating alias...",
       });
 
-      const aliasParts = createAlias(aliasDefaultNamespace, params.alias);
-      alias = `${aliasParts.namespace}@${aliasParts.alias}`;
       await api.aliasSnapshot({
         client: apiClient,
         path: { snapshot_id: snapshotId },
-        body: { alias },
+        body: { alias: params.alias },
         throwOnError: true,
       });
     }
 
     return {
       snapshotId,
-      alias,
+      alias: params.alias,
     };
   }
 }
