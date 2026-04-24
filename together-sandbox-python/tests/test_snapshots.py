@@ -9,9 +9,7 @@ from datetime import datetime
 
 from together_sandbox._snapshots import SnapshotsNamespace
 from together_sandbox.api.models.snapshot import Snapshot
-from together_sandbox.api.models.snapshot_type import SnapshotType
 from together_sandbox.api.models.error import Error
-from together_sandbox.api.models.error_type import ErrorType
 
 
 @pytest.mark.asyncio
@@ -25,8 +23,8 @@ class TestSnapshotsNamespace:
 
         # Create a mock snapshot response
         mock_snapshot = Snapshot(
-            field_type_=SnapshotType.SNAPSHOT,
             id=UUID("12345678-1234-5678-1234-567812345678"),
+            project_id="test-project",
             byte_size=1024000,
             protected=False,
             optimized=True,
@@ -67,8 +65,8 @@ class TestSnapshotsNamespace:
         """Test that get_snapshot strips leading @ from alias."""
         mock_api_client = MagicMock()
         mock_snapshot = Snapshot(
-            field_type_=SnapshotType.SNAPSHOT,
             id=UUID("12345678-1234-5678-1234-567812345678"),
+            project_id="test-project",
             byte_size=1024000,
             protected=False,
             optimized=True,
@@ -138,7 +136,6 @@ class TestSnapshotsNamespace:
 
         # Create a mock Error response (404)
         mock_error = Error(
-            field_type_=ErrorType.ERROR,
             code="SNAPSHOT_NOT_FOUND",
             message="Snapshot with alias 'nonexistent@alias' not found",
             errors=[],

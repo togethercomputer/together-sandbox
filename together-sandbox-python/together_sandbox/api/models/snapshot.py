@@ -9,8 +9,6 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
-from ..models.snapshot_type import SnapshotType
-
 T = TypeVar("T", bound="Snapshot")
 
 
@@ -18,8 +16,8 @@ T = TypeVar("T", bound="Snapshot")
 class Snapshot:
     """
     Attributes:
-        field_type_ (SnapshotType):
         id (UUID):
+        project_id (str):
         byte_size (int):
         protected (bool):
         optimized (bool):
@@ -29,8 +27,8 @@ class Snapshot:
         updated_at (datetime.datetime):
     """
 
-    field_type_: SnapshotType
     id: UUID
+    project_id: str
     byte_size: int
     protected: bool
     optimized: bool
@@ -41,9 +39,9 @@ class Snapshot:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        field_type_ = self.field_type_.value
-
         id = str(self.id)
+
+        project_id = self.project_id
 
         byte_size = self.byte_size
 
@@ -67,8 +65,8 @@ class Snapshot:
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "_type": field_type_,
                 "id": id,
+                "project_id": project_id,
                 "byte_size": byte_size,
                 "protected": protected,
                 "optimized": optimized,
@@ -84,9 +82,9 @@ class Snapshot:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        field_type_ = SnapshotType(d.pop("_type"))
-
         id = UUID(d.pop("id"))
+
+        project_id = d.pop("project_id")
 
         byte_size = d.pop("byte_size")
 
@@ -116,8 +114,8 @@ class Snapshot:
         updated_at = isoparse(d.pop("updated_at"))
 
         snapshot = cls(
-            field_type_=field_type_,
             id=id,
+            project_id=project_id,
             byte_size=byte_size,
             protected=protected,
             optimized=optimized,
