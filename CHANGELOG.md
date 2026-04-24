@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.5.1...together-sandbox-v1.5.2) (2026-04-24)
+
+
+### Bug Fixes
+
+* fix start sandbox param issue ([649e07e](https://github.com/togethercomputer/together-sandbox/commit/649e07eca701a063d2d75d80bb5bed6213bda2b8))
+
 ## [1.5.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.5.0...together-sandbox-v1.5.1) (2026-04-23)
 
 
