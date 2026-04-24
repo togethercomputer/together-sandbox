@@ -9,6 +9,7 @@ from ._types import CreateSandboxParams, StartOptions
 from .api.api.default.start_sandbox import asyncio as start_sandbox_api
 from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
 from .api.api.default.create_sandbox import asyncio as create_sandbox_api
+from .api.api.default.wait_for_sandbox import asyncio as wait_for_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
@@ -117,3 +118,30 @@ class SandboxesNamespace:
         """Shut down a VM by sandbox ID."""
         await stop_sandbox_api(sandbox_id, client=self._api_client,
                                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN))
+
+    async def wait(self, sandbox_id: str) -> SandboxModel:
+        """
+        Wait for a sandbox to reach a ready state.
+
+        Args:
+            sandbox_id: The sandbox ID to wait for.
+
+        Returns:
+            SandboxModel: The sandbox information once ready.
+
+        Raises:
+            RuntimeError: If waiting fails or returns an error.
+        """
+        result = await wait_for_sandbox_api(sandbox_id, client=self._api_client)
+
+        if result is None:
+            raise RuntimeError(
+                f"waitForSandbox for sandbox '{sandbox_id}' returned no data"
+            )
+
+        if isinstance(result, Error):
+            raise RuntimeError(
+                f"Failed to wait for sandbox '{sandbox_id}': {result.message} (code: {result.code})"
+            )
+
+        return result
