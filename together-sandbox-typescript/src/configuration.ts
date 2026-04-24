@@ -20,14 +20,6 @@ export function getInferredBaseUrl() {
   return "https://api.bartender.codesandbox.stream";
 }
 
-export function getInferredRegistryUrl(apiBaseUrl: string) {
-  const url = new URL(apiBaseUrl);
-  const apiHostName = url.hostname;
-  const registryHostname = apiHostName.replace("api.bartender.", "registry.");
-
-  return registryHostname;
-}
-
 export function isLocalEnvironment(apiBaseUrl: string): boolean {
   const url = new URL(apiBaseUrl);
   const apiHostName = url.hostname;

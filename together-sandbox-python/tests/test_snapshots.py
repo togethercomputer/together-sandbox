@@ -39,7 +39,6 @@ class TestSnapshotsNamespace:
         # Create snapshots namespace
         snapshots = SnapshotsNamespace(
             api_client=mock_api_client,
-            api_key="test-api-key",
             base_url="https://api.codesandbox.io",
         )
 
@@ -80,7 +79,6 @@ class TestSnapshotsNamespace:
 
         snapshots = SnapshotsNamespace(
             api_client=mock_api_client,
-            api_key="test-api-key",
             base_url="https://api.codesandbox.io",
         )
 
@@ -109,7 +107,6 @@ class TestSnapshotsNamespace:
 
         snapshots = SnapshotsNamespace(
             api_client=mock_api_client,
-            api_key="test-api-key",
             base_url="https://api.codesandbox.io",
         )
 
@@ -132,7 +129,6 @@ class TestSnapshotsNamespace:
 
         snapshots = SnapshotsNamespace(
             api_client=mock_api_client,
-            api_key="test-api-key",
             base_url="https://api.codesandbox.io",
         )
 

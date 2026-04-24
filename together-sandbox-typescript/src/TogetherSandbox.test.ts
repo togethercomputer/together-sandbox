@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { TogetherSandbox } from "./TogetherSandbox.js";
 import { Sandbox } from "./Sandbox.js";
 import { camelCaseKeys, type SandboxInfo } from "./types.js";
-import { parseImageReference } from "./Snapshots.js";
 import * as api from "./api-clients/api/index.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -182,70 +181,6 @@ describe("TogetherSandbox", () => {
         expect.objectContaining({ path: { alias: "my-app@latest" } }),
       );
       spy.mockRestore();
-    });
-  });
-});
-
-// ─── parseImageReference tests ───────────────────────────────────────────────
-
-describe("parseImageReference", () => {
-  it("parses bare name (ubuntu)", () => {
-    const result = parseImageReference("ubuntu");
-    expect(result).toEqual({
-      name: "ubuntu",
-      registry: undefined,
-      repository: undefined,
-      tag: undefined,
-    });
-  });
-
-  it("parses name with tag (node:24)", () => {
-    const result = parseImageReference("node:24");
-    expect(result).toEqual({
-      name: "node",
-      tag: "24",
-      registry: undefined,
-      repository: undefined,
-    });
-  });
-
-  it("parses repository and name (org/myapp)", () => {
-    const result = parseImageReference("org/myapp");
-    expect(result).toEqual({
-      repository: "org",
-      name: "myapp",
-      registry: undefined,
-      tag: undefined,
-    });
-  });
-
-  it("parses repository, name, and tag (org/myapp:latest)", () => {
-    const result = parseImageReference("org/myapp:latest");
-    expect(result).toEqual({
-      repository: "org",
-      name: "myapp",
-      tag: "latest",
-      registry: undefined,
-    });
-  });
-
-  it("parses registry, repository, name, and tag (ghcr.io/org/node:24)", () => {
-    const result = parseImageReference("ghcr.io/org/node:24");
-    expect(result).toEqual({
-      registry: "ghcr.io",
-      repository: "org",
-      name: "node",
-      tag: "24",
-    });
-  });
-
-  it("parses registry with port (localhost:5000/myapp:dev)", () => {
-    const result = parseImageReference("localhost:5000/myapp:dev");
-    expect(result).toEqual({
-      registry: "localhost:5000",
-      name: "myapp",
-      tag: "dev",
-      repository: undefined,
     });
   });
 });
