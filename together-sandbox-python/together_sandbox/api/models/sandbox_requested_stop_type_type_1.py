@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class SandboxScheduledStopTypeType1(str, Enum):
+class SandboxRequestedStopTypeType1(str, Enum):
     HIBERNATE = "hibernate"
     SHUTDOWN = "shutdown"
 
