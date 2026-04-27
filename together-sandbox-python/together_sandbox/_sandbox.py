@@ -46,6 +46,7 @@ from .sandbox.models.file_action_request_action import FileActionRequestAction
 from .sandbox.models.file_info import FileInfo
 from .sandbox.models.exec_stdin import ExecStdin
 from .sandbox.models.update_exec_request import UpdateExecRequest
+from .sandbox.models.error import Error
 from .sandbox.types import File
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
@@ -68,6 +69,10 @@ class Files:
     async def read(self, path: str) -> str:
         """Read file content at the specified path."""
         result = await read_file_api(path, client=self._client)
+        if result is None:
+            raise RuntimeError(f"readFile returned None for path {path!r}")
+        if isinstance(result, Error):
+            raise RuntimeError(f"Failed to read file {path!r}: {result.message} (code: {result.code})")
         return result.content
 
     async def create(
@@ -93,6 +98,10 @@ class Files:
         file_obj = File(payload=io.BytesIO(content_bytes))
 
         result = await create_file_api(path, client=self._client, body=file_obj)
+        if result is None:
+            raise RuntimeError(f"createFile returned None for path {path!r}")
+        if isinstance(result, Error):
+            raise RuntimeError(f"Failed to create file {path!r}: {result.message} (code: {result.code})")
         return result.content
 
     async def delete(self, path: str) -> None:
@@ -123,7 +132,12 @@ class Files:
 
     async def stat(self, path: str) -> FileInfo:
         """Get file metadata at the specified path."""
-        return await get_file_stat_api(path, client=self._client)
+        result = await get_file_stat_api(path, client=self._client)
+        if result is None:
+            raise RuntimeError(f"getFileStat returned None for path {path!r}")
+        if isinstance(result, Error):
+            raise RuntimeError(f"Failed to get file stat {path!r}: {result.message} (code: {result.code})")
+        return result
 
     def watch(
         self,
@@ -167,6 +181,10 @@ class Execs:
     async def list(self):
         """List all active execs."""
         result = await list_execs_api(client=self._client)
+        if result is None:
+            raise RuntimeError("listExecs returned None")
+        if isinstance(result, Error):
+            raise RuntimeError(f"Failed to list execs: {result.message} (code: {result.code})")
         return result.execs
 
     async def create(self, body: CreateExecRequest):
@@ -174,6 +192,8 @@ class Execs:
         result = await create_exec_api(client=self._client, body=body)
         if result is None:
             raise RuntimeError("createExec returned None")
+        if isinstance(result, Error):
+            raise RuntimeError(f"Failed to create exec: {result.message} (code: {result.code})")
         return result
 
     async def get(self, id_: str):
@@ -181,6 +201,8 @@ class Execs:
         result = await get_exec_api(id_, client=self._client)
         if result is None:
             raise RuntimeError(f"getExec returned None for id {id_!r}")
+        if isinstance(result, Error):
+            raise RuntimeError(f"Failed to get exec {id_!r}: {result.message} (code: {result.code})")
         return result
 
     async def update(self, id_: str, body: UpdateExecRequest):
@@ -188,6 +210,8 @@ class Execs:
         result = await update_exec_api(id_, client=self._client, body=body)
         if result is None:
             raise RuntimeError(f"updateExec returned None for id {id_!r}")
+        if isinstance(result, Error):
+            raise RuntimeError(f"Failed to update exec {id_!r}: {result.message} (code: {result.code})")
         return result
 
     async def delete(self, id_: str) -> None:
@@ -223,6 +247,8 @@ class Execs:
         result = await exec_exec_stdin_api(id_, client=self._client, body=body)
         if result is None:
             raise RuntimeError(f"execExecStdin returned None for id {id_!r}")
+        if isinstance(result, Error):
+            raise RuntimeError(f"Failed to send stdin to exec {id_!r}: {result.message} (code: {result.code})")
         return result
 
     def stream_list(self) -> AsyncIterator[dict[str, Any]]:
@@ -271,6 +297,10 @@ class Directories:
     async def list(self, path: str) -> list[FileInfo]:
         """List directory contents."""
         result = await list_directory_api(path, client=self._client)
+        if result is None:
+            raise RuntimeError(f"listDirectory returned None for path {path!r}")
+        if isinstance(result, Error):
+            raise RuntimeError(f"Failed to list directory {path!r}: {result.message} (code: {result.code})")
         return result.files
 
     async def create(self, path: str) -> None:
