@@ -454,8 +454,6 @@ export class SnapshotsNamespace {
       snapshotId = snapshot.data.id;
     }
 
-    let alias;
-
     // Create alias if needed
     if (params.alias) {
       params.onProgress?.({
@@ -473,7 +471,7 @@ export class SnapshotsNamespace {
 
     return {
       snapshotId,
-      alias,
+      alias: params.alias,
     };
   }
 }

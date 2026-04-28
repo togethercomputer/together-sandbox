@@ -7,6 +7,7 @@ from ._types import CreateSandboxParams, StartOptions
 
 # ── Management API endpoint functions ─────────────────────────────────────────
 from .api.api.default.start_sandbox import asyncio as start_sandbox_api
+from .api.api.default.wait_for_sandbox import asyncio as wait_for_sandbox_api
 from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
 from .api.api.default.create_sandbox import asyncio as create_sandbox_api
 
@@ -75,6 +76,23 @@ class SandboxesNamespace:
                 f"Failed to start sandbox '{sandbox_id}': {vm_info.message} (code: {vm_info.code})"
             )
 
+        vm_info = await wait_for_sandbox_api(sandbox_id, client=self._api_client)
+        
+        if vm_info is None:
+            raise RuntimeError(
+                f"waitForSandbox for sandbox '{sandbox_id}' returned no data. "
+            )
+
+        if isinstance(vm_info, Error):
+            raise RuntimeError(
+                f"Failed to wait for sandbox '{sandbox_id}': {vm_info.message} (code: {vm_info.code})"
+            )
+        
+        if vm_info.status != 'running':
+            raise RuntimeError(
+                f"Failed to start sandbox '{sandbox_id}'. Its final status was {vm_info.status}."
+            )
+
         url, token = _resolve_connection(vm_info)
 
         sandbox_client = SandboxClient(
@@ -112,8 +130,42 @@ class SandboxesNamespace:
         """Hibernate (suspend) a VM by sandbox ID."""
         await stop_sandbox_api(sandbox_id, client=self._api_client,
                                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.HIBERNATE))
+        
+        vm_info = await wait_for_sandbox_api(sandbox_id, client=self._api_client)
+        
+        if vm_info is None:
+            raise RuntimeError(
+                f"waitForSandbox for sandbox '{sandbox_id}' returned no data. "
+            )
+
+        if isinstance(vm_info, Error):
+            raise RuntimeError(
+                f"Failed to wait for sandbox '{sandbox_id}': {vm_info.message} (code: {vm_info.code})"
+            )
+        
+        if vm_info.status != 'stopped':
+            raise RuntimeError(
+                f"Failed to hibernate sandbox '{sandbox_id}'. Its final status was {vm_info.status}."
+            )
 
     async def shutdown(self, sandbox_id: str) -> None:
         """Shut down a VM by sandbox ID."""
         await stop_sandbox_api(sandbox_id, client=self._api_client,
                                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN))
+        
+        vm_info = await wait_for_sandbox_api(sandbox_id, client=self._api_client)
+        
+        if vm_info is None:
+            raise RuntimeError(
+                f"waitForSandbox for sandbox '{sandbox_id}' returned no data. "
+            )
+
+        if isinstance(vm_info, Error):
+            raise RuntimeError(
+                f"Failed to wait for sandbox '{sandbox_id}': {vm_info.message} (code: {vm_info.code})"
+            )
+        
+        if vm_info.status != 'stopped':
+            raise RuntimeError(
+                f"Failed to stop sandbox '{sandbox_id}'. Its final status was {vm_info.status}."
+            )

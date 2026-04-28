@@ -9,9 +9,11 @@ from ._types import StartOptions
 
 # ── Management API client ─────────────────────────────────────────────────────
 from .api.client import AuthenticatedClient as ApiClient
+from .api.models.error import Error
 
 # ── Management API endpoint functions ─────────────────────────────────────────
 from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
+from .api.api.default.wait_for_sandbox import asyncio as wait_for_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
@@ -366,11 +368,45 @@ class Sandbox:
         """Suspend (hibernate) this VM."""
         await stop_sandbox_api(self.id, client=self._api_client,
                                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.HIBERNATE))
+        
+        vm_info = await wait_for_sandbox_api(self.id, client=self._api_client)
+        
+        if vm_info is None:
+            raise RuntimeError(
+                f"waitForSandbox for sandbox '{self.id}' returned no data. "
+            )
+
+        if isinstance(vm_info, Error):
+            raise RuntimeError(
+                f"Failed to wait for sandbox '{self.id}': {vm_info.message} (code: {vm_info.code})"
+            )
+        
+        if vm_info.status != 'stopped':
+            raise RuntimeError(
+                f"Failed to hibernate sandbox '{self.id}'. Its final status was {vm_info.status}."
+            )
 
     async def shutdown(self) -> None:
         """Shut down this VM."""
         await stop_sandbox_api(self.id, client=self._api_client,
                                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN))
+        
+        vm_info = await wait_for_sandbox_api(self.id, client=self._api_client)
+    
+        if vm_info is None:
+            raise RuntimeError(
+                f"waitForSandbox for sandbox '{self.id}' returned no data. "
+            )
+
+        if isinstance(vm_info, Error):
+            raise RuntimeError(
+                f"Failed to wait for sandbox '{self.id}': {vm_info.message} (code: {vm_info.code})"
+            )
+        
+        if vm_info.status != 'stopped':
+            raise RuntimeError(
+                f"Failed to stop sandbox '{self.id}'. Its final status was {vm_info.status}."
+            )
 
     async def close(self) -> None:
         """Close the underlying sandbox client connection."""
