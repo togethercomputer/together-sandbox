@@ -46,10 +46,35 @@ from .sandbox.models.file_action_request_action import FileActionRequestAction
 from .sandbox.models.file_info import FileInfo
 from .sandbox.models.exec_stdin import ExecStdin
 from .sandbox.models.update_exec_request import UpdateExecRequest
+from .sandbox.models.error import Error
 from .sandbox.types import File
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
 from ._streaming import stream_sse_json
+
+
+# ─── Private helpers ──────────────────────────────────────────────────────────
+
+
+def _unwrap_or_raise(result: Any, *, op: str, context: str = "") -> Any:
+    """Raise ``RuntimeError`` if *result* is ``None`` or an ``Error`` model.
+
+    Args:
+        result:  Value returned by a generated API endpoint.
+        op:      Short operation name used in error messages (e.g. ``"readFile"``).
+        context: Extra detail appended to the message (e.g. ``"for path '/foo'"``).
+
+    Returns:
+        *result* unchanged when it is neither ``None`` nor an ``Error``.
+    """
+    suffix = f" {context}" if context else ""
+    if result is None:
+        raise RuntimeError(f"{op} returned None{suffix}")
+    if isinstance(result, Error):
+        raise RuntimeError(
+            f"Failed to {op}{suffix}: {result.message} (code: {result.code})"
+        )
+    return result
 
 
 # ─── Files facade ─────────────────────────────────────────────────────────────
@@ -68,6 +93,7 @@ class Files:
     async def read(self, path: str) -> str:
         """Read file content at the specified path."""
         result = await read_file_api(path, client=self._client)
+        result = _unwrap_or_raise(result, op="readFile", context=f"for path {path!r}")
         return result.content
 
     async def create(
@@ -93,15 +119,17 @@ class Files:
         file_obj = File(payload=io.BytesIO(content_bytes))
 
         result = await create_file_api(path, client=self._client, body=file_obj)
+        result = _unwrap_or_raise(result, op="createFile", context=f"for path {path!r}")
         return result.content
 
     async def delete(self, path: str) -> None:
         """Delete a file at the specified path."""
-        await delete_file_api(path, client=self._client)
+        result = await delete_file_api(path, client=self._client)
+        _unwrap_or_raise(result, op="deleteFile", context=f"for path {path!r}")
 
     async def move(self, from_path: str, to_path: str) -> None:
         """Move a file from one path to another."""
-        await perform_file_action_api(
+        result = await perform_file_action_api(
             from_path,
             client=self._client,
             body=FileActionRequest(
@@ -109,10 +137,11 @@ class Files:
                 destination=to_path,
             ),
         )
+        _unwrap_or_raise(result, op="moveFile", context=f"from {from_path!r} to {to_path!r}")
 
     async def copy(self, from_path: str, to_path: str) -> None:
         """Copy a file from one path to another."""
-        await perform_file_action_api(
+        result = await perform_file_action_api(
             from_path,
             client=self._client,
             body=FileActionRequest(
@@ -120,10 +149,12 @@ class Files:
                 destination=to_path,
             ),
         )
+        _unwrap_or_raise(result, op="copyFile", context=f"from {from_path!r} to {to_path!r}")
 
     async def stat(self, path: str) -> FileInfo:
         """Get file metadata at the specified path."""
-        return await get_file_stat_api(path, client=self._client)
+        result = await get_file_stat_api(path, client=self._client)
+        return _unwrap_or_raise(result, op="getFileStat", context=f"for path {path!r}")
 
     def watch(
         self,
@@ -167,32 +198,28 @@ class Execs:
     async def list(self):
         """List all active execs."""
         result = await list_execs_api(client=self._client)
+        result = _unwrap_or_raise(result, op="listExecs")
         return result.execs
 
     async def create(self, body: CreateExecRequest):
         """Create a new exec."""
         result = await create_exec_api(client=self._client, body=body)
-        if result is None:
-            raise RuntimeError("createExec returned None")
-        return result
+        return _unwrap_or_raise(result, op="createExec")
 
     async def get(self, id_: str):
         """Get exec by ID."""
         result = await get_exec_api(id_, client=self._client)
-        if result is None:
-            raise RuntimeError(f"getExec returned None for id {id_!r}")
-        return result
+        return _unwrap_or_raise(result, op="getExec", context=f"for id {id_!r}")
 
     async def update(self, id_: str, body: UpdateExecRequest):
         """Update exec status."""
         result = await update_exec_api(id_, client=self._client, body=body)
-        if result is None:
-            raise RuntimeError(f"updateExec returned None for id {id_!r}")
-        return result
+        return _unwrap_or_raise(result, op="updateExec", context=f"for id {id_!r}")
 
     async def delete(self, id_: str) -> None:
         """Delete an exec."""
-        await delete_exec_api(id_, client=self._client)
+        result = await delete_exec_api(id_, client=self._client)
+        _unwrap_or_raise(result, op="deleteExec", context=f"for id {id_!r}")
 
     def stream_output(
         self, id_: str, last_sequence: int | None = None
@@ -221,9 +248,7 @@ class Execs:
     async def send_stdin(self, id_: str, body: ExecStdin):
         """Send stdin to an exec (renamed from exec_exec_stdin)."""
         result = await exec_exec_stdin_api(id_, client=self._client, body=body)
-        if result is None:
-            raise RuntimeError(f"execExecStdin returned None for id {id_!r}")
-        return result
+        return _unwrap_or_raise(result, op="execStdin", context=f"for id {id_!r}")
 
     def stream_list(self) -> AsyncIterator[dict[str, Any]]:
         """Stream list of all active execs via SSE (renamed from stream_execs_list)."""
@@ -249,6 +274,7 @@ class Ports:
     async def list(self):
         """List open ports."""
         result = await list_ports_api(client=self._client)
+        result = _unwrap_or_raise(result, op="listPorts")
         return result.ports
 
     def stream_list(self) -> AsyncIterator[dict[str, Any]]:
@@ -271,15 +297,18 @@ class Directories:
     async def list(self, path: str) -> list[FileInfo]:
         """List directory contents."""
         result = await list_directory_api(path, client=self._client)
+        result = _unwrap_or_raise(result, op="listDirectory", context=f"for path {path!r}")
         return result.files
 
     async def create(self, path: str) -> None:
         """Create a directory."""
-        await create_directory_api(path, client=self._client)
+        result = await create_directory_api(path, client=self._client)
+        _unwrap_or_raise(result, op="createDirectory", context=f"for path {path!r}")
 
     async def delete(self, path: str) -> None:
         """Delete a directory."""
-        await delete_directory_api(path, client=self._client)
+        result = await delete_directory_api(path, client=self._client)
+        _unwrap_or_raise(result, op="deleteDirectory", context=f"for path {path!r}")
 
 # ─── Sandbox (connected sandbox) ─────────────────────────────────────────────
 
