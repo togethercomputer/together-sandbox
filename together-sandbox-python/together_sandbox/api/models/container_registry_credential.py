@@ -8,8 +8,6 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
-from ..models.container_registry_credential_type import ContainerRegistryCredentialType
-
 T = TypeVar("T", bound="ContainerRegistryCredential")
 
 
@@ -17,14 +15,12 @@ T = TypeVar("T", bound="ContainerRegistryCredential")
 class ContainerRegistryCredential:
     """
     Attributes:
-        field_type_ (ContainerRegistryCredentialType):
         username (str):
         password (str):
         registry_url (str): Registry URL including the namespace path (e.g. registry.example.com/nbswy3dp).
         expired_at (datetime.datetime | None):
     """
 
-    field_type_: ContainerRegistryCredentialType
     username: str
     password: str
     registry_url: str
@@ -32,8 +28,6 @@ class ContainerRegistryCredential:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        field_type_ = self.field_type_.value
-
         username = self.username
 
         password = self.password
@@ -50,7 +44,6 @@ class ContainerRegistryCredential:
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "_type": field_type_,
                 "username": username,
                 "password": password,
                 "registry_url": registry_url,
@@ -63,8 +56,6 @@ class ContainerRegistryCredential:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        field_type_ = ContainerRegistryCredentialType(d.pop("_type"))
-
         username = d.pop("username")
 
         password = d.pop("password")
@@ -87,7 +78,6 @@ class ContainerRegistryCredential:
         expired_at = _parse_expired_at(d.pop("expired_at"))
 
         container_registry_credential = cls(
-            field_type_=field_type_,
             username=username,
             password=password,
             registry_url=registry_url,

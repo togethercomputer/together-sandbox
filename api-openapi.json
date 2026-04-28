@@ -26,8 +26,8 @@
       "Sandbox": {
         "type": "object",
         "required": [
-          "_type",
           "id",
+          "project_id",
           "status",
           "ephemeral",
           "cluster_name",
@@ -43,29 +43,26 @@
           "agent_token",
           "agent_url",
           "created_at",
-          "start_scheduled_at",
+          "start_requested_at",
           "start_type",
           "started_at",
-          "stop_scheduled_at",
-          "scheduled_stop_type",
+          "stop_requested_at",
+          "requested_stop_type",
           "stopped_at",
           "stop_reason",
           "specs_updated_at",
           "recovery_status",
-          "recovery_scheduled_at",
+          "recovery_started_at",
           "recovery_finished_at",
           "updated_at"
         ],
         "properties": {
-          "_type": {
-            "type": "string",
-            "enum": [
-              "sandbox"
-            ]
-          },
           "id": {
             "type": "string",
             "description": "Short identifier (6\u20138 characters)."
+          },
+          "project_id": {
+            "type": "string"
           },
           "status": {
             "type": "string",
@@ -121,7 +118,7 @@
             "type": "string",
             "format": "date-time"
           },
-          "start_scheduled_at": {
+          "start_requested_at": {
             "type": [
               "string",
               "null"
@@ -146,14 +143,14 @@
             ],
             "format": "date-time"
           },
-          "stop_scheduled_at": {
+          "stop_requested_at": {
             "type": [
               "string",
               "null"
             ],
             "format": "date-time"
           },
-          "scheduled_stop_type": {
+          "requested_stop_type": {
             "type": [
               "string",
               "null"
@@ -208,7 +205,7 @@
               null
             ]
           },
-          "recovery_scheduled_at": {
+          "recovery_started_at": {
             "type": [
               "string",
               "null"
@@ -231,8 +228,8 @@
       "Snapshot": {
         "type": "object",
         "required": [
-          "_type",
           "id",
+          "project_id",
           "byte_size",
           "protected",
           "optimized",
@@ -242,15 +239,12 @@
           "updated_at"
         ],
         "properties": {
-          "_type": {
-            "type": "string",
-            "enum": [
-              "snapshot"
-            ]
-          },
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "project_id": {
+            "type": "string"
           },
           "byte_size": {
             "type": "integer"
@@ -284,7 +278,6 @@
       "SandboxVersion": {
         "type": "object",
         "required": [
-          "_type",
           "id",
           "sandbox_id",
           "number",
@@ -292,12 +285,6 @@
           "created_at"
         ],
         "properties": {
-          "_type": {
-            "type": "string",
-            "enum": [
-              "sandbox_version"
-            ]
-          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -322,7 +309,6 @@
       "SnapshotAlias": {
         "type": "object",
         "required": [
-          "_type",
           "id",
           "snapshot_id",
           "alias",
@@ -330,12 +316,6 @@
           "updated_at"
         ],
         "properties": {
-          "_type": {
-            "type": "string",
-            "enum": [
-              "snapshot_alias"
-            ]
-          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -360,19 +340,12 @@
       "ContainerRegistryCredential": {
         "type": "object",
         "required": [
-          "_type",
           "username",
           "password",
           "registry_url",
           "expired_at"
         ],
         "properties": {
-          "_type": {
-            "type": "string",
-            "enum": [
-              "container_registry_credential"
-            ]
-          },
           "username": {
             "type": "string"
           },
@@ -395,18 +368,11 @@
       "Error": {
         "type": "object",
         "required": [
-          "_type",
           "code",
           "message",
           "errors"
         ],
         "properties": {
-          "_type": {
-            "type": "string",
-            "enum": [
-              "error"
-            ]
-          },
           "code": {
             "type": "string"
           },

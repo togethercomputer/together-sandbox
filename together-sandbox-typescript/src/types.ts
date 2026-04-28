@@ -5,13 +5,10 @@ import type {
 
 /**
  * Converts snake_case property names to camelCase.
- * Guards against leading underscores (e.g., `_type`, `_id`) to preserve them as-is.
  */
 type SnakeToCamelCase<S extends string> =
   S extends `${infer Head}_${infer Tail}`
-    ? Head extends ""
-      ? S // preserve "_type", "_id", etc.
-      : `${Head}${Capitalize<SnakeToCamelCase<Tail>>}`
+    ? `${Head}${Capitalize<SnakeToCamelCase<Tail>>}`
     : S;
 
 /**
@@ -36,7 +33,6 @@ export type CreateSandboxParams = CamelCasedProperties<
 
 /**
  * Runtime mapper that converts snake_case object keys to camelCase.
- * Guards against leading underscores to preserve special fields like `_type`.
  */
 export function camelCaseKeys<T extends Record<string, unknown>>(
   obj: T,

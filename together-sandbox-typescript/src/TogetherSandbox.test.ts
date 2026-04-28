@@ -8,8 +8,8 @@ import * as api from "./api-clients/api/index.js";
 
 function makeVmInfo(overrides: Partial<SandboxInfo> = {}): SandboxInfo {
   return {
-    _type: "sandbox",
     id: "test-sandbox-123",
+    projectId: "test-project",
     status: "running",
     ephemeral: false,
     clusterName: "us-east-1",
@@ -25,16 +25,16 @@ function makeVmInfo(overrides: Partial<SandboxInfo> = {}): SandboxInfo {
     agentToken: "agent-tok",
     agentUrl: "https://agent.example.com",
     createdAt: "2026-04-13T00:00:00Z",
-    startScheduledAt: null,
+    startRequestedAt: null,
     startType: "cold_start",
     startedAt: "2026-04-13T00:00:01Z",
-    stopScheduledAt: null,
-    scheduledStopType: null,
+    stopRequestedAt: null,
+    requestedStopType: null,
     stoppedAt: null,
     stopReason: null,
     specsUpdatedAt: null,
     recoveryStatus: null,
-    recoveryScheduledAt: null,
+    recoveryStartedAt: null,
     recoveryFinishedAt: null,
     updatedAt: "2026-04-13T00:00:01Z",
     ...overrides,
@@ -46,13 +46,6 @@ describe("camelCaseKeys", () => {
     expect(
       camelCaseKeys({ cluster_name: "us-east-1", memory_bytes: 1024 }),
     ).toEqual({ clusterName: "us-east-1", memoryBytes: 1024 });
-  });
-
-  it("preserves leading underscores (_type)", () => {
-    expect(camelCaseKeys({ _type: "sandbox", stop_reason: null })).toEqual({
-      _type: "sandbox",
-      stopReason: null,
-    });
   });
 
   it("handles multi-segment keys (current_version_number)", () => {
@@ -163,7 +156,7 @@ describe("TogetherSandbox", () => {
       const spy = vi.spyOn(api, "getSnapshotByAlias").mockResolvedValue({
         data: {
           id: "snap-1",
-          _type: "snapshot",
+          projectId: "test-project",
           byte_size: 0,
           protected: false,
           optimized: false,

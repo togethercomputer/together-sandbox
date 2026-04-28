@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..models.error_type import ErrorType
-
 if TYPE_CHECKING:
     from ..models.error_errors_item import ErrorErrorsItem
 
@@ -19,21 +17,17 @@ T = TypeVar("T", bound="Error")
 class Error:
     """
     Attributes:
-        field_type_ (ErrorType):
         code (str):
         message (str):
         errors (list[ErrorErrorsItem]):
     """
 
-    field_type_: ErrorType
     code: str
     message: str
     errors: list[ErrorErrorsItem]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        field_type_ = self.field_type_.value
-
         code = self.code
 
         message = self.message
@@ -47,7 +41,6 @@ class Error:
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "_type": field_type_,
                 "code": code,
                 "message": message,
                 "errors": errors,
@@ -61,8 +54,6 @@ class Error:
         from ..models.error_errors_item import ErrorErrorsItem
 
         d = dict(src_dict)
-        field_type_ = ErrorType(d.pop("_type"))
-
         code = d.pop("code")
 
         message = d.pop("message")
@@ -75,7 +66,6 @@ class Error:
             errors.append(errors_item)
 
         error = cls(
-            field_type_=field_type_,
             code=code,
             message=message,
             errors=errors,
