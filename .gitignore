@@ -24,6 +24,9 @@ build/
 venv/
 *.pth
 
+# static docs
+api-docs/*.json
+
 # Python generation temp dirs
 together-sandbox-python/.tmp-api/
 together-sandbox-python/.tmp-sandbox/

@@ -9,6 +9,7 @@ from ._types import CreateSandboxParams, StartOptions
 from .api.api.default.start_sandbox import asyncio as start_sandbox_api
 from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
 from .api.api.default.create_sandbox import asyncio as create_sandbox_api
+from .api.api.default.wait_for_sandbox import asyncio as wait_for_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
@@ -17,6 +18,7 @@ from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 from .api.models.create_sandbox_body import CreateSandboxBody
 from .api.models.start_sandbox_body import StartSandboxBody
 from .api.models.error import Error
+from .api.types import UNSET
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -57,10 +59,9 @@ class SandboxesNamespace:
         Returns:
             A ready-to-use :class:`Sandbox` with all sub-namespaces.
         """
-        body = None
-        if start_options is not None:
+        body = UNSET
+        if start_options is not None and start_options.version_number is not None:
             body = StartSandboxBody(version_number=start_options.version_number)
-
         # start_sandbox_api returns Error | Sandbox | None directly (not wrapped in response)
         vm_info = await start_sandbox_api(sandbox_id, client=self._api_client, body=body)
 
@@ -88,11 +89,13 @@ class SandboxesNamespace:
 
     async def create(self, params: CreateSandboxParams) -> SandboxModel:
         """Create a new sandbox (does not start the VM)."""
+       
+
         body = CreateSandboxBody(
-            id=params.id,
-            snapshot_id=params.snapshot_id,
-            snapshot_alias=params.snapshot_alias,
-            ephemeral=params.ephemeral,
+            id=params.id if params.id is not None else UNSET,
+            snapshot_id=params.snapshot_id if params.snapshot_id is not None else UNSET,
+            snapshot_alias=params.snapshot_alias if params.snapshot_alias is not None else UNSET,
+            ephemeral=params.ephemeral if params.ephemeral is not None else UNSET,
             millicpu=params.millicpu,
             memory_bytes=params.memory_bytes,
             disk_bytes=params.disk_bytes,
@@ -115,3 +118,30 @@ class SandboxesNamespace:
         """Shut down a VM by sandbox ID."""
         await stop_sandbox_api(sandbox_id, client=self._api_client,
                                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN))
+
+    async def wait(self, sandbox_id: str) -> SandboxModel:
+        """
+        Wait for a sandbox to reach a ready state.
+
+        Args:
+            sandbox_id: The sandbox ID to wait for.
+
+        Returns:
+            SandboxModel: The sandbox information once ready.
+
+        Raises:
+            RuntimeError: If waiting fails or returns an error.
+        """
+        result = await wait_for_sandbox_api(sandbox_id, client=self._api_client)
+
+        if result is None:
+            raise RuntimeError(
+                f"waitForSandbox for sandbox '{sandbox_id}' returned no data"
+            )
+
+        if isinstance(result, Error):
+            raise RuntimeError(
+                f"Failed to wait for sandbox '{sandbox_id}': {result.message} (code: {result.code})"
+            )
+
+        return result

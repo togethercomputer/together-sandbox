@@ -194,8 +194,7 @@ class SnapshotsNamespace:
             client=self._api_client,
         )
 
-        # A None response from the generated client indicates an
-        # unexpected/undocumented API response, not "not found".
+
         if snapshot_data is None:
             raise RuntimeError(
                 f"Failed to get snapshot '{alias}': received an unexpected response from the snapshot API"

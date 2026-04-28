@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.6.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.5.2...together-sandbox-v1.6.0) (2026-04-24)
+
+
+### Features
+
+* api docs ([d877d5d](https://github.com/togethercomputer/together-sandbox/commit/d877d5dda2539fb4282961d9f7327d66aa2ab5af))
+* api docs ([ca38f61](https://github.com/togethercomputer/together-sandbox/commit/ca38f61124e97d88914de6f9f398f1ec862c549a))
+* Fix harbor integration issues ([75e1ae2](https://github.com/togethercomputer/together-sandbox/commit/75e1ae21b5b162f94384d458838d82e5203f2f25))
+
+## [1.5.2](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.5.1...together-sandbox-v1.5.2) (2026-04-24)
+
+
+### Bug Fixes
+
+* fix start sandbox param issue ([649e07e](https://github.com/togethercomputer/together-sandbox/commit/649e07eca701a063d2d75d80bb5bed6213bda2b8))
+
+## [1.5.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.5.0...together-sandbox-v1.5.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* Fix harbor integration issues ([aabaf39](https://github.com/togethercomputer/together-sandbox/commit/aabaf3968efeea0298b7c021cf7670cbce891cf9))
+
 ## [1.5.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.4.1...together-sandbox-v1.5.0) (2026-04-23)
 
 
