@@ -19,7 +19,9 @@ from .api.api.default.issue_container_registry_credential import asyncio as issu
 from .api.api.default.get_snapshot import asyncio as get_snapshot_api
 from .api.api.default.list_snapshots import asyncio as list_snapshots_api
 from .api.api.default.delete_snapshot import asyncio as delete_snapshot_api
-from .api.api.default.delete_snapshot_by_alias import asyncio as delete_snapshot_by_alias_api
+from .api.api.default.delete_snapshot_by_alias import (
+    asyncio as delete_snapshot_by_alias_api,
+)
 
 # ── Snapshot API models ───────────────────────────────────────────────────────
 from .api.models.alias_snapshot_body import AliasSnapshotBody
@@ -27,8 +29,9 @@ from .api.models.create_snapshot_body import CreateSnapshotBody
 from .api.models.container_registry_credential import ContainerRegistryCredential
 from .api.models.snapshot import Snapshot
 from .api.models.error import Error
+from .api.types import UNSET
 
-# ── Docker helpers ────────────────────────────────────────────────────────────
+# ── Helpers ────────────────────────────────────────────────────────────
 from .docker import (
     DockerBuildOptions,
     DockerLoginOptions,
@@ -37,6 +40,7 @@ from .docker import (
     is_docker_available,
     push_docker_image,
 )
+from ._utils import _unwrap_or_raise
 
 
 # ─── Snapshot types ──────────────────────────────────────────────────────────
@@ -92,10 +96,14 @@ class SnapshotsNamespace:
 
     async def alias(self, snapshot_id: str, alias: str) -> None:
         """Create an alias for an existing snapshot"""
-        await alias_snapshot_api(
-            UUID(snapshot_id),
-            client=self._api_client,
-            body=AliasSnapshotBody(alias=alias),
+        _unwrap_or_raise(
+            await alias_snapshot_api(
+                UUID(snapshot_id),
+                client=self._api_client,
+                body=AliasSnapshotBody(alias=alias),
+            ),
+            op="aliasSnapshot",
+            context=f"for snapshot {snapshot_id!r}",
         )
 
     async def create(self, params: CreateSnapshotParams) -> CreateSnapshotResult:
@@ -121,10 +129,8 @@ class SnapshotsNamespace:
                     image=params.image,
                     architecture="amd64",
                 ),
+                op="createSnapshot",
             )
-
-            if snapshot_data is None or not hasattr(snapshot_data, "id"):
-                raise RuntimeError("Snapshot creation returned no data")
 
             snapshot_id = str(snapshot_data.id)
 
@@ -137,7 +143,7 @@ class SnapshotsNamespace:
                 )
 
             return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)
-        
+
     async def get_by_id(self, id: str) -> Snapshot:
         """
         Get snapshot information by id.
@@ -160,12 +166,11 @@ class SnapshotsNamespace:
             >>> print(snapshot.id)
             >>> print(snapshot.byte_size)
         """
-        snapshot_data = await get_snapshot_api(UUID(id), client=self._api_client)
-
-        if snapshot_data is None:
-            raise RuntimeError(f"Snapshot with id '{id}' not found")
-        
-        return snapshot_data
+        return _unwrap_or_raise(
+            await get_snapshot_api(UUID(id), client=self._api_client),
+            op="getSnapshot",
+            context=f"for id {id!r}",
+        )
 
     async def get_by_alias(self, alias: str) -> Snapshot:
         """
@@ -189,25 +194,14 @@ class SnapshotsNamespace:
         # Remove leading '@' if present (for consistency with API)
         clean_alias = alias.lstrip("@")
 
-        snapshot_data = await get_snapshot_by_alias_api(
-            clean_alias,
-            client=self._api_client,
+        return _unwrap_or_raise(
+            await get_snapshot_by_alias_api(
+                clean_alias,
+                client=self._api_client,
+            ),
+            op="getSnapshotByAlias",
+            context=f"for alias {alias!r}",
         )
-
-
-        if snapshot_data is None:
-            raise RuntimeError(
-                f"Failed to get snapshot '{alias}': received an unexpected response from the snapshot API"
-            )
-
-        # Handle Error response (400/404)
-        if isinstance(snapshot_data, Error):
-            raise RuntimeError(
-                f"Failed to get snapshot '{alias}': {snapshot_data.message} (code: {snapshot_data.code})"
-            )
-
-        # At this point, snapshot_data must be a Snapshot
-        return snapshot_data
 
     async def list(self) -> list[Snapshot]:
         """
@@ -225,14 +219,12 @@ class SnapshotsNamespace:
             >>> for snapshot in snapshots:
             ...     print(snapshot.id)
         """
-        snapshot_list = await list_snapshots_api(
-            client=self._api_client,
+        return _unwrap_or_raise(
+            await list_snapshots_api(
+                client=self._api_client,
+            ),
+            op="getSnapshots",
         )
-
-        if snapshot_list is None:
-            raise RuntimeError("List snapshots returned no data")
-
-        return snapshot_list
 
     async def delete_by_id(self, id: str) -> None:
         """
@@ -244,7 +236,11 @@ class SnapshotsNamespace:
         Raises:
             errors.UnexpectedStatus: If the API request fails
         """
-        await delete_snapshot_api(UUID(id), client=self._api_client)
+        _unwrap_or_raise(
+            await delete_snapshot_api(UUID(id), client=self._api_client),
+            op="deleteSnapshot",
+            context=f"for snapshot {id!r}",
+        )
 
     async def delete_by_alias(self, alias: str) -> None:
         """
@@ -259,9 +255,13 @@ class SnapshotsNamespace:
         # Remove leading '@' if present (for consistency with API)
         clean_alias = alias.lstrip("@")
 
-        await delete_snapshot_by_alias_api(
-            clean_alias,
-            client=self._api_client,
+        _unwrap_or_raise(
+            await delete_snapshot_by_alias_api(
+                clean_alias,
+                client=self._api_client,
+            ),
+            op="deleteSnapshotByAlias",
+            context=f"for snapshot {alias!r}",
         )
 
     # ─── Private helpers ──────────────────────────────────────────────────────
@@ -272,7 +272,8 @@ class SnapshotsNamespace:
     ) -> CreateSnapshotResult:
         architecture = (
             "arm64"
-            if platform.machine().lower() == "arm64" and is_local_environment(self._base_url)
+            if platform.machine().lower() == "arm64"
+            and is_local_environment(self._base_url)
             else "amd64"
         )
         context = os.path.realpath(params.context)
@@ -328,19 +329,21 @@ class SnapshotsNamespace:
                 image=full_image_name,
                 architecture=architecture,
             ),
+            op="createSnapshot",
         )
-
-        if snapshot_data is None or not hasattr(snapshot_data, "id"):
-            raise RuntimeError("Snapshot creation returned no data")
 
         snapshot_id = str(snapshot_data.id)
 
         if params.alias:
             _emit("alias", "Creating alias...")
-            await alias_snapshot_api(
-                snapshot_data.id,
-                client=self._api_client,
-                body=AliasSnapshotBody(alias=params.alias),
+            await _unwrap_or_raise(
+                alias_snapshot_api(
+                    snapshot_data.id,
+                    client=self._api_client,
+                    body=AliasSnapshotBody(alias=params.alias),
+                ),
+                op="aliasSnapshot",
+                context=f"for snapshot {snapshot_id!r}",
             )
 
         return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)

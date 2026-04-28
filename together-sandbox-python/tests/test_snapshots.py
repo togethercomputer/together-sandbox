@@ -44,6 +44,7 @@ class TestSnapshotsNamespace:
 
         # Mock the get_snapshot_by_alias_api function
         with pytest.MonkeyPatch.context() as mp:
+
             async def mock_get_snapshot_by_alias_api(alias: str, *, client):
                 return mock_snapshot
 
@@ -85,6 +86,7 @@ class TestSnapshotsNamespace:
         received_alias = None
 
         with pytest.MonkeyPatch.context() as mp:
+
             async def mock_get_snapshot_by_alias_api(alias: str, *, client):
                 nonlocal received_alias
                 received_alias = alias
@@ -111,6 +113,7 @@ class TestSnapshotsNamespace:
         )
 
         with pytest.MonkeyPatch.context() as mp:
+
             async def mock_get_snapshot_by_alias_api(alias: str, *, client):
                 return None  # Simulate unexpected response
 
@@ -120,7 +123,7 @@ class TestSnapshotsNamespace:
             )
 
             # Should raise RuntimeError with unexpected response message
-            with pytest.raises(RuntimeError, match="unexpected response"):
+            with pytest.raises(RuntimeError, match="getSnapshotByAlias returned None"):
                 await snapshots.get_by_alias("nonexistent@alias")
 
     async def test_get_snapshot_error_response_raises_error(self):
@@ -141,6 +144,7 @@ class TestSnapshotsNamespace:
         )
 
         with pytest.MonkeyPatch.context() as mp:
+
             async def mock_get_snapshot_by_alias_api(alias: str, *, client):
                 return mock_error  # Simulate API error response
 
@@ -154,5 +158,7 @@ class TestSnapshotsNamespace:
                 await snapshots.get_by_alias("nonexistent@alias")
 
             # Verify the error message contains both the message and code
-            with pytest.raises(RuntimeError, match="Snapshot with alias 'nonexistent@alias' not found"):
+            with pytest.raises(
+                RuntimeError, match="Snapshot with alias 'nonexistent@alias' not found"
+            ):
                 await snapshots.get_by_alias("nonexistent@alias")

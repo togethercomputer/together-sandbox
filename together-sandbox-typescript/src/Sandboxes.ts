@@ -64,8 +64,21 @@ export class SandboxesNamespace {
       throwOnError: true,
     });
     const data = camelCaseKeys(result.data);
-    const { url, token } = resolveConnectionDetails(data);
 
+    const waitResult = await api.waitForSandbox({
+      client: this._apiClient,
+      path: { id: sandboxId },
+      throwOnError: true,
+    });
+
+    if (waitResult.data.status !== "running") {
+      throw new Error(
+        `Sandbox did not reach its running state, it is ${waitResult.data.status}, please try again`,
+      );
+    }
+
+    const finalData = camelCaseKeys(waitResult.data);
+    const { url, token } = resolveConnectionDetails(finalData);
     const sandboxClient = createSandboxClient(
       createSandboxConfig({
         baseUrl: url,
@@ -73,7 +86,7 @@ export class SandboxesNamespace {
       }),
     );
 
-    return new Sandbox(data, sandboxClient, this._apiClient);
+    return new Sandbox(finalData, sandboxClient, this._apiClient);
   }
 
   /**
@@ -86,6 +99,17 @@ export class SandboxesNamespace {
       body: { stop_type: "hibernate" },
       throwOnError: true,
     });
+    const waitResult = await api.waitForSandbox({
+      client: this._apiClient,
+      path: { id: sandboxId },
+      throwOnError: true,
+    });
+
+    if (waitResult.data.status !== "stopped") {
+      throw new Error(
+        `Sandbox did not reach its stopped state, it is ${waitResult.data.status}, please try again`,
+      );
+    }
   }
 
   /**
@@ -98,5 +122,16 @@ export class SandboxesNamespace {
       body: { stop_type: "shutdown" },
       throwOnError: true,
     });
+    const waitResult = await api.waitForSandbox({
+      client: this._apiClient,
+      path: { id: sandboxId },
+      throwOnError: true,
+    });
+
+    if (waitResult.data.status !== "stopped") {
+      throw new Error(
+        `Sandbox did not reach its stopped state, it is ${waitResult.data.status}, please try again`,
+      );
+    }
   }
 }

@@ -12,6 +12,7 @@ from .api.client import AuthenticatedClient as ApiClient
 
 # ── Management API endpoint functions ─────────────────────────────────────────
 from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
+from .api.api.default.wait_for_sandbox import asyncio as wait_for_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
@@ -45,39 +46,18 @@ from .sandbox.models.file_action_request import FileActionRequest
 from .sandbox.models.file_action_request_action import FileActionRequestAction
 from .sandbox.models.file_info import FileInfo
 from .sandbox.models.exec_stdin import ExecStdin
+from .sandbox.models.exec_stdout import ExecStdout
 from .sandbox.models.update_exec_request import UpdateExecRequest
 from .sandbox.models.error import Error
 from .sandbox.types import File
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
 from ._streaming import stream_sse_json
-
-
-# ─── Private helpers ──────────────────────────────────────────────────────────
-
-
-def _unwrap_or_raise(result: Any, *, op: str, context: str = "") -> Any:
-    """Raise ``RuntimeError`` if *result* is ``None`` or an ``Error`` model.
-
-    Args:
-        result:  Value returned by a generated API endpoint.
-        op:      Short operation name used in error messages (e.g. ``"readFile"``).
-        context: Extra detail appended to the message (e.g. ``"for path '/foo'"``).
-
-    Returns:
-        *result* unchanged when it is neither ``None`` nor an ``Error``.
-    """
-    suffix = f" {context}" if context else ""
-    if result is None:
-        raise RuntimeError(f"{op} returned None{suffix}")
-    if isinstance(result, Error):
-        raise RuntimeError(
-            f"Failed to {op}{suffix}: {result.message} (code: {result.code})"
-        )
-    return result
+from ._utils import _unwrap_or_raise
 
 
 # ─── Files facade ─────────────────────────────────────────────────────────────
+
 
 class Files:
     """
@@ -92,13 +72,14 @@ class Files:
 
     async def read(self, path: str) -> str:
         """Read file content at the specified path."""
-        result = await read_file_api(path, client=self._client)
-        result = _unwrap_or_raise(result, op="readFile", context=f"for path {path!r}")
+        result = _unwrap_or_raise(
+            await read_file_api(path, client=self._client),
+            op="readFile",
+            context=f"for path {path!r}",
+        )
         return result.content
 
-    async def create(
-        self, path: str, content: bytes | str
-    ) -> str:
+    async def create(self, path: str, content: bytes | str) -> str:
         """
         Create a file at the specified path with binary content.
 
@@ -111,50 +92,64 @@ class Files:
         """
         # Convert string to bytes if necessary
         if isinstance(content, str):
-            content_bytes = content.encode('utf-8')
+            content_bytes = content.encode("utf-8")
         else:
             content_bytes = content
 
         # Create a File object with binary content
         file_obj = File(payload=io.BytesIO(content_bytes))
-
-        result = await create_file_api(path, client=self._client, body=file_obj)
-        result = _unwrap_or_raise(result, op="createFile", context=f"for path {path!r}")
+        result = _unwrap_or_raise(
+            await create_file_api(path, client=self._client, body=file_obj),
+            op="createFile",
+            context=f"for path {path!r}",
+        )
         return result.content
 
     async def delete(self, path: str) -> None:
         """Delete a file at the specified path."""
-        result = await delete_file_api(path, client=self._client)
-        _unwrap_or_raise(result, op="deleteFile", context=f"for path {path!r}")
+        _unwrap_or_raise(
+            await delete_file_api(path, client=self._client),
+            op="deleteFile",
+            context=f"for path {path!r}",
+        )
 
     async def move(self, from_path: str, to_path: str) -> None:
         """Move a file from one path to another."""
-        result = await perform_file_action_api(
-            from_path,
-            client=self._client,
-            body=FileActionRequest(
-                action=FileActionRequestAction.MOVE,
-                destination=to_path,
+        _unwrap_or_raise(
+            await perform_file_action_api(
+                from_path,
+                client=self._client,
+                body=FileActionRequest(
+                    action=FileActionRequestAction.MOVE,
+                    destination=to_path,
+                ),
             ),
+            op="moveFile",
+            context=f"from {from_path!r} to {to_path!r}",
         )
-        _unwrap_or_raise(result, op="moveFile", context=f"from {from_path!r} to {to_path!r}")
 
     async def copy(self, from_path: str, to_path: str) -> None:
         """Copy a file from one path to another."""
-        result = await perform_file_action_api(
-            from_path,
-            client=self._client,
-            body=FileActionRequest(
-                action=FileActionRequestAction.COPY,
-                destination=to_path,
+        _unwrap_or_raise(
+            await perform_file_action_api(
+                from_path,
+                client=self._client,
+                body=FileActionRequest(
+                    action=FileActionRequestAction.COPY,
+                    destination=to_path,
+                ),
             ),
+            op="copyFile",
+            context=f"from {from_path!r} to {to_path!r}",
         )
-        _unwrap_or_raise(result, op="copyFile", context=f"from {from_path!r} to {to_path!r}")
 
     async def stat(self, path: str) -> FileInfo:
         """Get file metadata at the specified path."""
-        result = await get_file_stat_api(path, client=self._client)
-        return _unwrap_or_raise(result, op="getFileStat", context=f"for path {path!r}")
+        return _unwrap_or_raise(
+            await get_file_stat_api(path, client=self._client),
+            op="getFileStat",
+            context=f"for path {path!r}",
+        )
 
     def watch(
         self,
@@ -197,29 +192,40 @@ class Execs:
 
     async def list(self):
         """List all active execs."""
-        result = await list_execs_api(client=self._client)
-        result = _unwrap_or_raise(result, op="listExecs")
+        result = _unwrap_or_raise(
+            await list_execs_api(client=self._client), op="listExecs"
+        )
         return result.execs
 
     async def create(self, body: CreateExecRequest):
         """Create a new exec."""
-        result = await create_exec_api(client=self._client, body=body)
-        return _unwrap_or_raise(result, op="createExec")
+        return _unwrap_or_raise(
+            await create_exec_api(client=self._client, body=body), op="createExec"
+        )
 
     async def get(self, id_: str):
         """Get exec by ID."""
-        result = await get_exec_api(id_, client=self._client)
-        return _unwrap_or_raise(result, op="getExec", context=f"for id {id_!r}")
+        return _unwrap_or_raise(
+            await get_exec_api(id_, client=self._client),
+            op="getExec",
+            context=f"for id {id_!r}",
+        )
 
     async def update(self, id_: str, body: UpdateExecRequest):
         """Update exec status."""
-        result = await update_exec_api(id_, client=self._client, body=body)
-        return _unwrap_or_raise(result, op="updateExec", context=f"for id {id_!r}")
+        return _unwrap_or_raise(
+            await update_exec_api(id_, client=self._client, body=body),
+            op="updateExec",
+            context=f"for id {id_!r}",
+        )
 
     async def delete(self, id_: str) -> None:
         """Delete an exec."""
-        result = await delete_exec_api(id_, client=self._client)
-        _unwrap_or_raise(result, op="deleteExec", context=f"for id {id_!r}")
+        _unwrap_or_raise(
+            await delete_exec_api(id_, client=self._client),
+            op="deleteExec",
+            context=f"for id {id_!r}",
+        )
 
     def stream_output(
         self, id_: str, last_sequence: int | None = None
@@ -236,19 +242,23 @@ class Execs:
 
     async def get_output(
         self, id_: str, last_sequence: int | None = None
-    ) -> str:
+    ) -> ExecStdout:
         """Fetch exec output as plain text (one-shot poll)."""
-        result = await get_exec_output_api(id_, client=self._client, last_sequence=last_sequence)
-        if isinstance(result, str):
-            return result
-        if result and hasattr(result, 'output'):
-            return result.output
-        return ""
+        return _unwrap_or_raise(
+            await get_exec_output_api(
+                id_, client=self._client, last_sequence=last_sequence
+            ),
+            op="getOutput",
+            context=f"for id {id_!r}",
+        )
 
     async def send_stdin(self, id_: str, body: ExecStdin):
         """Send stdin to an exec (renamed from exec_exec_stdin)."""
-        result = await exec_exec_stdin_api(id_, client=self._client, body=body)
-        return _unwrap_or_raise(result, op="execStdin", context=f"for id {id_!r}")
+        return _unwrap_or_raise(
+            await exec_exec_stdin_api(id_, client=self._client, body=body),
+            op="execStdin",
+            context=f"for id {id_!r}",
+        )
 
     def stream_list(self) -> AsyncIterator[dict[str, Any]]:
         """Stream list of all active execs via SSE (renamed from stream_execs_list)."""
@@ -273,8 +283,9 @@ class Ports:
 
     async def list(self):
         """List open ports."""
-        result = await list_ports_api(client=self._client)
-        result = _unwrap_or_raise(result, op="listPorts")
+        result = _unwrap_or_raise(
+            await list_ports_api(client=self._client), op="listPorts"
+        )
         return result.ports
 
     def stream_list(self) -> AsyncIterator[dict[str, Any]]:
@@ -296,19 +307,29 @@ class Directories:
 
     async def list(self, path: str) -> list[FileInfo]:
         """List directory contents."""
-        result = await list_directory_api(path, client=self._client)
-        result = _unwrap_or_raise(result, op="listDirectory", context=f"for path {path!r}")
+        result = _unwrap_or_raise(
+            await list_directory_api(path, client=self._client),
+            op="listDirectory",
+            context=f"for path {path!r}",
+        )
         return result.files
 
     async def create(self, path: str) -> None:
         """Create a directory."""
-        result = await create_directory_api(path, client=self._client)
-        _unwrap_or_raise(result, op="createDirectory", context=f"for path {path!r}")
+        _unwrap_or_raise(
+            await create_directory_api(path, client=self._client),
+            op="createDirectory",
+            context=f"for path {path!r}",
+        )
 
     async def delete(self, path: str) -> None:
         """Delete a directory."""
-        result = await delete_directory_api(path, client=self._client)
-        _unwrap_or_raise(result, op="deleteDirectory", context=f"for path {path!r}")
+        _unwrap_or_raise(
+            await delete_directory_api(path, client=self._client),
+            op="deleteDirectory",
+            context=f"for path {path!r}",
+        )
+
 
 # ─── Sandbox (connected sandbox) ─────────────────────────────────────────────
 
@@ -393,13 +414,40 @@ class Sandbox:
 
     async def hibernate(self) -> None:
         """Suspend (hibernate) this VM."""
-        await stop_sandbox_api(self.id, client=self._api_client,
-                               body=StopSandboxBody(stop_type=StopSandboxBodyStopType.HIBERNATE))
+        await stop_sandbox_api(
+            self.id,
+            client=self._api_client,
+            body=StopSandboxBody(stop_type=StopSandboxBodyStopType.HIBERNATE),
+        )
+        vm_info = _unwrap_or_raise(
+            await wait_for_sandbox_api(self.id, client=self._api_client),
+            op="waitForSandbox",
+            context=f"for sandbox {self.id!r}",
+        )
+
+        if vm_info.status != "stopped":
+            raise RuntimeError(
+                f"Failed to hibernate sandbox '{self.id}'. Its final status was {vm_info.status}."
+            )
 
     async def shutdown(self) -> None:
         """Shut down this VM."""
-        await stop_sandbox_api(self.id, client=self._api_client,
-                               body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN))
+        await stop_sandbox_api(
+            self.id,
+            client=self._api_client,
+            body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN),
+        )
+
+        vm_info = _unwrap_or_raise(
+            await wait_for_sandbox_api(self.id, client=self._api_client),
+            op="waitForSandbox",
+            context=f"for sandbox {self.id!r}",
+        )
+
+        if vm_info.status != "stopped":
+            raise RuntimeError(
+                f"Failed to stop sandbox '{self.id}'. Its final status was {vm_info.status}."
+            )
 
     async def close(self) -> None:
         """Close the underlying sandbox client connection."""
@@ -438,6 +486,7 @@ class Sandbox:
             sandbox = await Sandbox.start("sandbox-id", api_key="your-key")
         """
         from ._together_sandbox import TogetherSandbox
+
         sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
         return await sdk.sandboxes.start(sandbox_id, start_options=start_options)
 
@@ -451,6 +500,7 @@ class Sandbox:
     ) -> None:
         """Hibernate a sandbox by ID without a running Sandbox instance."""
         from ._together_sandbox import TogetherSandbox
+
         sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
         await sdk.sandboxes.hibernate(sandbox_id)
 
@@ -464,5 +514,6 @@ class Sandbox:
     ) -> None:
         """Shut down a sandbox by ID without a running Sandbox instance."""
         from ._together_sandbox import TogetherSandbox
+
         sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
         await sdk.sandboxes.shutdown(sandbox_id)
