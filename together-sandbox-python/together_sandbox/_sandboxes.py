@@ -18,11 +18,14 @@ from .api.models.stop_sandbox_body import StopSandboxBody
 from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 from .api.models.create_sandbox_body import CreateSandboxBody
 from .api.models.start_sandbox_body import StartSandboxBody
-from .api.models.error import Error
 from .api.types import UNSET
+
+# ── Helpers ─────────────────────────────────────────────────────
+from ._utils import _unwrap_or_raise
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
+
 
 def _resolve_connection(sandbox: SandboxModel) -> tuple[str, str]:
     """
@@ -31,8 +34,6 @@ def _resolve_connection(sandbox: SandboxModel) -> tuple[str, str]:
     if not sandbox.agent_url or not sandbox.agent_token:
         raise RuntimeError("Sandbox has no agent connection details")
     return sandbox.agent_url, sandbox.agent_token
-
-
 
 
 class SandboxesNamespace:
@@ -63,33 +64,20 @@ class SandboxesNamespace:
         body = UNSET
         if start_options is not None and start_options.version_number is not None:
             body = StartSandboxBody(version_number=start_options.version_number)
-        # start_sandbox_api returns Error | Sandbox | None directly (not wrapped in response)
-        vm_info = await start_sandbox_api(sandbox_id, client=self._api_client, body=body)
 
-        if vm_info is None:
-            raise RuntimeError(
-                f"startSandbox for sandbox '{sandbox_id}' returned no data. "
-                "Check that the sandbox ID is valid and your API key has the required scopes."
-            )
+        vm_info = _unwrap_or_raise(
+            await start_sandbox_api(sandbox_id, client=self._api_client, body=body),
+            op="startSandbox",
+            context=f"for sandbox {sandbox_id!r}",
+        )
 
-        if isinstance(vm_info, Error):
-            raise RuntimeError(
-                f"Failed to start sandbox '{sandbox_id}': {vm_info.message} (code: {vm_info.code})"
-            )
+        vm_info = _unwrap_or_raise(
+            await wait_for_sandbox_api(sandbox_id, client=self._api_client),
+            op="waitForSandbox",
+            context=f"for sandbox {sandbox_id!r}",
+        )
 
-        vm_info = await wait_for_sandbox_api(sandbox_id, client=self._api_client)
-        
-        if vm_info is None:
-            raise RuntimeError(
-                f"waitForSandbox for sandbox '{sandbox_id}' returned no data. "
-            )
-
-        if isinstance(vm_info, Error):
-            raise RuntimeError(
-                f"Failed to wait for sandbox '{sandbox_id}': {vm_info.message} (code: {vm_info.code})"
-            )
-        
-        if vm_info.status != 'running':
+        if vm_info.status != "running":
             raise RuntimeError(
                 f"Failed to start sandbox '{sandbox_id}'. Its final status was {vm_info.status}."
             )
@@ -107,66 +95,65 @@ class SandboxesNamespace:
 
     async def create(self, params: CreateSandboxParams) -> SandboxModel:
         """Create a new sandbox (does not start the VM)."""
-       
 
         body = CreateSandboxBody(
             id=params.id if params.id is not None else UNSET,
             snapshot_id=params.snapshot_id if params.snapshot_id is not None else UNSET,
-            snapshot_alias=params.snapshot_alias if params.snapshot_alias is not None else UNSET,
+            snapshot_alias=(
+                params.snapshot_alias if params.snapshot_alias is not None else UNSET
+            ),
             ephemeral=params.ephemeral if params.ephemeral is not None else UNSET,
             millicpu=params.millicpu,
             memory_bytes=params.memory_bytes,
             disk_bytes=params.disk_bytes,
         )
-        result = await create_sandbox_api(client=self._api_client, body=body)
-        if result is None:
-            raise RuntimeError("createSandbox returned None")
-        if isinstance(result, Error):
-            raise RuntimeError(
-                f"Failed to create sandbox: {result.message} (code: {result.code})"
-            )
-        return result
+        return _unwrap_or_raise(
+            await create_sandbox_api(client=self._api_client, body=body),
+            op="createSandbox",
+        )
 
     async def hibernate(self, sandbox_id: str) -> None:
         """Hibernate (suspend) a VM by sandbox ID."""
-        await stop_sandbox_api(sandbox_id, client=self._api_client,
-                               body=StopSandboxBody(stop_type=StopSandboxBodyStopType.HIBERNATE))
-        
-        vm_info = await wait_for_sandbox_api(sandbox_id, client=self._api_client)
-        
-        if vm_info is None:
-            raise RuntimeError(
-                f"waitForSandbox for sandbox '{sandbox_id}' returned no data. "
-            )
+        _unwrap_or_raise(
+            await stop_sandbox_api(
+                sandbox_id,
+                client=self._api_client,
+                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.HIBERNATE),
+            ),
+            op="hibernateSandbox",
+            context=f"for sandbox {sandbox_id!r}",
+        )
 
-        if isinstance(vm_info, Error):
-            raise RuntimeError(
-                f"Failed to wait for sandbox '{sandbox_id}': {vm_info.message} (code: {vm_info.code})"
-            )
-        
-        if vm_info.status != 'stopped':
+        vm_info = _unwrap_or_raise(
+            await wait_for_sandbox_api(sandbox_id, client=self._api_client),
+            op="stopSandbox",
+            context=f"for sandbox {sandbox_id!r}",
+        )
+
+        if vm_info.status != "stopped":
             raise RuntimeError(
                 f"Failed to hibernate sandbox '{sandbox_id}'. Its final status was {vm_info.status}."
             )
 
     async def shutdown(self, sandbox_id: str) -> None:
         """Shut down a VM by sandbox ID."""
-        await stop_sandbox_api(sandbox_id, client=self._api_client,
-                               body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN))
-        
-        vm_info = await wait_for_sandbox_api(sandbox_id, client=self._api_client)
-        
-        if vm_info is None:
-            raise RuntimeError(
-                f"waitForSandbox for sandbox '{sandbox_id}' returned no data. "
-            )
+        _unwrap_or_raise(
+            await stop_sandbox_api(
+                sandbox_id,
+                client=self._api_client,
+                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN),
+            ),
+            op="stopSandbox",
+            context=f"for sandbox {sandbox_id!r}",
+        )
 
-        if isinstance(vm_info, Error):
-            raise RuntimeError(
-                f"Failed to wait for sandbox '{sandbox_id}': {vm_info.message} (code: {vm_info.code})"
-            )
-        
-        if vm_info.status != 'stopped':
+        vm_info = _unwrap_or_raise(
+            await wait_for_sandbox_api(sandbox_id, client=self._api_client),
+            op="waitForSandbox",
+            context=f"for sandbox {sandbox_id!r}",
+        )
+
+        if vm_info.status != "stopped":
             raise RuntimeError(
                 f"Failed to stop sandbox '{sandbox_id}'. Its final status was {vm_info.status}."
             )
