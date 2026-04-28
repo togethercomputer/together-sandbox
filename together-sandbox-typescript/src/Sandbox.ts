@@ -290,6 +290,18 @@ export class Sandbox {
       body: { stop_type: "hibernate" },
       throwOnError: true,
     });
+
+    const waitResult = await api.waitForSandbox({
+      client: this._apiClient,
+      path: { id: this.id },
+      throwOnError: true,
+    });
+
+    if (waitResult.data.status !== "stopped") {
+      throw new Error(
+        `Sandbox did not reach its stopped state, it is ${waitResult.data.status}, please try again`,
+      );
+    }
   }
 
   /** Shut down this VM. */
@@ -300,6 +312,17 @@ export class Sandbox {
       body: { stop_type: "shutdown" },
       throwOnError: true,
     });
+    const waitResult = await api.waitForSandbox({
+      client: this._apiClient,
+      path: { id: this.id },
+      throwOnError: true,
+    });
+
+    if (waitResult.data.status !== "stopped") {
+      throw new Error(
+        `Sandbox did not reach its stopped state, it is ${waitResult.data.status}, please try again`,
+      );
+    }
   }
 
   // ── Static factory methods ─────────────────────────────────────────────

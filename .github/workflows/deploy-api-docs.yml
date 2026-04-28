@@ -1,0 +1,37 @@
+name: Deploy API Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api-openapi.json"
+      - "sandbox-openapi.json"
+      - "api-docs/**"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy specs into docs
+        run: |
+          cp api-openapi.json api-docs/api-openapi.json
+          cp sandbox-openapi.json api-docs/sandbox-openapi.json
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: api-docs/
+
+      - uses: actions/deploy-pages@v4
+        id: deployment

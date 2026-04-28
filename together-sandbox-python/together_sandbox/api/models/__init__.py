@@ -5,8 +5,7 @@ from .authorize_body import AuthorizeBody
 from .container_registry_credential import ContainerRegistryCredential
 from .create_sandbox_body import CreateSandboxBody
 from .create_snapshot_body import CreateSnapshotBody
-from .create_snapshot_body_image import CreateSnapshotBodyImage
-from .create_snapshot_body_image_architecture import CreateSnapshotBodyImageArchitecture
+from .create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
 from .error import Error
 from .error_errors_item import ErrorErrorsItem
 from .error_errors_item_details import ErrorErrorsItemDetails
@@ -41,8 +40,7 @@ __all__ = (
     "ContainerRegistryCredential",
     "CreateSandboxBody",
     "CreateSnapshotBody",
-    "CreateSnapshotBodyImage",
-    "CreateSnapshotBodyImageArchitecture",
+    "CreateSnapshotBodyArchitecture",
     "Error",
     "ErrorErrorsItem",
     "ErrorErrorsItemDetails",

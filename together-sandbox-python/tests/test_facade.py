@@ -7,16 +7,29 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from together_sandbox._sandbox import Directories, Execs, Files, Ports, Sandbox
+from together_sandbox._sandbox import (
+    Directories,
+    Execs,
+    Files,
+    Ports,
+    Sandbox,
+    _unwrap_or_raise,
+)
 from together_sandbox._sandboxes import SandboxesNamespace, _resolve_connection
 from together_sandbox._snapshots import (
-    _parse_image_reference,
     SnapshotsNamespace,
-    CreateImageSnapshotParams
+    CreateImageSnapshotParams,
 )
 from together_sandbox._together_sandbox import TogetherSandbox
 from together_sandbox._types import StartOptions
 from together_sandbox.sandbox.models.file_read_response import FileReadResponse
+from together_sandbox.sandbox.models.file_operation_response import (
+    FileOperationResponse,
+)
+from together_sandbox.sandbox.models.file_action_response import FileActionResponse
+from together_sandbox.sandbox.models.exec_delete_response import ExecDeleteResponse
+from together_sandbox.sandbox.models.ports_list_response import PortsListResponse
+from together_sandbox.sandbox.models.error import Error
 from together_sandbox.sandbox.types import File
 from together_sandbox.api.models.sandbox import Sandbox as SandboxModel
 from together_sandbox.api.models.start_sandbox_body import StartSandboxBody
@@ -81,8 +94,15 @@ class TestSandboxesNamespaceStart:
             new_callable=AsyncMock,
             return_value=vm_info,
         ) as mock_api:
-            with patch("together_sandbox._sandboxes.SandboxClient"):
-                await ns.start("sandbox-1")
+            with patch(
+                "together_sandbox._sandboxes.wait_for_sandbox_api",
+                new_callable=AsyncMock,
+                return_value=_make_sandbox_model(
+                    status="running"
+                ),  # must pass the status guard
+            ):
+                with patch("together_sandbox._sandboxes.SandboxClient"):
+                    await ns.start("sandbox-1")
 
             call_kwargs = mock_api.call_args.kwargs
             assert call_kwargs["body"] is UNSET
@@ -98,8 +118,17 @@ class TestSandboxesNamespaceStart:
             new_callable=AsyncMock,
             return_value=vm_info,
         ) as mock_api:
-            with patch("together_sandbox._sandboxes.SandboxClient"):
-                await ns.start("sandbox-1", start_options=StartOptions(version_number=123))
+            with patch(
+                "together_sandbox._sandboxes.wait_for_sandbox_api",
+                new_callable=AsyncMock,
+                return_value=_make_sandbox_model(
+                    status="running"
+                ),  # must pass the status guard
+            ):
+                with patch("together_sandbox._sandboxes.SandboxClient"):
+                    await ns.start(
+                        "sandbox-1", start_options=StartOptions(version_number=123)
+                    )
 
             call_kwargs = mock_api.call_args.kwargs
             body = call_kwargs["body"]
@@ -117,14 +146,20 @@ class TestSandboxesNamespaceStart:
             new_callable=AsyncMock,
             return_value=vm_info,
         ) as mock_api:
-            with patch("together_sandbox._sandboxes.SandboxClient"):
-                await ns.start("sandbox-1", start_options=StartOptions(version_number=None))
+            with patch(
+                "together_sandbox._sandboxes.wait_for_sandbox_api",
+                new_callable=AsyncMock,
+                return_value=_make_sandbox_model(
+                    status="running"
+                ),  # must pass the status guard
+            ):
+                with patch("together_sandbox._sandboxes.SandboxClient"):
+                    await ns.start(
+                        "sandbox-1", start_options=StartOptions(version_number=None)
+                    )
 
             call_kwargs = mock_api.call_args.kwargs
             assert call_kwargs["body"] is UNSET
-
-
-
 
 
 class TestTogetherSandbox:
@@ -339,53 +374,362 @@ class TestFiles:
             # Verify the response (unwrapped to content string)
             assert result == ""
 
+# ─── _unwrap_or_raise tests ───────────────────────────────────────────────────
 
-# ─── _parse_image_reference tests ────────────────────────────────────────────
+
+class TestUnwrapOrRaise:
+    """Tests for the _unwrap_or_raise() private helper."""
+
+    def test_returns_result_when_valid(self):
+        """Returns the value unchanged when it is not None or Error."""
+        obj = object()
+        assert _unwrap_or_raise(obj, op="testOp") is obj
+
+    def test_raises_on_none_without_context(self):
+        """Raises RuntimeError with op name when result is None and no context given."""
+        with pytest.raises(RuntimeError, match="testOp returned None$"):
+            _unwrap_or_raise(None, op="testOp")
+
+    def test_raises_on_none_with_context(self):
+        """Raises RuntimeError including context when result is None."""
+        with pytest.raises(RuntimeError, match="testOp returned None for path '/foo'"):
+            _unwrap_or_raise(None, op="testOp", context="for path '/foo'")
+
+    def test_raises_on_error_without_context(self):
+        """Raises RuntimeError with Error message when result is an Error."""
+        err = Error(code=500, message="internal error")
+        with pytest.raises(
+            RuntimeError, match="Failed to testOp: internal error \\(code: 500\\)"
+        ):
+            _unwrap_or_raise(err, op="testOp")
+
+    def test_raises_on_error_with_context(self):
+        """Raises RuntimeError including context when result is an Error."""
+        err = Error(code=404, message="not found")
+        with pytest.raises(
+            RuntimeError,
+            match="Failed to testOp for path '/bar': not found \\(code: 404\\)",
+        ):
+            _unwrap_or_raise(err, op="testOp", context="for path '/bar'")
 
 
-class TestParseImageReference:
-    """Tests for _parse_image_reference() Docker image reference parser."""
+# ─── Files error-path tests ───────────────────────────────────────────────────
 
-    def test_bare_name(self):
-        """Test parsing a bare image name without tag."""
-        result = _parse_image_reference("ubuntu")
-        assert result.name == "ubuntu"
-        assert result.registry is None
-        assert result.repository is None
-        assert result.tag is None
 
-    def test_name_with_tag(self):
-        """Test parsing name and tag."""
-        result = _parse_image_reference("node:24")
-        assert result.name == "node"
-        assert result.tag == "24"
-        assert result.registry is None
-        assert result.repository is None
+class TestFilesErrorPaths:
+    """Tests that Files methods raise RuntimeError on API errors."""
 
-    def test_repository_with_name_and_tag(self):
-        """Test parsing repository, name, and tag."""
-        result = _parse_image_reference("org/myapp:latest")
-        assert result.registry is None
-        assert result.repository == "org"
-        assert result.name == "myapp"
-        assert result.tag == "latest"
+    @pytest.mark.asyncio
+    async def test_read_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=404, message="not found")
+        with patch(
+            "together_sandbox._sandbox.read_file_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(RuntimeError, match="Failed to readFile for path '/x'"):
+                await Files(mock_client).read("/x")
 
-    def test_registry_with_repository_name_and_tag(self):
-        """Test parsing full reference with registry, repository, name, and tag."""
-        result = _parse_image_reference("ghcr.io/org/node:24")
-        assert result.registry == "ghcr.io"
-        assert result.repository == "org"
-        assert result.name == "node"
-        assert result.tag == "24"
+    @pytest.mark.asyncio
+    async def test_read_raises_on_none(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.read_file_api",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            with pytest.raises(RuntimeError, match="readFile returned None"):
+                await Files(mock_client).read("/x")
 
-    def test_registry_with_port(self):
-        """Test parsing registry with port number."""
-        result = _parse_image_reference("localhost:5000/myapp:dev")
-        assert result.registry == "localhost:5000"
-        assert result.repository is None
-        assert result.name == "myapp"
-        assert result.tag == "dev"
+    @pytest.mark.asyncio
+    async def test_create_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=500, message="server error")
+        with patch(
+            "together_sandbox._sandbox.create_file_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(
+                RuntimeError, match="Failed to createFile for path '/x'"
+            ):
+                await Files(mock_client).create("/x", "content")
 
+    @pytest.mark.asyncio
+    async def test_create_raises_on_none(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.create_file_api",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            with pytest.raises(RuntimeError, match="createFile returned None"):
+                await Files(mock_client).create("/x", "content")
+
+    @pytest.mark.asyncio
+    async def test_delete_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=404, message="not found")
+        with patch(
+            "together_sandbox._sandbox.delete_file_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(
+                RuntimeError, match="Failed to deleteFile for path '/x'"
+            ):
+                await Files(mock_client).delete("/x")
+
+    @pytest.mark.asyncio
+    async def test_delete_raises_on_none(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.delete_file_api",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            with pytest.raises(RuntimeError, match="deleteFile returned None"):
+                await Files(mock_client).delete("/x")
+
+    @pytest.mark.asyncio
+    async def test_move_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=400, message="bad request")
+        with patch(
+            "together_sandbox._sandbox.perform_file_action_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(RuntimeError, match="Failed to moveFile"):
+                await Files(mock_client).move("/src", "/dst")
+
+    @pytest.mark.asyncio
+    async def test_move_raises_on_none(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.perform_file_action_api",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            with pytest.raises(RuntimeError, match="moveFile returned None"):
+                await Files(mock_client).move("/src", "/dst")
+
+    @pytest.mark.asyncio
+    async def test_copy_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=400, message="bad request")
+        with patch(
+            "together_sandbox._sandbox.perform_file_action_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(RuntimeError, match="Failed to copyFile"):
+                await Files(mock_client).copy("/src", "/dst")
+
+    @pytest.mark.asyncio
+    async def test_copy_raises_on_none(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.perform_file_action_api",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            with pytest.raises(RuntimeError, match="copyFile returned None"):
+                await Files(mock_client).copy("/src", "/dst")
+
+    @pytest.mark.asyncio
+    async def test_stat_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=404, message="not found")
+        with patch(
+            "together_sandbox._sandbox.get_file_stat_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(RuntimeError, match="Failed to getFileStat"):
+                await Files(mock_client).stat("/x")
+
+    @pytest.mark.asyncio
+    async def test_stat_raises_on_none(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.get_file_stat_api",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            with pytest.raises(RuntimeError, match="getFileStat returned None"):
+                await Files(mock_client).stat("/x")
+
+
+# ─── Execs error-path tests ───────────────────────────────────────────────────
+
+
+class TestExecsErrorPaths:
+    """Tests that Execs methods raise RuntimeError on API errors."""
+
+    @pytest.mark.asyncio
+    async def test_delete_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=404, message="not found")
+        with patch(
+            "together_sandbox._sandbox.delete_exec_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(
+                RuntimeError, match="Failed to deleteExec for id 'exec-1'"
+            ):
+                await Execs(mock_client).delete("exec-1")
+
+    @pytest.mark.asyncio
+    async def test_delete_raises_on_none(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.delete_exec_api",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            with pytest.raises(
+                RuntimeError, match="deleteExec returned None for id 'exec-1'"
+            ):
+                await Execs(mock_client).delete("exec-1")
+
+    @pytest.mark.asyncio
+    async def test_delete_succeeds_on_valid_response(self):
+        mock_client = MagicMock()
+        ok = ExecDeleteResponse(message="deleted")
+        with patch(
+            "together_sandbox._sandbox.delete_exec_api",
+            new_callable=AsyncMock,
+            return_value=ok,
+        ):
+            await Execs(mock_client).delete("exec-1")  # should not raise
+
+
+# ─── Ports error-path tests ───────────────────────────────────────────────────
+
+
+class TestPortsErrorPaths:
+    """Tests that Ports.list raises RuntimeError on API errors."""
+
+    @pytest.mark.asyncio
+    async def test_list_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=500, message="server error")
+        with patch(
+            "together_sandbox._sandbox.list_ports_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(RuntimeError, match="Failed to listPorts"):
+                await Ports(mock_client).list()
+
+    @pytest.mark.asyncio
+    async def test_list_raises_on_none(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.list_ports_api",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            with pytest.raises(RuntimeError, match="listPorts returned None"):
+                await Ports(mock_client).list()
+
+    @pytest.mark.asyncio
+    async def test_list_returns_ports_on_success(self):
+        mock_client = MagicMock()
+        ports_response = PortsListResponse(ports=[])
+        with patch(
+            "together_sandbox._sandbox.list_ports_api",
+            new_callable=AsyncMock,
+            return_value=ports_response,
+        ):
+            result = await Ports(mock_client).list()
+            assert result == []
+
+
+# ─── Directories error-path tests ────────────────────────────────────────────
+
+
+class TestDirectoriesErrorPaths:
+    """Tests that Directories methods raise RuntimeError on API errors."""
+
+    @pytest.mark.asyncio
+    async def test_create_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=400, message="already exists")
+        with patch(
+            "together_sandbox._sandbox.create_directory_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(
+                RuntimeError, match="Failed to createDirectory for path '/mydir'"
+            ):
+                await Directories(mock_client).create("/mydir")
+
+    @pytest.mark.asyncio
+    async def test_create_raises_on_none(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.create_directory_api",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            with pytest.raises(
+                RuntimeError, match="createDirectory returned None for path '/mydir'"
+            ):
+                await Directories(mock_client).create("/mydir")
+
+    @pytest.mark.asyncio
+    async def test_create_succeeds_on_valid_response(self):
+        mock_client = MagicMock()
+        ok = FileOperationResponse(message="created", path="/mydir")
+        with patch(
+            "together_sandbox._sandbox.create_directory_api",
+            new_callable=AsyncMock,
+            return_value=ok,
+        ):
+            await Directories(mock_client).create("/mydir")  # should not raise
+
+    @pytest.mark.asyncio
+    async def test_delete_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=404, message="not found")
+        with patch(
+            "together_sandbox._sandbox.delete_directory_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(
+                RuntimeError, match="Failed to deleteDirectory for path '/mydir'"
+            ):
+                await Directories(mock_client).delete("/mydir")
+
+    @pytest.mark.asyncio
+    async def test_delete_raises_on_none(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.delete_directory_api",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            with pytest.raises(
+                RuntimeError, match="deleteDirectory returned None for path '/mydir'"
+            ):
+                await Directories(mock_client).delete("/mydir")
+
+    @pytest.mark.asyncio
+    async def test_delete_succeeds_on_valid_response(self):
+        mock_client = MagicMock()
+        ok = FileOperationResponse(message="deleted", path="/mydir")
+        with patch(
+            "together_sandbox._sandbox.delete_directory_api",
+            new_callable=AsyncMock,
+            return_value=ok,
+        ):
+            await Directories(mock_client).delete("/mydir")  # should not raise
 
 # ─── Snapshots tests ──────────────────────────────────────────────────────────
 
@@ -397,10 +741,9 @@ class TestSnapshots:
     async def test_create_with_image_calls_create_snapshot_api(self):
         """Test that create with image params calls create_snapshot_api, not build_docker_image."""
         mock_api_client = MagicMock()
-        
+
         snapshots = SnapshotsNamespace(
             api_client=mock_api_client,
-            api_key="test-key",
             base_url="https://api.codesandbox.io",
         )
 
@@ -423,10 +766,9 @@ class TestSnapshots:
     async def test_create_with_image_and_alias(self):
         """Test that create with image params calls aliasSnapshot when alias is provided."""
         mock_api_client = MagicMock()
-        
+
         snapshots = SnapshotsNamespace(
             api_client=mock_api_client,
-            api_key="test-key",
             base_url="https://api.codesandbox.io",
         )
 
@@ -444,7 +786,9 @@ class TestSnapshots:
                 new_callable=AsyncMock,
             ) as mock_alias:
                 result = await snapshots.create(
-                    CreateImageSnapshotParams(image="ubuntu:22.04", alias="myimage@latest")
+                    CreateImageSnapshotParams(
+                        image="ubuntu:22.04", alias="myimage@latest"
+                    )
                 )
 
                 # Verify both APIs were called
@@ -457,7 +801,6 @@ class TestSnapshots:
         """Test that create method exists and old from_build/from_image are removed."""
         ns = SnapshotsNamespace(
             api_client=MagicMock(),
-            api_key="k",
             base_url="https://example.com",
         )
         assert hasattr(ns, "create")

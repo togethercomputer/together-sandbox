@@ -1327,31 +1327,15 @@
                 ],
                 "properties": {
                   "image": {
-                    "type": "object",
-                    "required": [
-                      "name"
-                    ],
-                    "properties": {
-                      "registry": {
-                        "type": "string"
-                      },
-                      "repository": {
-                        "type": "string"
-                      },
-                      "name": {
-                        "type": "string"
-                      },
-                      "tag": {
-                        "type": "string"
-                      },
-                      "architecture": {
-                        "type": "string",
-                        "enum": [
-                          "amd64",
-                          "arm64"
-                        ]
-                      }
-                    }
+                    "type": "string",
+                    "description": "Full image reference (e.g. registry.example.com/repo/name:tag)."
+                  },
+                  "architecture": {
+                    "type": "string",
+                    "enum": [
+                      "amd64",
+                      "arm64"
+                    ]
                   }
                 }
               }

@@ -119,6 +119,29 @@ Both `TogetherSandbox` and `Sandbox` must support `async with`. The context
 manager closes the HTTP client connection but does **not** shut down the VM —
 callers must call `.shutdown()` explicitly.
 
+### Always unwrap API responses with `_unwrap_or_raise`
+
+Every call to a generated API endpoint function must have its return value
+checked through `_unwrap_or_raise` — never check `None`/`Error` inline.
+Import the helper from `._utils`, not from `._sandbox`.
+
+Even void-returning endpoints (delete, stop, alias) must capture and unwrap
+their result — the generated clients can return an `Error` model on failure.
+
+```python
+# ✅ correct
+_unwrap_or_raise(
+    await delete_snapshot_api(UUID(id), client=self._api_client),
+    op="deleteSnapshot",
+    context=f"for id {id!r}"
+)
+
+# ❌ wrong — inline check, misses Error model, inconsistent
+result = await delete_snapshot_api(UUID(id), client=self._api_client)
+if result is None:
+    raise RuntimeError("deleteSnapshot returned None")
+```
+
 ### Section dividers
 
 Use the established ASCII box-drawing style:

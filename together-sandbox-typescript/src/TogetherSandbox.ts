@@ -78,6 +78,6 @@ export class TogetherSandbox {
     );
 
     this.sandboxes = new SandboxesNamespace(apiClient);
-    this.snapshots = new SnapshotsNamespace(apiClient, apiKey, baseUrl);
+    this.snapshots = new SnapshotsNamespace(apiClient, baseUrl);
   }
 }
