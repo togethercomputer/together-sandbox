@@ -10,6 +10,7 @@ from .api.api.default.start_sandbox import asyncio as start_sandbox_api
 from .api.api.default.wait_for_sandbox import asyncio as wait_for_sandbox_api
 from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
 from .api.api.default.create_sandbox import asyncio as create_sandbox_api
+from .api.api.default.wait_for_sandbox import asyncio as wait_for_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
