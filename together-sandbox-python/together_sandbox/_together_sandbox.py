@@ -50,7 +50,7 @@ class TogetherSandbox:
             raise_on_unexpected_status=True,
         )
         self.sandboxes = SandboxesNamespace(self._api_client)
-        self.snapshots = SnapshotsNamespace(self._api_client, self._api_key, self._base_url)
+        self.snapshots = SnapshotsNamespace(self._api_client, self._base_url)
 
     # NOTE: sdk.api_client is removed from the public surface.
     # The internal _api_client is still used by sandboxes and tokens namespaces.

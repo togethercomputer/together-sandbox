@@ -17,7 +17,6 @@ from together_sandbox._sandbox import (
 )
 from together_sandbox._sandboxes import SandboxesNamespace, _resolve_connection
 from together_sandbox._snapshots import (
-    _parse_image_reference,
     SnapshotsNamespace,
     CreateImageSnapshotParams,
 )
@@ -374,7 +373,6 @@ class TestFiles:
 
             # Verify the response (unwrapped to content string)
             assert result == ""
-
 
 # ─── _unwrap_or_raise tests ───────────────────────────────────────────────────
 
@@ -733,54 +731,6 @@ class TestDirectoriesErrorPaths:
         ):
             await Directories(mock_client).delete("/mydir")  # should not raise
 
-
-# ─── _parse_image_reference tests ────────────────────────────────────────────
-
-
-class TestParseImageReference:
-    """Tests for _parse_image_reference() Docker image reference parser."""
-
-    def test_bare_name(self):
-        """Test parsing a bare image name without tag."""
-        result = _parse_image_reference("ubuntu")
-        assert result.name == "ubuntu"
-        assert result.registry is None
-        assert result.repository is None
-        assert result.tag is None
-
-    def test_name_with_tag(self):
-        """Test parsing name and tag."""
-        result = _parse_image_reference("node:24")
-        assert result.name == "node"
-        assert result.tag == "24"
-        assert result.registry is None
-        assert result.repository is None
-
-    def test_repository_with_name_and_tag(self):
-        """Test parsing repository, name, and tag."""
-        result = _parse_image_reference("org/myapp:latest")
-        assert result.registry is None
-        assert result.repository == "org"
-        assert result.name == "myapp"
-        assert result.tag == "latest"
-
-    def test_registry_with_repository_name_and_tag(self):
-        """Test parsing full reference with registry, repository, name, and tag."""
-        result = _parse_image_reference("ghcr.io/org/node:24")
-        assert result.registry == "ghcr.io"
-        assert result.repository == "org"
-        assert result.name == "node"
-        assert result.tag == "24"
-
-    def test_registry_with_port(self):
-        """Test parsing registry with port number."""
-        result = _parse_image_reference("localhost:5000/myapp:dev")
-        assert result.registry == "localhost:5000"
-        assert result.repository is None
-        assert result.name == "myapp"
-        assert result.tag == "dev"
-
-
 # ─── Snapshots tests ──────────────────────────────────────────────────────────
 
 
@@ -794,7 +744,6 @@ class TestSnapshots:
 
         snapshots = SnapshotsNamespace(
             api_client=mock_api_client,
-            api_key="test-key",
             base_url="https://api.codesandbox.io",
         )
 
@@ -820,7 +769,6 @@ class TestSnapshots:
 
         snapshots = SnapshotsNamespace(
             api_client=mock_api_client,
-            api_key="test-key",
             base_url="https://api.codesandbox.io",
         )
 
@@ -853,7 +801,6 @@ class TestSnapshots:
         """Test that create method exists and old from_build/from_image are removed."""
         ns = SnapshotsNamespace(
             api_client=MagicMock(),
-            api_key="k",
             base_url="https://example.com",
         )
         assert hasattr(ns, "create")

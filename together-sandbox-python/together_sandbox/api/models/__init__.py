@@ -1,10 +1,12 @@
 """Contains all the data models used in inputs/outputs"""
 
 from .alias_snapshot_body import AliasSnapshotBody
+from .authorize_body import AuthorizeBody
+from .container_registry_credential import ContainerRegistryCredential
+from .container_registry_credential_type import ContainerRegistryCredentialType
 from .create_sandbox_body import CreateSandboxBody
 from .create_snapshot_body import CreateSnapshotBody
-from .create_snapshot_body_image import CreateSnapshotBodyImage
-from .create_snapshot_body_image_architecture import CreateSnapshotBodyImageArchitecture
+from .create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
 from .error import Error
 from .error_errors_item import ErrorErrorsItem
 from .error_errors_item_details import ErrorErrorsItemDetails
@@ -40,10 +42,12 @@ from .stop_sandbox_body_stop_type import StopSandboxBodyStopType
 
 __all__ = (
     "AliasSnapshotBody",
+    "AuthorizeBody",
+    "ContainerRegistryCredential",
+    "ContainerRegistryCredentialType",
     "CreateSandboxBody",
     "CreateSnapshotBody",
-    "CreateSnapshotBodyImage",
-    "CreateSnapshotBodyImageArchitecture",
+    "CreateSnapshotBodyArchitecture",
     "Error",
     "ErrorErrorsItem",
     "ErrorErrorsItemDetails",
