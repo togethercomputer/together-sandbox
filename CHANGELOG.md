@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.7.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.6.0...together-sandbox-v1.7.0) (2026-04-28)
+
+
+### Features
+
+* add wait_for_sandbox to start, hibernate and shutdown ([853c132](https://github.com/togethercomputer/together-sandbox/commit/853c132a667ff8ffc826a9ad2c387b52295fff5c))
+* add wait_for_sandbox to start, hibernate and shutdown ([2f39d14](https://github.com/togethercomputer/together-sandbox/commit/2f39d1445767626a4d1c1a1dc4948d345ccae71a))
+* Use the new credentials endpoint in Bartender for registry authorization ([79bc542](https://github.com/togethercomputer/together-sandbox/commit/79bc5426864520f655589a5ce24a17f139cafeed))
+
+
+### Bug Fixes
+
+* adjust to new field names ([18b04a0](https://github.com/togethercomputer/together-sandbox/commit/18b04a079ff02f188f483fa5a927ff765638f6d1))
+* centralize error handling with _unwrap_or_raise helper and extend to all facade methods ([9307a46](https://github.com/togethercomputer/together-sandbox/commit/9307a469d8ef273ad6b22f68f91e7293a422e7e2))
+* handle errors for sandbox operation by raising exceptions to be caught by sdk clients ([d040276](https://github.com/togethercomputer/together-sandbox/commit/d04027675ce74946320aa3c1b04ec41a5c95ef4b))
+
 ## [1.6.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.5.2...together-sandbox-v1.6.0) (2026-04-24)
 
 
