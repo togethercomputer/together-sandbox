@@ -15,7 +15,7 @@ type SnakeToCamelCase<S extends string> =
  * Converts all top-level property keys from snake_case to camelCase.
  * Shallow transformation — only affects direct keys, not nested objects.
  */
-type CamelCasedProperties<T extends object> = {
+export type CamelCasedProperties<T extends object> = {
   [K in keyof T as SnakeToCamelCase<K & string>]: T[K];
 };
 
@@ -30,19 +30,3 @@ export type SandboxInfo = CamelCasedProperties<SandboxModel>;
 export type CreateSandboxParams = CamelCasedProperties<
   CreateSandboxData["body"]
 >;
-
-/**
- * Runtime mapper that converts snake_case object keys to camelCase.
- */
-export function camelCaseKeys<T extends Record<string, unknown>>(
-  obj: T,
-): CamelCasedProperties<T> {
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => [
-      key.replace(/_+([a-z])/g, (match, char, offset: number) =>
-        offset === 0 ? match : char.toUpperCase(),
-      ),
-      value,
-    ]),
-  ) as CamelCasedProperties<T>;
-}

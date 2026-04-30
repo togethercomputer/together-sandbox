@@ -15,7 +15,9 @@ from ._configuration import is_local_environment
 from .api.api.default.create_snapshot import asyncio as create_snapshot_api
 from .api.api.default.alias_snapshot import asyncio as alias_snapshot_api
 from .api.api.default.get_snapshot_by_alias import asyncio as get_snapshot_by_alias_api
-from .api.api.default.issue_container_registry_credential import asyncio as issue_container_registry_credential_api
+from .api.api.default.issue_container_registry_credential import (
+    asyncio as issue_container_registry_credential_api,
+)
 from .api.api.default.get_snapshot import asyncio as get_snapshot_api
 from .api.api.default.list_snapshots import asyncio as list_snapshots_api
 from .api.api.default.delete_snapshot import asyncio as delete_snapshot_api
@@ -41,7 +43,6 @@ from .docker import (
     push_docker_image,
 )
 from ._utils import _unwrap_or_raise
-
 
 # ─── Snapshot types ──────────────────────────────────────────────────────────
 
@@ -191,12 +192,9 @@ class SnapshotsNamespace:
             >>> print(snapshot.id)
             >>> print(snapshot.byte_size)
         """
-        # Remove leading '@' if present (for consistency with API)
-        clean_alias = alias.lstrip("@")
-
         return _unwrap_or_raise(
             await get_snapshot_by_alias_api(
-                clean_alias,
+                alias,
                 client=self._api_client,
             ),
             op="getSnapshotByAlias",
@@ -281,11 +279,13 @@ class SnapshotsNamespace:
             os.path.realpath(params.dockerfile) if params.dockerfile else None
         )
 
-        credential = await issue_container_registry_credential_api(client=self._api_client)
+        credential = await issue_container_registry_credential_api(
+            client=self._api_client
+        )
         if not isinstance(credential, ContainerRegistryCredential):
             raise RuntimeError("Failed to issue container registry credentials")
         registry_url = credential.registry_url
-        registry_host = registry_url.split('/')[0]
+        registry_host = registry_url.split("/")[0]
         image_name = f"image-{uuid4()}".lower()
         image_tag = str(uuid4()).lower()
         full_image_name = f"{registry_url}/{image_name}:{image_tag}"

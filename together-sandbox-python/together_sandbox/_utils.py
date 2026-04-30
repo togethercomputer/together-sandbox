@@ -5,6 +5,7 @@ import base64
 import re
 from .api.models import Error as ApiError
 from .sandbox.models.error import Error as SandboxError
+from .api.models.sandbox import Sandbox as SandboxModel
 
 _CSI_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 
@@ -31,3 +32,12 @@ def _unwrap_or_raise(
             f"Failed to {op}{suffix}: {result.message} (code: {result.code})"
         )
     return result
+
+
+def _resolve_connection(sandbox: SandboxModel) -> tuple[str, str]:
+    """
+    Extract the agent connection details from the Sandbox model.
+    """
+    if not sandbox.agent_url or not sandbox.agent_token:
+        raise RuntimeError("Sandbox has no agent connection details")
+    return sandbox.agent_url, sandbox.agent_token
