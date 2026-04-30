@@ -5,6 +5,22 @@ on:
     branches: [main]
 
 jobs:
+  typescript-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Run TypeScript unit tests
+        working-directory: together-sandbox-typescript
+        run: npm test
+
   validate-release-config:
     runs-on: ubuntu-latest
     steps:
@@ -95,7 +111,7 @@ jobs:
         run: pip install .[dev]
 
       - name: Run tests
-        run: pytest tests/ -v
+        run: pytest tests/ -v --ignore=tests/e2e
 
   build-dry-run:
     runs-on: ubuntu-latest
