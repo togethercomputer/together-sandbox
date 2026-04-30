@@ -5,11 +5,8 @@ import {
 } from "./api-clients/sandbox/client/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { Sandbox, type StartOptions } from "./Sandbox.js";
-import {
-  type SandboxInfo,
-  type CreateSandboxParams,
-  camelCaseKeys,
-} from "./types.js";
+import { type SandboxInfo, type CreateSandboxParams } from "./types.js";
+import { camelCaseKeys } from "./utils.js";
 
 /**
  * Extract the agent connection details from the Sandbox model.
