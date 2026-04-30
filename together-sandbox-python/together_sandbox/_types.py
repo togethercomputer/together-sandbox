@@ -5,15 +5,17 @@ from dataclasses import dataclass
 @dataclass
 class StartOptions:
     """Options for starting a sandbox VM."""
+
     version_number: int | None = None
 
 
 @dataclass
 class CreateSandboxParams:
     """Parameters for creating a new sandbox."""
-    millicpu: int
-    memory_bytes: int
-    disk_bytes: int
+
+    cpus: int = 1
+    memory_gb: int = 2
+    disk_gb: int = 2
     id: str | None = None
     snapshot_id: str | None = None
     snapshot_alias: str | None = None

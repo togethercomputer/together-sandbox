@@ -4,23 +4,21 @@ from __future__ import annotations
 
 import pytest
 
-from together_sandbox.facade import Sandbox
-
-from .helpers import sandbox, sdk  # noqa: F401
+from together_sandbox import Sandbox
 
 
 @pytest.mark.asyncio
 class TestSandboxExecs:
     """E2E tests for creating and managing command executions."""
 
-    async def test_create_and_list_exec(self, sandbox: Sandbox):  # noqa: F811
+    async def test_create_and_list_exec(self, sandbox: Sandbox):
         """Test creating an exec and listing it."""
         # Note: This test depends on the CreateExecRequest model structure
         # You may need to import and construct it properly
         # For now, this is a placeholder showing the pattern
 
         # List initial execs
-        initial_list = await sandbox.execs.list_execs()
+        initial_list = await sandbox.execs.list()
 
         # Create an exec (placeholder - adjust based on actual API)
         # exec_request = CreateExecRequest(command="echo 'test'", ...)
@@ -33,7 +31,7 @@ class TestSandboxExecs:
         # For now, just verify list_execs works
         assert initial_list is not None
 
-    async def test_exec_simple_command(self, sandbox: Sandbox):  # noqa: F811
+    async def test_exec_simple_command(self, sandbox: Sandbox):
         """Test executing a simple command and reading output."""
         # This test is a placeholder showing the expected pattern
         # Actual implementation depends on the exec API structure
@@ -50,13 +48,17 @@ class TestSandboxExecs:
         # Verify output contains expected text
         # assert any("Hello World" in str(event) for event in output_lines)
 
-        pytest.skip("Exec test requires CreateExecRequest model - implement based on API spec")
+        pytest.skip(
+            "Exec test requires CreateExecRequest model - implement based on API spec"
+        )
 
-    async def test_exec_with_stdin(self, sandbox: Sandbox):  # noqa: F811
+    async def test_exec_with_stdin(self, sandbox: Sandbox):
         """Test sending stdin to an exec."""
-        pytest.skip("Exec stdin test requires full exec setup - implement based on API spec")
+        pytest.skip(
+            "Exec stdin test requires full exec setup - implement based on API spec"
+        )
 
-    async def test_stream_execs_list(self, sandbox: Sandbox):  # noqa: F811
+    async def test_stream_execs_list(self, sandbox: Sandbox):
         """Test streaming the list of active execs."""
         # Create an async iterator
         stream = sandbox.execs.stream_list()
@@ -77,14 +79,20 @@ class TestSandboxExecs:
         # Actual events depend on sandbox activity
         assert stream is not None
 
-    async def test_delete_exec(self, sandbox: Sandbox):  # noqa: F811
+    async def test_delete_exec(self, sandbox: Sandbox):
         """Test deleting an exec."""
-        pytest.skip("Exec deletion test requires full exec setup - implement based on API spec")
+        pytest.skip(
+            "Exec deletion test requires full exec setup - implement based on API spec"
+        )
 
-    async def test_update_exec(self, sandbox: Sandbox):  # noqa: F811
+    async def test_update_exec(self, sandbox: Sandbox):
         """Test updating exec status."""
-        pytest.skip("Exec update test requires full exec setup - implement based on API spec")
+        pytest.skip(
+            "Exec update test requires full exec setup - implement based on API spec"
+        )
 
-    async def test_get_exec_by_id(self, sandbox: Sandbox):  # noqa: F811
+    async def test_get_exec_by_id(self, sandbox: Sandbox):
         """Test retrieving a specific exec by ID."""
-        pytest.skip("Get exec test requires full exec setup - implement based on API spec")
+        pytest.skip(
+            "Get exec test requires full exec setup - implement based on API spec"
+        )

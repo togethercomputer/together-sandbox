@@ -6,17 +6,11 @@ import tempfile
 
 import pytest
 
-from together_sandbox._snapshots import CreateSnapshotResult, CreateContextSnapshotParams
+from together_sandbox._snapshots import (
+    CreateSnapshotResult,
+    CreateContextSnapshotParams,
+)
 from together_sandbox._together_sandbox import TogetherSandbox
-
-pytestmark = [
-    pytest.mark.e2e,
-    pytest.mark.skipif(
-        not os.environ.get("CSB_API_KEY"),
-        reason="CSB_API_KEY not set",
-    ),
-]
-
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -31,6 +25,7 @@ def docker_context() -> str:
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.asyncio
 class TestSnapshots:
     """End-to-end tests for snapshot creation."""
 

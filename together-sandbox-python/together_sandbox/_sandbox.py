@@ -55,7 +55,6 @@ from .sandbox.types import File
 from ._streaming import stream_sse_json
 from ._utils import _unwrap_or_raise
 
-
 # ─── Files facade ─────────────────────────────────────────────────────────────
 
 
@@ -97,7 +96,7 @@ class Files:
             content_bytes = content
 
         # Create a File object with binary content
-        file_obj = File(payload=io.BytesIO(content_bytes))
+        file_obj = File(payload=content_bytes)
         result = _unwrap_or_raise(
             await create_file_api(path, client=self._client, body=file_obj),
             op="createFile",

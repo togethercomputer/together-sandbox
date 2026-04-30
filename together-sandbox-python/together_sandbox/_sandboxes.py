@@ -103,9 +103,9 @@ class SandboxesNamespace:
                 params.snapshot_alias if params.snapshot_alias is not None else UNSET
             ),
             ephemeral=params.ephemeral if params.ephemeral is not None else UNSET,
-            millicpu=params.millicpu,
-            memory_bytes=params.memory_bytes,
-            disk_bytes=params.disk_bytes,
+            millicpu=params.cpus * 1000,
+            memory_bytes=params.memory_gb * 1000 * 1024 * 1024,
+            disk_bytes=params.disk_gb * 1000 * 1024 * 1024,
         )
         return _unwrap_or_raise(
             await create_sandbox_api(client=self._api_client, body=body),

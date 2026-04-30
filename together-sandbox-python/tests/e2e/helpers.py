@@ -8,27 +8,33 @@ from typing import AsyncGenerator, Awaitable, Callable, TypeVar
 
 import pytest
 
-from together_sandbox.facade import Sandbox, TogetherSandbox
+from together_sandbox import Sandbox, TogetherSandbox, CreateSandboxParams
 
 T = TypeVar("T")
 
 
 def get_api_key() -> str:
     """Get API key from environment variable."""
-    api_key = os.environ.get("TOGETHER_API_KEY")
+    api_key = os.environ.get("CSB_API_KEY")
     if not api_key:
-        pytest.skip("TOGETHER_API_KEY environment variable not set")
+        raise ValueError("CSB_API_KEY environment variable not set")
     return api_key
 
 
-def get_template_id() -> str | None:
+def get_snapshot_id() -> str:
     """Get template ID from environment variable (optional)."""
-    return os.environ.get("TOGETHER_TEMPLATE_ID")
+
+    template_id = os.environ.get("CSB_SNAPSHOT_ID")
+
+    if not template_id:
+        raise ValueError("CSB_SNAPSHOT_ID environment variable not set")
+
+    return template_id
 
 
 def get_base_url() -> str | None:
     """Get base URL from environment variable (optional)."""
-    return os.environ.get("TOGETHER_BASE_URL")
+    return os.environ.get("CSB_BASE_URL")
 
 
 @pytest.fixture
@@ -64,23 +70,19 @@ async def sandbox(sdk: TogetherSandbox) -> AsyncGenerator[Sandbox, None]:
     Yields:
         Sandbox instance that will be shut down after the test completes
     """
-    template_id = get_template_id()
+    snapshot_id = get_snapshot_id()
 
-    if not template_id:
-        pytest.skip("TOGETHER_TEMPLATE_ID environment variable not set")
+    sandbox = await sdk.sandboxes.create(CreateSandboxParams(snapshot_id=snapshot_id))
 
     # Start sandbox with the template ID
-    sb = await sdk.sandboxes.start(template_id)
+    sb = await sdk.sandboxes.start(sandbox_id=sandbox.id)
 
     try:
         yield sb
     finally:
         # Cleanup: shutdown sandbox with timeout protection
         try:
-            await asyncio.wait_for(
-                sdk.sandboxes.shutdown(sb.id),
-                timeout=10.0
-            )
+            await asyncio.wait_for(sdk.sandboxes.shutdown(sb.id), timeout=10.0)
         except asyncio.TimeoutError:
             print(f"Warning: Timeout while shutting down sandbox {sb.id}")
         except Exception as e:

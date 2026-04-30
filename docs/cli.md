@@ -5,13 +5,7 @@ The `together-sandbox` CLI lets you create snapshots from Dockerfiles or existin
 ## Installation
 
 ```bash
-npm install -g @together-sandbox/cli
-```
-
-Or use it without installing via `npx`:
-
-```bash
-npx @together-sandbox/cli snapshots create --context ./my-project
+curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
 ```
 
 ---

@@ -15,20 +15,41 @@ cd together-sandbox-python
 pip install .[dev]
 ```
 
+4. Set up a virtual environment (optional but recommended):
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+5. Create a snapshot to run the tests with
+
+```bash
+node ./together-sandbox-cli/dist/together-sandbox.mjs snapshots create --context ./test-template
+```
+
 ### Environment Variables
 
 Set the following environment variables before running e2e tests:
 
 ```bash
 # Required
-export TOGETHER_API_KEY="your-api-key-here"
+export CSB_API_KEY="your-api-key-here"
 
 # Optional
-export TOGETHER_TEMPLATE_ID="template-id"  # If you want to test with a specific template
-export TOGETHER_BASE_URL="https://api.codesandbox.io"  # Override default base URL
+export CSB_SNAPSHOT_ID="snapshot-id"  # If you want to test with a specific template
+export CSB_BASE_URL="https://api.codesandbox.io"  # Override default base URL
 ```
 
 ## Running Tests
+
+**Note:** All `pytest` commands must be run from the `together-sandbox-python/` directory.
+
+### Unit tests
+
+```bash
+pytest tests/ -v
+```
 
 ### Run all e2e tests
 
@@ -36,7 +57,7 @@ export TOGETHER_BASE_URL="https://api.codesandbox.io"  # Override default base U
 pytest tests/e2e/ -v
 ```
 
-### Run specific test file
+### Run specific e2e test file
 
 ```bash
 pytest tests/e2e/test_sandbox_filesystem.py -v
@@ -60,7 +81,7 @@ pytest tests/e2e/ -v -s
 
 ## Test Structure
 
-### Fixtures (helpers.py)
+### Fixtures (e2e/helpers.py)
 
 The `helpers.py` module provides pytest fixtures that handle sandbox lifecycle:
 
@@ -78,28 +99,6 @@ async def test_something(sandbox: Sandbox):
     result = await sandbox.files.read_file("/test.txt")
     assert result.content == "content"
 ```
-
-### Test Files
-
-- **test_sandbox_filesystem.py**: Tests for file and directory operations
-  - Creating, reading, updating, deleting files
-  - Binary file support
-  - Unicode content handling
-  - Directory creation, listing, deletion
-  - Nested directory structures
-
-- **test_sandbox_lifecycle.py**: Tests for sandbox lifecycle management
-  - Creating and starting sandboxes
-  - Using sandbox as async context manager
-  - Forking sandboxes
-  - Hibernation and resume
-  - Static factory methods
-
-- **test_sandbox_execs.py**: Tests for command execution (placeholder structure)
-  - Creating and managing exec processes
-  - Streaming output
-  - Sending stdin
-  - Note: Some tests are skipped pending full implementation
 
 ## Test Patterns
 
@@ -154,17 +153,18 @@ result = await retry_until(
 
 ## Troubleshooting
 
-### Tests skip with "TOGETHER_API_KEY environment variable not set"
+### Tests skip with "CSB_API_KEY environment variable not set"
 
-Make sure you've exported the `TOGETHER_API_KEY` environment variable:
+Make sure you've exported the `CSB_API_KEY` environment variable:
 
 ```bash
-export TOGETHER_API_KEY="your-api-key"
+export CSB_API_KEY="your-api-key"
 ```
 
 ### Tests fail with timeout errors
 
 The sandbox may be taking longer to start or respond. You can:
+
 1. Check your network connection
 2. Verify the API service status
 3. Increase timeout values in the tests if needed
@@ -172,6 +172,7 @@ The sandbox may be taking longer to start or respond. You can:
 ### Tests fail with authentication errors
 
 Verify your API key is valid and has the necessary permissions for:
+
 - Creating sandboxes
 - Reading/writing files
 - Managing sandbox lifecycle
