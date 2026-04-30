@@ -23,9 +23,11 @@ from ._snapshots import (
     CreateImageSnapshotParams,
     CreateSnapshotResult,
     SnapshotProgress,
-    Snapshot
+    Snapshot,
 )
 from ._sandbox import Sandbox
+from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
+from together_sandbox.sandbox.models.exec_stdout_type import ExecStdoutType
 
 __all__ = [
     "TogetherSandbox",
@@ -39,5 +41,7 @@ __all__ = [
     "CreateImageSnapshotParams",
     "CreateSnapshotResult",
     "SnapshotProgress",
-    "Snapshot"
+    "Snapshot",
+    "CreateExecRequest",
+    "ExecStdoutType",
 ]

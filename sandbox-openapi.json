@@ -1092,11 +1092,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Plain text exec output",
+            "description": "Exec output messages",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ExecStdout"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExecStdout"
+                  }
                 }
               }
             }
@@ -1993,9 +1996,14 @@
           "content": {
             "type": "string",
             "description": "File content"
+          },
+          "encoding": {
+            "type": "string",
+            "enum": ["utf-8", "base64"],
+            "description": "Encoding of the content field"
           }
         },
-        "required": ["path", "content"]
+        "required": ["path", "content", "encoding"]
       },
       "FileOperationResponse": {
         "type": "object",

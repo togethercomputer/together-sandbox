@@ -35,9 +35,14 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Error | ExecStdout:
+) -> Error | list[ExecStdout]:
     if response.status_code == 200:
-        response_200 = ExecStdout.from_dict(response.text)
+        response_200 = []
+        _response_200 = response.json()
+        for response_200_item_data in _response_200:
+            response_200_item = ExecStdout.from_dict(response_200_item_data)
+
+            response_200.append(response_200_item)
 
         return response_200
 
@@ -63,7 +68,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Error | ExecStdout]:
+) -> Response[Error | list[ExecStdout]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -77,7 +82,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     last_sequence: int | Unset = UNSET,
-) -> Response[Error | ExecStdout]:
+) -> Response[Error | list[ExecStdout]]:
     """Get exec output
 
      Retrieves the plain text output from an exec's buffer
@@ -91,7 +96,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Error | ExecStdout]
+        Response[Error | list[ExecStdout]]
     """
 
     kwargs = _get_kwargs(
@@ -111,7 +116,7 @@ def sync(
     *,
     client: AuthenticatedClient,
     last_sequence: int | Unset = UNSET,
-) -> Error | ExecStdout | None:
+) -> Error | list[ExecStdout] | None:
     """Get exec output
 
      Retrieves the plain text output from an exec's buffer
@@ -125,7 +130,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Error | ExecStdout
+        Error | list[ExecStdout]
     """
 
     return sync_detailed(
@@ -140,7 +145,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     last_sequence: int | Unset = UNSET,
-) -> Response[Error | ExecStdout]:
+) -> Response[Error | list[ExecStdout]]:
     """Get exec output
 
      Retrieves the plain text output from an exec's buffer
@@ -154,7 +159,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Error | ExecStdout]
+        Response[Error | list[ExecStdout]]
     """
 
     kwargs = _get_kwargs(
@@ -172,7 +177,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     last_sequence: int | Unset = UNSET,
-) -> Error | ExecStdout | None:
+) -> Error | list[ExecStdout] | None:
     """Get exec output
 
      Retrieves the plain text output from an exec's buffer
@@ -186,7 +191,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Error | ExecStdout
+        Error | list[ExecStdout]
     """
 
     return (

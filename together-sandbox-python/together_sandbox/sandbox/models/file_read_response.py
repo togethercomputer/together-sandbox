@@ -6,6 +6,8 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
+from ..models.file_read_response_encoding import FileReadResponseEncoding
+
 T = TypeVar("T", bound="FileReadResponse")
 
 
@@ -15,10 +17,12 @@ class FileReadResponse:
     Attributes:
         path (str): File path
         content (str): File content
+        encoding (FileReadResponseEncoding): Encoding of the content field
     """
 
     path: str
     content: str
+    encoding: FileReadResponseEncoding
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -26,12 +30,15 @@ class FileReadResponse:
 
         content = self.content
 
+        encoding = self.encoding.value
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
                 "path": path,
                 "content": content,
+                "encoding": encoding,
             }
         )
 
@@ -44,9 +51,12 @@ class FileReadResponse:
 
         content = d.pop("content")
 
+        encoding = FileReadResponseEncoding(d.pop("encoding"))
+
         file_read_response = cls(
             path=path,
             content=content,
+            encoding=encoding,
         )
 
         file_read_response.additional_properties = d
