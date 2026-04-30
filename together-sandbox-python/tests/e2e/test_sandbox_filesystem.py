@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+import base64
 
 from together_sandbox import Sandbox
 
@@ -17,10 +18,10 @@ class TestSandboxFilesystem:
         test_path = "/test-file.txt"
 
         # Write file
-        await sandbox.files.create_file(test_path, test_content)
+        await sandbox.files.create(test_path, test_content)
 
         # Read file back
-        result = await sandbox.files.read_file(test_path)
+        result = await sandbox.files.read(test_path)
 
         assert result == test_content
 
@@ -36,9 +37,7 @@ class TestSandboxFilesystem:
         # Read file back
         result = await sandbox.files.read(test_path)
 
-        assert result.path == test_path
-        # Note: The API may return content as base64 or binary string
-        # This assertion may need adjustment based on actual API behavior
+        assert base64.b64decode(result) == binary_data
 
     async def test_write_and_read_unicode_file(self, sandbox: Sandbox):
         """Test creating and reading a file with Unicode characters."""
@@ -107,7 +106,7 @@ class TestSandboxFilesystem:
         test_dir = "/test-list-dir"
 
         # Create directory
-        await sandbox.directories.create_directory(test_dir)
+        await sandbox.directories.create(test_dir)
 
         # Create multiple files
         await sandbox.files.create(f"{test_dir}/file1.txt", "content1")
@@ -131,8 +130,7 @@ class TestSandboxFilesystem:
         # Read back
         result = await sandbox.files.read(test_path)
 
-        assert result.path == test_path
-        assert result.content == ""
+        assert result == ""
 
     async def test_overwrite_file(self, sandbox: Sandbox):
         """Test overwriting an existing file."""
