@@ -123,11 +123,13 @@ class SnapshotsNamespace:
                     params.on_progress(SnapshotProgress(step=step, output=output))
 
             _emit("register", "Creating snapshot from image...")
-            snapshot_data = await create_snapshot_api(
-                client=self._api_client,
-                body=CreateSnapshotBody(
-                    image=params.image,
-                    architecture="amd64",
+            snapshot_data = _unwrap_or_raise(
+                await create_snapshot_api(
+                    client=self._api_client,
+                    body=CreateSnapshotBody(
+                        image=params.image,
+                        architecture="amd64",
+                    ),
                 ),
                 op="createSnapshot",
             )
@@ -323,11 +325,13 @@ class SnapshotsNamespace:
         )
 
         _emit("register", "Registering snapshot...")
-        snapshot_data = await create_snapshot_api(
-            client=self._api_client,
-            body=CreateSnapshotBody(
-                image=full_image_name,
-                architecture=architecture,
+        snapshot_data = _unwrap_or_raise(
+            await create_snapshot_api(
+                client=self._api_client,
+                body=CreateSnapshotBody(
+                    image=full_image_name,
+                    architecture=architecture,
+                ),
             ),
             op="createSnapshot",
         )
@@ -336,8 +340,8 @@ class SnapshotsNamespace:
 
         if params.alias:
             _emit("alias", "Creating alias...")
-            await _unwrap_or_raise(
-                alias_snapshot_api(
+            _unwrap_or_raise(
+                await alias_snapshot_api(
                     snapshot_data.id,
                     client=self._api_client,
                     body=AliasSnapshotBody(alias=params.alias),
