@@ -831,40 +831,35 @@ class TestSnapshots:
         mock_snapshot = MagicMock()
         mock_snapshot.id = "snap-ctx-789"
 
-        with patch(
-            "together_sandbox._snapshots.issue_container_registry_credential_api",
-            new_callable=AsyncMock,
-            return_value=credential,
-        ):
-            with patch(
-                "together_sandbox._snapshots.build_docker_image",
+        patches = [
+            patch(
+                "together_sandbox._snapshots.issue_container_registry_credential_api",
                 new_callable=AsyncMock,
-            ):
-                with patch(
-                    "together_sandbox._snapshots.docker_login",
-                    new_callable=AsyncMock,
-                ):
-                    with patch(
-                        "together_sandbox._snapshots.push_docker_image",
-                        new_callable=AsyncMock,
-                    ):
-                        with patch(
-                            "together_sandbox._snapshots.create_snapshot_api",
-                            new_callable=AsyncMock,
-                            return_value=mock_snapshot,
-                        ):
-                            with patch(
-                                "together_sandbox._snapshots.alias_snapshot_api",
-                                new_callable=AsyncMock,
-                                return_value=None,  # real HTTP 204 success shape
-                            ) as mock_alias:
-                                result = await snapshots._build_and_register(
-                                    CreateContextSnapshotParams(
-                                        context="/tmp",
-                                        alias="myapp@latest",
-                                    )
-                                )
+                return_value=credential,
+            ),
+            patch("together_sandbox._snapshots.build_docker_image", new_callable=AsyncMock),
+            patch("together_sandbox._snapshots.docker_login", new_callable=AsyncMock),
+            patch("together_sandbox._snapshots.push_docker_image", new_callable=AsyncMock),
+            patch(
+                "together_sandbox._snapshots.create_snapshot_api",
+                new_callable=AsyncMock,
+                return_value=mock_snapshot,
+            ),
+            patch(
+                "together_sandbox._snapshots.alias_snapshot_api",
+                new_callable=AsyncMock,
+                return_value=None,  # real HTTP 204 success shape
+            ),
+        ]
 
-                                assert mock_alias.called
-                                assert result.snapshot_id == "snap-ctx-789"
-                                assert result.alias == "myapp@latest"
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5] as mock_alias:
+            result = await snapshots._build_and_register(
+                CreateContextSnapshotParams(
+                    context="/tmp",
+                    alias="myapp@latest",
+                )
+            )
+
+        assert mock_alias.called
+        assert result.snapshot_id == "snap-ctx-789"
+        assert result.alias == "myapp@latest"
