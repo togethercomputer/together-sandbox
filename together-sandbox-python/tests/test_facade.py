@@ -19,6 +19,10 @@ from together_sandbox._sandboxes import SandboxesNamespace, _resolve_connection
 from together_sandbox._snapshots import (
     SnapshotsNamespace,
     CreateImageSnapshotParams,
+    CreateContextSnapshotParams,
+)
+from together_sandbox.api.models.container_registry_credential import (
+    ContainerRegistryCredential,
 )
 from together_sandbox._together_sandbox import TogetherSandbox
 from together_sandbox._types import StartOptions
@@ -806,3 +810,61 @@ class TestSnapshots:
         assert hasattr(ns, "create")
         assert not hasattr(ns, "from_build")
         assert not hasattr(ns, "from_image")
+
+    @pytest.mark.asyncio
+    async def test_build_and_register_with_alias_succeeds_when_alias_returns_none(self):
+        """_build_and_register with alias= must succeed when alias_snapshot_api returns None (HTTP 204)."""
+        mock_api_client = MagicMock()
+
+        snapshots = SnapshotsNamespace(
+            api_client=mock_api_client,
+            base_url="https://api.codesandbox.io",
+        )
+
+        credential = ContainerRegistryCredential(
+            username="user",
+            password="pass",
+            registry_url="registry.example.com/ns",
+            expired_at=None,
+        )
+
+        mock_snapshot = MagicMock()
+        mock_snapshot.id = "snap-ctx-789"
+
+        with patch(
+            "together_sandbox._snapshots.issue_container_registry_credential_api",
+            new_callable=AsyncMock,
+            return_value=credential,
+        ):
+            with patch(
+                "together_sandbox._snapshots.build_docker_image",
+                new_callable=AsyncMock,
+            ):
+                with patch(
+                    "together_sandbox._snapshots.docker_login",
+                    new_callable=AsyncMock,
+                ):
+                    with patch(
+                        "together_sandbox._snapshots.push_docker_image",
+                        new_callable=AsyncMock,
+                    ):
+                        with patch(
+                            "together_sandbox._snapshots.create_snapshot_api",
+                            new_callable=AsyncMock,
+                            return_value=mock_snapshot,
+                        ):
+                            with patch(
+                                "together_sandbox._snapshots.alias_snapshot_api",
+                                new_callable=AsyncMock,
+                                return_value=None,  # real HTTP 204 success shape
+                            ) as mock_alias:
+                                result = await snapshots._build_and_register(
+                                    CreateContextSnapshotParams(
+                                        context="/tmp",
+                                        alias="myapp@latest",
+                                    )
+                                )
+
+                                assert mock_alias.called
+                                assert result.snapshot_id == "snap-ctx-789"
+                                assert result.alias == "myapp@latest"

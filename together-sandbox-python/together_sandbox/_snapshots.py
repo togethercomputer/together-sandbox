@@ -340,14 +340,10 @@ class SnapshotsNamespace:
 
         if params.alias:
             _emit("alias", "Creating alias...")
-            _unwrap_or_raise(
-                await alias_snapshot_api(
-                    snapshot_data.id,
-                    client=self._api_client,
-                    body=AliasSnapshotBody(alias=params.alias),
-                ),
-                op="aliasSnapshot",
-                context=f"for snapshot {snapshot_id!r}",
+            await alias_snapshot_api(
+                snapshot_data.id,
+                client=self._api_client,
+                body=AliasSnapshotBody(alias=params.alias),
             )
 
         return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)
