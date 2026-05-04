@@ -51,7 +51,11 @@ class FileReadResponse:
 
         content = d.pop("content")
 
-        encoding = FileReadResponseEncoding(d.pop("encoding"))
+        encoding_value = d.pop("encoding", "utf-8")
+        try:
+            encoding = FileReadResponseEncoding(encoding_value)
+        except ValueError:
+            encoding = FileReadResponseEncoding("utf-8")
 
         file_read_response = cls(
             path=path,
