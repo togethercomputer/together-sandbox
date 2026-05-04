@@ -1088,7 +1088,7 @@
       "get": {
         "operationId": "getExecOutput",
         "summary": "Get exec output",
-        "description": "Retrieves the plain text output from an exec's buffer",
+        "description": "Retrieves buffered exec output as an array of ExecStdout objects",
         "tags": [
           "Execs"
         ],
