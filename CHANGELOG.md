@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.0...together-sandbox-v1.7.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* fix create snapshot issue ([76234ae](https://github.com/togethercomputer/together-sandbox/commit/76234ae5c090b8175f73061a3ec2036ca2aa0d8d))
+* remove _unwrap_or_raise from alias call in _build_and_register; add context-based alias unit test ([5dcb451](https://github.com/togethercomputer/together-sandbox/commit/5dcb4511128b12a999c3433522e7f9d6cc306fef))
+
 ## [1.7.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.6.0...together-sandbox-v1.7.0) (2026-04-28)
 
 
