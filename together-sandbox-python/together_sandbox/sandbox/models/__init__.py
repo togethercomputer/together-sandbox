@@ -18,6 +18,7 @@ from .file_create_request import FileCreateRequest
 from .file_info import FileInfo
 from .file_operation_response import FileOperationResponse
 from .file_read_response import FileReadResponse
+from .file_read_response_encoding import FileReadResponseEncoding
 from .get_task_response import GetTaskResponse
 from .port_info import PortInfo
 from .ports_list_response import PortsListResponse
@@ -56,6 +57,7 @@ __all__ = (
     "FileInfo",
     "FileOperationResponse",
     "FileReadResponse",
+    "FileReadResponseEncoding",
     "GetTaskResponse",
     "PortInfo",
     "PortsListResponse",
