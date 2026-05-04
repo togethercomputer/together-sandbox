@@ -26,6 +26,7 @@ from .api.api.default.delete_snapshot_by_alias import (
 # ── Snapshot API models ───────────────────────────────────────────────────────
 from .api.models.alias_snapshot_body import AliasSnapshotBody
 from .api.models.create_snapshot_body import CreateSnapshotBody
+from .api.models.create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
 from .api.models.container_registry_credential import ContainerRegistryCredential
 from .api.models.snapshot import Snapshot
 from .api.models.error import Error
@@ -128,7 +129,7 @@ class SnapshotsNamespace:
                     client=self._api_client,
                     body=CreateSnapshotBody(
                         image=params.image,
-                        architecture="amd64",
+                        architecture=CreateSnapshotBodyArchitecture.AMD64,
                     ),
                 ),
                 op="createSnapshot",
@@ -273,10 +274,10 @@ class SnapshotsNamespace:
         params: CreateContextSnapshotParams,
     ) -> CreateSnapshotResult:
         architecture = (
-            "arm64"
+            CreateSnapshotBodyArchitecture.ARM64
             if platform.machine().lower() == "arm64"
             and is_local_environment(self._base_url)
-            else "amd64"
+            else CreateSnapshotBodyArchitecture.AMD64
         )
         context = os.path.realpath(params.context)
         dockerfile_path = (
