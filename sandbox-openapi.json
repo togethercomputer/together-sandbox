@@ -1094,7 +1094,7 @@
           "200": {
             "description": "Plain text exec output",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ExecStdout"
                 }

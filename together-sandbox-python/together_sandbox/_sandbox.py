@@ -185,6 +185,9 @@ class Execs:
     - ``exec_exec_stdin`` → ``send_stdin``
     - ``stream_execs_list`` → ``stream_list``
     - ``connect_to_exec_web_socket`` → removed
+
+    Exec status values (``ExecItem.status``): ``"running"``, ``"stopped"``, ``"finished"``.
+    Poll ``get()`` until status is ``"finished"`` or ``"stopped"`` to wait for completion.
     """
 
     def __init__(self, sandbox_client: SandboxClient) -> None:
