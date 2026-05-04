@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.2](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.1...together-sandbox-v1.7.2) (2026-05-04)
+
+
+### Bug Fixes
+
+* Fix createSnapshot enum issue ([d2df7e7](https://github.com/togethercomputer/together-sandbox/commit/d2df7e79e2b640b7469611db814c02bfede4ae39))
+
 ## [1.7.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.0...together-sandbox-v1.7.1) (2026-05-04)
 
 
