@@ -245,8 +245,8 @@ class Execs:
 
     async def get_output(
         self, id_: str, last_sequence: int | None = None
-    ) -> ExecStdout:
-        """Fetch exec output as plain text (one-shot poll)."""
+    ) -> list[ExecStdout]:
+        """Fetch exec output chunks as a list (one-shot poll)."""
         return _unwrap_or_raise(
             await get_exec_output_api(
                 id_, client=self._client, last_sequence=last_sequence

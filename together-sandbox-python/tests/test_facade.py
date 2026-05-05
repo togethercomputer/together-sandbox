@@ -27,6 +27,7 @@ from together_sandbox.api.models.container_registry_credential import (
 from together_sandbox._together_sandbox import TogetherSandbox
 from together_sandbox._types import StartOptions
 from together_sandbox.sandbox.models.file_read_response import FileReadResponse
+from together_sandbox.sandbox.models.file_read_response_encoding import FileReadResponseEncoding
 from together_sandbox.sandbox.models.file_operation_response import (
     FileOperationResponse,
 )
@@ -241,6 +242,7 @@ class TestFiles:
         mock_response = FileReadResponse(
             path="/test.txt",
             content="Hello, world!",
+            encoding=FileReadResponseEncoding.UTF_8,
         )
 
         with patch(
@@ -285,6 +287,7 @@ class TestFiles:
         mock_response = FileReadResponse(
             path="/image.png",
             content="[binary]",
+            encoding=FileReadResponseEncoding.BASE64,
         )
 
         with patch(
@@ -323,6 +326,7 @@ class TestFiles:
         mock_response = FileReadResponse(
             path="/unicode.txt",
             content=unicode_text,
+            encoding=FileReadResponseEncoding.UTF_8,
         )
 
         with patch(
@@ -356,6 +360,7 @@ class TestFiles:
         mock_response = FileReadResponse(
             path="/empty.txt",
             content="",
+            encoding=FileReadResponseEncoding.UTF_8,
         )
 
         with patch(
