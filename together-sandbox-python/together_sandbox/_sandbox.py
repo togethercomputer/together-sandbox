@@ -96,8 +96,8 @@ class Files:
         else:
             content_bytes = content
 
-        # Create a File object with binary content
-        file_obj = File(payload=io.BytesIO(content_bytes))
+        # Pass raw bytes — httpx requires bytes (not BytesIO) for async requests
+        file_obj = File(payload=content_bytes)
         result = _unwrap_or_raise(
             await create_file_api(path, client=self._client, body=file_obj),
             op="createFile",
