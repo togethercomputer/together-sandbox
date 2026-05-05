@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.4](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.3...together-sandbox-v1.7.4) (2026-05-05)
+
+
+### Bug Fixes
+
+* Fix get exec output api wrong response format ([3d629d4](https://github.com/togethercomputer/together-sandbox/commit/3d629d4ce36b005e3f98f6911923d0dfea4bee40))
+
 ## [1.7.3](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.2...together-sandbox-v1.7.3) (2026-05-04)
 
 

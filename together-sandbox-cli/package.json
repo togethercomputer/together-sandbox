@@ -1,6 +1,6 @@
 {
   "name": "@together-sandbox/cli",
-  "version": "1.7.3",
+  "version": "1.7.4",
   "type": "module",
   "bin": {
     "together-sandbox": "dist/together-sandbox.mjs"
