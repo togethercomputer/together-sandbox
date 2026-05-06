@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 from http import HTTPStatus
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -28,6 +27,9 @@ from together_sandbox._together_sandbox import TogetherSandbox
 from together_sandbox._types import StartOptions
 from together_sandbox.api.types import Response as ApiResponse
 from together_sandbox.sandbox.models.file_read_response import FileReadResponse
+from together_sandbox.sandbox.models.file_read_response_encoding import (
+    FileReadResponseEncoding,
+)
 from together_sandbox.sandbox.models.file_operation_response import (
     FileOperationResponse,
 )
@@ -263,6 +265,7 @@ class TestFiles:
         mock_response = FileReadResponse(
             path="/test.txt",
             content="Hello, world!",
+            encoding=FileReadResponseEncoding.UTF_8,
         )
 
         with patch(
@@ -279,11 +282,10 @@ class TestFiles:
 
             file_arg = call_args.kwargs["body"]
             assert isinstance(file_arg, File)
-            assert isinstance(file_arg.payload, io.BytesIO)
+            assert isinstance(file_arg.payload, bytes)
 
-            file_arg.payload.seek(0)
-            content = file_arg.payload.read()
-            assert content == b"Hello, world!"
+            # Verify the content was encoded to UTF-8
+            assert file_arg.payload == b"Hello, world!"
 
             assert result == "Hello, world!"
 
@@ -298,6 +300,7 @@ class TestFiles:
         mock_response = FileReadResponse(
             path="/image.png",
             content="[binary]",
+            encoding=FileReadResponseEncoding.BASE64,
         )
 
         with patch(
@@ -312,11 +315,10 @@ class TestFiles:
 
             file_arg = call_args.kwargs["body"]
             assert isinstance(file_arg, File)
-            assert isinstance(file_arg.payload, io.BytesIO)
+            assert isinstance(file_arg.payload, bytes)
 
-            file_arg.payload.seek(0)
-            content = file_arg.payload.read()
-            assert content == binary_data
+            # Verify the content is unchanged
+            assert file_arg.payload == binary_data
 
             assert result == "[binary]"
 
@@ -331,6 +333,7 @@ class TestFiles:
         mock_response = FileReadResponse(
             path="/unicode.txt",
             content=unicode_text,
+            encoding=FileReadResponseEncoding.UTF_8,
         )
 
         with patch(
@@ -344,9 +347,12 @@ class TestFiles:
             call_args = mock_api.call_args
 
             file_arg = call_args.kwargs["body"]
-            file_arg.payload.seek(0)
-            content = file_arg.payload.read()
-            assert content.decode("utf-8") == unicode_text
+            assert isinstance(file_arg.payload, bytes)
+
+            # Verify it can be decoded back to the original string
+            assert file_arg.payload.decode("utf-8") == unicode_text
+
+            # Verify the response (unwrapped to content string)
             assert result == unicode_text
 
     @pytest.mark.asyncio
@@ -358,6 +364,7 @@ class TestFiles:
         mock_response = FileReadResponse(
             path="/empty.txt",
             content="",
+            encoding=FileReadResponseEncoding.UTF_8,
         )
 
         with patch(
@@ -370,10 +377,12 @@ class TestFiles:
             assert mock_api.called
             call_args = mock_api.call_args
 
+            # Verify empty content creates empty bytes
             file_arg = call_args.kwargs["body"]
-            file_arg.payload.seek(0)
-            content = file_arg.payload.read()
-            assert content == b""
+            assert isinstance(file_arg.payload, bytes)
+            assert file_arg.payload == b""
+
+            # Verify the response (unwrapped to content string)
             assert result == ""
 
 

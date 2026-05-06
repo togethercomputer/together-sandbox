@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 from typing import Any, AsyncIterator
 from types import TracebackType
 
@@ -111,7 +110,7 @@ class Files:
         else:
             content_bytes = content
 
-        file_obj = File(payload=io.BytesIO(content_bytes))
+        file_obj = File(payload=content_bytes)
         result = await _call_api(
             "files.create",
             lambda: create_file_api(path, client=self._client, body=file_obj),
