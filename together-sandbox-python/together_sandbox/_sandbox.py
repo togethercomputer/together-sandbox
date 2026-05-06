@@ -467,7 +467,7 @@ class Sandbox:
 
     # ── Lifecycle methods ─────────────────────────────────────────────────────
 
-    async def _hibernate(self) -> None:
+    async def hibernate(self) -> None:
         """Suspend (hibernate) this VM."""
         await _call_api(
             "sandboxes.hibernate",
@@ -490,7 +490,7 @@ class Sandbox:
                 f"Failed to hibernate sandbox '{self.id}'. Its final status was {vm_info.status}."
             )
 
-    async def _shutdown(self) -> None:
+    async def shutdown(self) -> None:
         """Shut down this VM."""
         await _call_api(
             "sandboxes.shutdown",

@@ -15,7 +15,11 @@ export {
 
 // Unified facade — recommended entry point
 export { TogetherSandbox } from "./TogetherSandbox.js";
-export type { TogetherSandboxConfig } from "./types.js";
+export type {
+  TogetherSandboxConfig,
+  RetryConfig,
+  RetryContext,
+} from "./types.js";
 
 // Public camelCase types and facade classes
 export type { SandboxInfo, CreateSandboxParams } from "./types.js";
