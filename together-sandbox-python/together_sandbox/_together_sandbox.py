@@ -10,6 +10,8 @@ from .api.client import AuthenticatedClient as ApiClient
 from ._sandboxes import SandboxesNamespace
 from ._snapshots import SnapshotsNamespace
 from ._configuration import get_inferred_base_url
+from ._utils import RetryConfig
+
 
 class TogetherSandbox:
     """
@@ -27,12 +29,16 @@ class TogetherSandbox:
     Args:
         api_key: Together AI API key. Falls back to ``TOGETHER_API_KEY`` env var.
         base_url: Management API base URL. Defaults to ``https://api.bartender.codesandbox.io``.
+        retry: Optional retry configuration. When provided, all API calls will
+            automatically retry on transient failures (HTTP 408/429/500/502/503/504
+            and network errors). See :class:`~together_sandbox._utils.RetryConfig`.
     """
 
     def __init__(
         self,
         api_key: str | None = None,
         base_url: str | None = None,
+        retry: RetryConfig | None = None,
     ) -> None:
         resolved_key = api_key or os.environ.get("TOGETHER_API_KEY")
         resolved_url = base_url or get_inferred_base_url()
@@ -43,14 +49,18 @@ class TogetherSandbox:
             )
         self._api_key = resolved_key
         self._base_url = resolved_url + "/api/v1"
+        self._retry = retry
         self._api_client = ApiClient(
-            base_url= self._base_url,
+            base_url=self._base_url,
             token=resolved_key,
             prefix="Bearer",
-            raise_on_unexpected_status=True,
+            # raise_on_unexpected_status is intentionally omitted (defaults to False).
+            # _call_api owns all error handling and retry logic.
         )
-        self.sandboxes = SandboxesNamespace(self._api_client)
-        self.snapshots = SnapshotsNamespace(self._api_client, self._base_url)
+        self.sandboxes = SandboxesNamespace(self._api_client, retry=retry)
+        self.snapshots = SnapshotsNamespace(
+            self._api_client, self._base_url, retry=retry
+        )
 
     # NOTE: sdk.api_client is removed from the public surface.
     # The internal _api_client is still used by sandboxes and tokens namespaces.
