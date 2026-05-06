@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -265,12 +264,10 @@ class TestFiles:
             # Verify a File object was created with binary content
             file_arg = call_args.kwargs["body"]
             assert isinstance(file_arg, File)
-            assert isinstance(file_arg.payload, io.BytesIO)
+            assert isinstance(file_arg.payload, bytes)
 
             # Verify the content was encoded to UTF-8
-            file_arg.payload.seek(0)
-            content = file_arg.payload.read()
-            assert content == b"Hello, world!"
+            assert file_arg.payload == b"Hello, world!"
 
             # Verify the response (unwrapped to content string)
             assert result == "Hello, world!"
@@ -304,12 +301,10 @@ class TestFiles:
             # Verify a File object was created with the binary content
             file_arg = call_args.kwargs["body"]
             assert isinstance(file_arg, File)
-            assert isinstance(file_arg.payload, io.BytesIO)
+            assert isinstance(file_arg.payload, bytes)
 
             # Verify the content is unchanged
-            file_arg.payload.seek(0)
-            content = file_arg.payload.read()
-            assert content == binary_data
+            assert file_arg.payload == binary_data
 
             # Verify the response (unwrapped to content string)
             assert result == "[binary]"
@@ -342,11 +337,10 @@ class TestFiles:
 
             # Verify the content was properly encoded to UTF-8
             file_arg = call_args.kwargs["body"]
-            file_arg.payload.seek(0)
-            content = file_arg.payload.read()
+            assert isinstance(file_arg.payload, bytes)
 
             # Verify it can be decoded back to the original string
-            assert content.decode("utf-8") == unicode_text
+            assert file_arg.payload.decode("utf-8") == unicode_text
 
             # Verify the response (unwrapped to content string)
             assert result == unicode_text
@@ -374,11 +368,10 @@ class TestFiles:
             assert mock_api.called
             call_args = mock_api.call_args
 
-            # Verify empty content creates an empty BytesIO
+            # Verify empty content creates empty bytes
             file_arg = call_args.kwargs["body"]
-            file_arg.payload.seek(0)
-            content = file_arg.payload.read()
-            assert content == b""
+            assert isinstance(file_arg.payload, bytes)
+            assert file_arg.payload == b""
 
             # Verify the response (unwrapped to content string)
             assert result == ""
