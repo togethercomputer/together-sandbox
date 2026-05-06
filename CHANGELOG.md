@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.5](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.4...together-sandbox-v1.7.5) (2026-05-06)
+
+
+### Bug Fixes
+
+* fix create file api request param issue ([ad21e51](https://github.com/togethercomputer/together-sandbox/commit/ad21e51410abbb2f5d2949fa53403ef1d7e20af0))
+
 ## [1.7.4](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.3...together-sandbox-v1.7.4) (2026-05-05)
 
 
