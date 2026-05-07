@@ -3,7 +3,6 @@ from __future__ import annotations
 from .api.client import AuthenticatedClient as ApiClient
 
 from ._sandbox import Sandbox
-from ._types import CreateSandboxParams, StartOptions
 
 # ── Management API endpoint functions ─────────────────────────────────────────
 from .api.api.default.start_sandbox import asyncio as start_sandbox_api
@@ -48,7 +47,7 @@ class SandboxesNamespace:
         self,
         sandbox_id: str,
         *,
-        start_options: StartOptions | None = None,
+        version_number: int | None = None,
     ) -> Sandbox:
         """
         Start the VM for the given sandbox and return a :class:`Sandbox`
@@ -56,14 +55,17 @@ class SandboxesNamespace:
 
         Args:
             sandbox_id: The sandbox (VM) ID to start.
-            start_options: Optional start options (e.g., version_number).
+            version_number: Optional version number to start. Uses the current
+                version if not provided.
 
         Returns:
             A ready-to-use :class:`Sandbox` with all sub-namespaces.
         """
-        body = UNSET
-        if start_options is not None and start_options.version_number is not None:
-            body = StartSandboxBody(version_number=start_options.version_number)
+        body = (
+            UNSET
+            if version_number is None
+            else StartSandboxBody(version_number=version_number)
+        )
 
         vm_info = _unwrap_or_raise(
             await start_sandbox_api(sandbox_id, client=self._api_client, body=body),
@@ -93,19 +95,37 @@ class SandboxesNamespace:
 
         return Sandbox(vm_info, sandbox_client, self._api_client)
 
-    async def create(self, params: CreateSandboxParams) -> SandboxModel:
-        """Create a new sandbox (does not start the VM)."""
+    async def create(
+        self,
+        *,
+        millicpu: int,
+        memory_bytes: int,
+        disk_bytes: int,
+        id: str | None = None,
+        snapshot_id: str | None = None,
+        snapshot_alias: str | None = None,
+        ephemeral: bool | None = None,
+    ) -> SandboxModel:
+        """Create a new sandbox (does not start the VM).
+
+        Args:
+            millicpu: CPU allocation in millicores (e.g. 1000 = 1 vCPU).
+            memory_bytes: Memory allocation in bytes.
+            disk_bytes: Disk allocation in bytes.
+            id: Optional explicit sandbox ID.
+            snapshot_id: Optional snapshot ID to create the sandbox from.
+            snapshot_alias: Optional snapshot alias to create the sandbox from.
+            ephemeral: Optional flag to mark the sandbox as ephemeral.
+        """
 
         body = CreateSandboxBody(
-            id=params.id if params.id is not None else UNSET,
-            snapshot_id=params.snapshot_id if params.snapshot_id is not None else UNSET,
-            snapshot_alias=(
-                params.snapshot_alias if params.snapshot_alias is not None else UNSET
-            ),
-            ephemeral=params.ephemeral if params.ephemeral is not None else UNSET,
-            millicpu=params.millicpu,
-            memory_bytes=params.memory_bytes,
-            disk_bytes=params.disk_bytes,
+            id=id if id is not None else UNSET,
+            snapshot_id=snapshot_id if snapshot_id is not None else UNSET,
+            snapshot_alias=snapshot_alias if snapshot_alias is not None else UNSET,
+            ephemeral=ephemeral if ephemeral is not None else UNSET,
+            millicpu=millicpu,
+            memory_bytes=memory_bytes,
+            disk_bytes=disk_bytes,
         )
         return _unwrap_or_raise(
             await create_sandbox_api(client=self._api_client, body=body),

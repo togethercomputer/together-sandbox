@@ -15,7 +15,6 @@ Low-level clients (advanced use)::
 
 from ._together_sandbox import TogetherSandbox
 from ._sandboxes import SandboxesNamespace
-from ._types import StartOptions, CreateSandboxParams
 from ._snapshots import (
     SnapshotsNamespace,
     CreateSnapshotParams,
@@ -23,7 +22,7 @@ from ._snapshots import (
     CreateImageSnapshotParams,
     CreateSnapshotResult,
     SnapshotProgress,
-    Snapshot
+    Snapshot,
 )
 from ._sandbox import Sandbox
 
@@ -32,12 +31,10 @@ __all__ = [
     "Sandbox",
     "SandboxesNamespace",
     "SnapshotsNamespace",
-    "StartOptions",
-    "CreateSandboxParams",
     "CreateSnapshotParams",
     "CreateContextSnapshotParams",
     "CreateImageSnapshotParams",
     "CreateSnapshotResult",
     "SnapshotProgress",
-    "Snapshot"
+    "Snapshot",
 ]

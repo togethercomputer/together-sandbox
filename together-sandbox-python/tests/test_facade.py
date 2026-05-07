@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
+from together_sandbox.api.types import UNSET
+from together_sandbox.sandbox.types import UNSET as SANDBOX_UNSET
 
 import pytest
 
@@ -24,9 +26,10 @@ from together_sandbox.api.models.container_registry_credential import (
     ContainerRegistryCredential,
 )
 from together_sandbox._together_sandbox import TogetherSandbox
-from together_sandbox._types import StartOptions
 from together_sandbox.sandbox.models.file_read_response import FileReadResponse
-from together_sandbox.sandbox.models.file_read_response_encoding import FileReadResponseEncoding
+from together_sandbox.sandbox.models.file_read_response_encoding import (
+    FileReadResponseEncoding,
+)
 from together_sandbox.sandbox.models.file_operation_response import (
     FileOperationResponse,
 )
@@ -36,9 +39,19 @@ from together_sandbox.sandbox.models.ports_list_response import PortsListRespons
 from together_sandbox.sandbox.models.error import Error
 from together_sandbox.sandbox.types import File
 from together_sandbox.api.models.sandbox import Sandbox as SandboxModel
+from together_sandbox.api.models.create_sandbox_body import CreateSandboxBody
 from together_sandbox.api.models.start_sandbox_body import StartSandboxBody
 from together_sandbox.api.types import UNSET
-
+from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
+from together_sandbox.sandbox.models.create_exec_request_env import (
+    CreateExecRequestEnv,
+)
+from together_sandbox.sandbox.models.exec_stdin import ExecStdin
+from together_sandbox.sandbox.models.exec_stdin_type import ExecStdinType
+from together_sandbox.sandbox.models.update_exec_request import UpdateExecRequest
+from together_sandbox.sandbox.models.update_exec_request_status import (
+    UpdateExecRequestStatus,
+)
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -113,7 +126,7 @@ class TestSandboxesNamespaceStart:
 
     @pytest.mark.asyncio
     async def test_start_with_version_number_passes_body(self):
-        """When start_options has version_number, body must be StartSandboxBody with that value."""
+        """When version_number is provided, body must be StartSandboxBody with that value."""
         ns = self._make_namespace()
         vm_info = _make_sandbox_model()
 
@@ -130,9 +143,7 @@ class TestSandboxesNamespaceStart:
                 ),  # must pass the status guard
             ):
                 with patch("together_sandbox._sandboxes.SandboxClient"):
-                    await ns.start(
-                        "sandbox-1", start_options=StartOptions(version_number=123)
-                    )
+                    await ns.start("sandbox-1", version_number=123)
 
             call_kwargs = mock_api.call_args.kwargs
             body = call_kwargs["body"]
@@ -140,8 +151,8 @@ class TestSandboxesNamespaceStart:
             assert body.version_number == 123
 
     @pytest.mark.asyncio
-    async def test_start_with_version_number_none_passes_unset_body(self):
-        """When start_options.version_number is None, body must be UNSET."""
+    async def test_start_with_explicit_none_version_passes_unset_body(self):
+        """When version_number is explicitly None, body must be UNSET."""
         ns = self._make_namespace()
         vm_info = _make_sandbox_model()
 
@@ -153,17 +164,76 @@ class TestSandboxesNamespaceStart:
             with patch(
                 "together_sandbox._sandboxes.wait_for_sandbox_api",
                 new_callable=AsyncMock,
-                return_value=_make_sandbox_model(
-                    status="running"
-                ),  # must pass the status guard
+                return_value=_make_sandbox_model(status="running"),
             ):
                 with patch("together_sandbox._sandboxes.SandboxClient"):
-                    await ns.start(
-                        "sandbox-1", start_options=StartOptions(version_number=None)
-                    )
+                    await ns.start("sandbox-1", version_number=None)
 
             call_kwargs = mock_api.call_args.kwargs
             assert call_kwargs["body"] is UNSET
+
+
+# ─── SandboxesNamespace.create() body construction tests ─────────────────
+
+
+class TestSandboxesNamespaceCreate:
+    """Tests that SandboxesNamespace.create() builds the correct CreateSandboxBody."""
+
+    def _make_namespace(self) -> SandboxesNamespace:
+        return SandboxesNamespace(api_client=MagicMock())
+
+    @pytest.mark.asyncio
+    async def test_create_with_required_only(self):
+        """With only the three required kwargs, optional fields must be UNSET."""
+        ns = self._make_namespace()
+
+        with patch(
+            "together_sandbox._sandboxes.create_sandbox_api",
+            new_callable=AsyncMock,
+            return_value=_make_sandbox_model(),
+        ) as mock_api:
+            await ns.create(
+                millicpu=1000,
+                memory_bytes=2_000_000_000,
+                disk_bytes=10_000_000_000,
+            )
+
+        body = mock_api.call_args.kwargs["body"]
+        assert isinstance(body, CreateSandboxBody)
+        assert body.millicpu == 1000
+        assert body.memory_bytes == 2_000_000_000
+        assert body.disk_bytes == 10_000_000_000
+        assert body.id is UNSET
+        assert body.snapshot_id is UNSET
+        assert body.snapshot_alias is UNSET
+        assert body.ephemeral is UNSET
+
+    @pytest.mark.asyncio
+    async def test_create_with_all_optional_kwargs(self):
+        """All optional kwargs must flow through to the body verbatim."""
+        ns = self._make_namespace()
+
+        with patch(
+            "together_sandbox._sandboxes.create_sandbox_api",
+            new_callable=AsyncMock,
+            return_value=_make_sandbox_model(),
+        ) as mock_api:
+            await ns.create(
+                millicpu=2000,
+                memory_bytes=4_000_000_000,
+                disk_bytes=20_000_000_000,
+                id="my-sandbox-id",
+                snapshot_id="snap-abc",
+                snapshot_alias="myimage@latest",
+                ephemeral=True,
+            )
+
+        body = mock_api.call_args.kwargs["body"]
+        assert isinstance(body, CreateSandboxBody)
+        assert body.id == "my-sandbox-id"
+        assert body.snapshot_id == "snap-abc"
+        assert body.snapshot_alias == "myimage@latest"
+        assert body.ephemeral is True
 
 
 class TestTogetherSandbox:
@@ -375,6 +445,7 @@ class TestFiles:
 
             # Verify the response (unwrapped to content string)
             assert result == ""
+
 
 # ─── _unwrap_or_raise tests ───────────────────────────────────────────────────
 
@@ -609,6 +680,194 @@ class TestExecsErrorPaths:
             await Execs(mock_client).delete("exec-1")  # should not raise
 
 
+# ─── Execs body-construction tests ─────────────────────────────────────
+
+
+class TestExecsCreate:
+    """Tests that Execs.create() builds the correct CreateExecRequest body from flat kwargs."""
+
+    @pytest.mark.asyncio
+    async def test_create_minimal_required_only(self):
+        """With only command + args, all optional fields must be UNSET."""
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.create_exec_api",
+            new_callable=AsyncMock,
+            return_value=MagicMock(),
+        ) as mock_api:
+            await Execs(mock_client).create("npm", ["start"])
+
+        body = mock_api.call_args.kwargs["body"]
+        assert isinstance(body, CreateExecRequest)
+        assert body.command == "npm"
+        assert body.args == ["start"]
+        assert body.autorun is SANDBOX_UNSET
+        assert body.interactive is SANDBOX_UNSET
+        assert body.pty is SANDBOX_UNSET
+        assert body.cwd is SANDBOX_UNSET
+        assert body.env is SANDBOX_UNSET
+        assert body.uid is SANDBOX_UNSET
+        assert body.gid is SANDBOX_UNSET
+
+    @pytest.mark.asyncio
+    async def test_create_with_env_dict_builds_create_exec_request_env(self):
+        """A plain dict env must be wrapped in CreateExecRequestEnv."""
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.create_exec_api",
+            new_callable=AsyncMock,
+            return_value=MagicMock(),
+        ) as mock_api:
+            await Execs(mock_client).create(
+                "npm",
+                ["start"],
+                env={"NODE_ENV": "production", "PORT": "3000"},
+            )
+
+        body = mock_api.call_args.kwargs["body"]
+        assert isinstance(body.env, CreateExecRequestEnv)
+        assert body.env.additional_properties == {
+            "NODE_ENV": "production",
+            "PORT": "3000",
+        }
+
+    @pytest.mark.asyncio
+    async def test_create_with_all_optional_kwargs(self):
+        """All optional kwargs must flow through to the body."""
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.create_exec_api",
+            new_callable=AsyncMock,
+            return_value=MagicMock(),
+        ) as mock_api:
+            await Execs(mock_client).create(
+                "bash",
+                ["-c", "echo hi"],
+                autorun=False,
+                interactive=True,
+                pty=True,
+                cwd="/workspace",
+                env={"FOO": "bar"},
+                uid=1001,
+                gid=1002,
+            )
+
+        body = mock_api.call_args.kwargs["body"]
+        assert body.command == "bash"
+        assert body.args == ["-c", "echo hi"]
+        assert body.autorun is False
+        assert body.interactive is True
+        assert body.pty is True
+        assert body.cwd == "/workspace"
+        assert body.uid == 1001
+        assert body.gid == 1002
+        assert isinstance(body.env, CreateExecRequestEnv)
+        assert body.env.additional_properties == {"FOO": "bar"}
+
+
+class TestExecsResume:
+    """Tests that Execs.resume() sends the correct UpdateExecRequest."""
+
+    @pytest.mark.asyncio
+    async def test_resume_sends_running_status(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.update_exec_api",
+            new_callable=AsyncMock,
+            return_value=MagicMock(),
+        ) as mock_api:
+            await Execs(mock_client).resume("exec-1")
+
+        # exec id is positional, body is keyword
+        assert mock_api.call_args.args[0] == "exec-1"
+        body = mock_api.call_args.kwargs["body"]
+        assert isinstance(body, UpdateExecRequest)
+        assert body.status is UpdateExecRequestStatus.RUNNING
+
+    @pytest.mark.asyncio
+    async def test_resume_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=404, message="not found")
+        with patch(
+            "together_sandbox._sandbox.update_exec_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(
+                RuntimeError, match="Failed to resumeExec for id 'exec-1'"
+            ):
+                await Execs(mock_client).resume("exec-1")
+
+    def test_old_update_method_is_removed(self):
+        """The old `update` method must be gone now that resume() replaced it."""
+        mock_client = MagicMock()
+        assert not hasattr(Execs(mock_client), "update")
+
+
+class TestExecsSendStdinAndResize:
+    """Tests that send_stdin and resize each build the right ExecStdin body."""
+
+    @pytest.mark.asyncio
+    async def test_send_stdin_builds_stdin_body(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.exec_exec_stdin_api",
+            new_callable=AsyncMock,
+            return_value=MagicMock(),
+        ) as mock_api:
+            await Execs(mock_client).send_stdin("exec-1", "ls -la\n")
+
+        assert mock_api.call_args.args[0] == "exec-1"
+        body = mock_api.call_args.kwargs["body"]
+        assert isinstance(body, ExecStdin)
+        assert body.type_ is ExecStdinType.STDIN
+        assert body.input_ == "ls -la\n"
+
+    @pytest.mark.asyncio
+    async def test_resize_builds_resize_body(self):
+        mock_client = MagicMock()
+        with patch(
+            "together_sandbox._sandbox.exec_exec_stdin_api",
+            new_callable=AsyncMock,
+            return_value=MagicMock(),
+        ) as mock_api:
+            await Execs(mock_client).resize("exec-1", cols=80, rows=24)
+
+        assert mock_api.call_args.args[0] == "exec-1"
+        body = mock_api.call_args.kwargs["body"]
+        assert isinstance(body, ExecStdin)
+        assert body.type_ is ExecStdinType.RESIZE
+        assert body.input_ == "80x24"
+
+    @pytest.mark.asyncio
+    async def test_send_stdin_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=400, message="bad request")
+        with patch(
+            "together_sandbox._sandbox.exec_exec_stdin_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(
+                RuntimeError, match="Failed to execStdin for id 'exec-1'"
+            ):
+                await Execs(mock_client).send_stdin("exec-1", "data")
+
+    @pytest.mark.asyncio
+    async def test_resize_raises_on_error(self):
+        mock_client = MagicMock()
+        err = Error(code=400, message="bad request")
+        with patch(
+            "together_sandbox._sandbox.exec_exec_stdin_api",
+            new_callable=AsyncMock,
+            return_value=err,
+        ):
+            with pytest.raises(
+                RuntimeError, match="Failed to execResize for id 'exec-1'"
+            ):
+                await Execs(mock_client).resize("exec-1", cols=80, rows=24)
+
+
 # ─── Ports error-path tests ───────────────────────────────────────────────────
 
 
@@ -733,6 +992,7 @@ class TestDirectoriesErrorPaths:
         ):
             await Directories(mock_client).delete("/mydir")  # should not raise
 
+
 # ─── Snapshots tests ──────────────────────────────────────────────────────────
 
 
@@ -835,9 +1095,13 @@ class TestSnapshots:
                 new_callable=AsyncMock,
                 return_value=credential,
             ),
-            patch("together_sandbox._snapshots.build_docker_image", new_callable=AsyncMock),
+            patch(
+                "together_sandbox._snapshots.build_docker_image", new_callable=AsyncMock
+            ),
             patch("together_sandbox._snapshots.docker_login", new_callable=AsyncMock),
-            patch("together_sandbox._snapshots.push_docker_image", new_callable=AsyncMock),
+            patch(
+                "together_sandbox._snapshots.push_docker_image", new_callable=AsyncMock
+            ),
             patch(
                 "together_sandbox._snapshots.create_snapshot_api",
                 new_callable=AsyncMock,
@@ -850,7 +1114,9 @@ class TestSnapshots:
             ),
         ]
 
-        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5] as mock_alias:
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[
+            5
+        ] as mock_alias:
             result = await snapshots._build_and_register(
                 CreateContextSnapshotParams(
                     context="/tmp",

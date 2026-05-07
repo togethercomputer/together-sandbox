@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-import io
 from typing import Any, AsyncIterator
 from types import TracebackType
-
-# ── Facade types ─────────────────────────────────────────────────────
-from ._types import StartOptions
 
 # ── Management API client ─────────────────────────────────────────────────────
 from .api.client import AuthenticatedClient as ApiClient
@@ -42,19 +38,20 @@ from .sandbox.api.directories.delete_directory import asyncio as delete_director
 
 # ── Sandbox API models ────────────────────────────────────────────────────────
 from .sandbox.models.create_exec_request import CreateExecRequest
+from .sandbox.models.create_exec_request_env import CreateExecRequestEnv
 from .sandbox.models.file_action_request import FileActionRequest
 from .sandbox.models.file_action_request_action import FileActionRequestAction
 from .sandbox.models.file_info import FileInfo
+from .sandbox.models.exec_stdin_type import ExecStdinType
 from .sandbox.models.exec_stdin import ExecStdin
 from .sandbox.models.exec_stdout import ExecStdout
 from .sandbox.models.update_exec_request import UpdateExecRequest
-from .sandbox.models.error import Error
-from .sandbox.types import File
+from .sandbox.models.update_exec_request_status import UpdateExecRequestStatus
+from .sandbox.types import UNSET, File, Unset
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
 from ._streaming import stream_sse_json
 from ._utils import _unwrap_or_raise
-
 
 # ─── Files facade ─────────────────────────────────────────────────────────────
 
@@ -182,8 +179,9 @@ class Execs:
     Exec operations facade with renamed SSE methods.
 
     - ``get_exec_output`` → ``stream_output``
-    - ``exec_exec_stdin`` → ``send_stdin``
+    - ``exec_exec_stdin`` → split into ``send_stdin`` (data) and ``resize`` (cols, rows)
     - ``stream_execs_list`` → ``stream_list``
+    - ``update`` → ``resume`` (only valid status today is ``running``)
     - ``connect_to_exec_web_socket`` → removed
 
     Exec status values (``ExecItem.status``): ``"running"``, ``"stopped"``, ``"finished"``.
@@ -200,8 +198,49 @@ class Execs:
         )
         return result.execs
 
-    async def create(self, body: CreateExecRequest):
-        """Create a new exec."""
+    async def create(
+        self,
+        command: str,
+        args: list[str],
+        *,
+        autorun: bool | None = None,
+        interactive: bool | None = None,
+        pty: bool | None = None,
+        cwd: str | None = None,
+        env: dict[str, str] | None = None,
+        uid: int | None = None,
+        gid: int | None = None,
+    ):
+        """Create a new exec.
+
+        Args:
+            command: Command to execute (e.g. ``"npm"``).
+            args: Command line arguments (e.g. ``["start"]``).
+            autorun: Whether to automatically start the exec (defaults to true).
+            interactive: Whether to start an interactive shell session.
+            pty: Whether to start a PTY shell session.
+            cwd: Working directory for the command.
+            env: Environment variables as a plain dict (e.g. ``{"NODE_ENV": "production"}``).
+            uid: User ID to run the command as (defaults to 1000).
+            gid: Group ID to run the command as (defaults to 1000).
+        """
+        env_obj: CreateExecRequestEnv | Unset = UNSET
+        if env is not None:
+            env_obj = CreateExecRequestEnv()
+            for k, v in env.items():
+                env_obj[k] = v
+
+        body = CreateExecRequest(
+            command=command,
+            args=args,
+            autorun=autorun if autorun is not None else UNSET,
+            interactive=interactive if interactive is not None else UNSET,
+            pty=pty if pty is not None else UNSET,
+            cwd=cwd if cwd is not None else UNSET,
+            env=env_obj,
+            uid=uid if uid is not None else UNSET,
+            gid=gid if gid is not None else UNSET,
+        )
         return _unwrap_or_raise(
             await create_exec_api(client=self._client, body=body), op="createExec"
         )
@@ -214,11 +253,15 @@ class Execs:
             context=f"for id {id_!r}",
         )
 
-    async def update(self, id_: str, body: UpdateExecRequest):
-        """Update exec status."""
+    async def resume(self, id_: str):
+        """Resume a stopped exec (sets its status to ``running``)."""
         return _unwrap_or_raise(
-            await update_exec_api(id_, client=self._client, body=body),
-            op="updateExec",
+            await update_exec_api(
+                id_,
+                client=self._client,
+                body=UpdateExecRequest(status=UpdateExecRequestStatus.RUNNING),
+            ),
+            op="resumeExec",
             context=f"for id {id_!r}",
         )
 
@@ -255,11 +298,47 @@ class Execs:
             context=f"for id {id_!r}",
         )
 
-    async def send_stdin(self, id_: str, body: ExecStdin):
-        """Send stdin to an exec (renamed from exec_exec_stdin)."""
+    async def send_stdin(self, id_: str, data: str):
+        """Send stdin data to an exec.
+
+        Args:
+            id_: Exec ID.
+            data: Raw stdin data to send (e.g. ``"ls -la\\n"``).
+        """
         return _unwrap_or_raise(
-            await exec_exec_stdin_api(id_, client=self._client, body=body),
+            await exec_exec_stdin_api(
+                id_,
+                client=self._client,
+                body=ExecStdin(type_=ExecStdinType.STDIN, input_=data),
+            ),
             op="execStdin",
+            context=f"for id {id_!r}",
+        )
+
+    async def resize(self, id_: str, cols: int, rows: int):
+        """Resize the PTY for an interactive exec.
+
+        Args:
+            id_: Exec ID.
+            cols: New terminal width in columns.
+            rows: New terminal height in rows.
+
+        .. note::
+            The wire format encodes the size as ``"{cols}x{rows}"``. This
+            encoding has not been verified end-to-end against the agent
+            yet — if your terminal does not resize correctly, check the
+            agent's expected format and adjust here.
+        """
+        return _unwrap_or_raise(
+            await exec_exec_stdin_api(
+                id_,
+                client=self._client,
+                body=ExecStdin(
+                    type_=ExecStdinType.RESIZE,
+                    input_=f"{cols}x{rows}",
+                ),
+            ),
+            op="execResize",
             context=f"for id {id_!r}",
         )
 
@@ -346,11 +425,12 @@ class Sandbox:
         await sandbox.files.read("/path")
         await sandbox.files.move("/src", "/dest")
         await sandbox.files.copy("/src", "/dest")
-        await sandbox.execs.create(CreateExecRequest(...))
-        await sandbox.execs.send_stdin(id_, body)
+        await sandbox.execs.create(command="npm", args=["start"])
+        await sandbox.execs.send_stdin(id_, "ls -la\n")
+        await sandbox.execs.resize(id_, cols=80, rows=24)
         async for event in sandbox.execs.stream_output(id_):
             ...
-        await sandbox.ports.list_ports()
+        await sandbox.ports.list()
 
     Lifecycle methods call back to the management API::
 
@@ -403,7 +483,7 @@ class Sandbox:
 
     @property
     def execs(self) -> Execs:
-        """Shell exec operations (create, get, update, stream_output, send_stdin, stream_list)."""
+        """Shell exec operations (create, get, resume, stream_output, send_stdin, resize, stream_list)."""
         return Execs(self._sandbox_client)
 
     @property
@@ -479,7 +559,7 @@ class Sandbox:
         *,
         api_key: str | None = None,
         base_url: str = "https://api.codesandbox.io",
-        start_options: StartOptions | None = None,
+        version_number: int | None = None,
     ) -> "Sandbox":
         """
         Start a sandbox in a single call (classmethod factory).
@@ -491,7 +571,7 @@ class Sandbox:
         from ._together_sandbox import TogetherSandbox
 
         sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
-        return await sdk.sandboxes.start(sandbox_id, start_options=start_options)
+        return await sdk.sandboxes.start(sandbox_id, version_number=version_number)
 
     @classmethod
     async def hibernate(
