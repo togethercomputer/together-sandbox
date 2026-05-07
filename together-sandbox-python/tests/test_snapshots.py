@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from http import HTTPStatus
 from unittest.mock import MagicMock
 from uuid import UUID
 from datetime import datetime
@@ -10,6 +11,7 @@ from datetime import datetime
 from together_sandbox._snapshots import SnapshotsNamespace
 from together_sandbox.api.models.snapshot import Snapshot
 from together_sandbox.api.models.error import Error
+from together_sandbox.api.types import Response
 
 
 @pytest.mark.asyncio
@@ -44,7 +46,12 @@ class TestSnapshotsNamespace:
         with pytest.MonkeyPatch.context() as mp:
 
             async def mock_get_snapshot_by_alias_api(alias: str, *, client):
-                return mock_snapshot
+                return Response(
+                    status_code=HTTPStatus(200),
+                    content=b"",
+                    headers={},
+                    parsed=mock_snapshot,
+                )
 
             # Patch the imported function in _snapshots module
             mp.setattr(
@@ -88,7 +95,12 @@ class TestSnapshotsNamespace:
             async def mock_get_snapshot_by_alias_api(alias: str, *, client):
                 nonlocal received_alias
                 received_alias = alias
-                return mock_snapshot
+                return Response(
+                    status_code=HTTPStatus(200),
+                    content=b"",
+                    headers={},
+                    parsed=mock_snapshot,
+                )
 
             mp.setattr(
                 "together_sandbox._snapshots.get_snapshot_by_alias_api",
@@ -113,7 +125,12 @@ class TestSnapshotsNamespace:
         with pytest.MonkeyPatch.context() as mp:
 
             async def mock_get_snapshot_by_alias_api(alias: str, *, client):
-                return None  # Simulate unexpected response
+                return Response(
+                    status_code=HTTPStatus(404),
+                    content=b"",
+                    headers={},
+                    parsed=None,
+                )
 
             mp.setattr(
                 "together_sandbox._snapshots.get_snapshot_by_alias_api",
@@ -121,7 +138,7 @@ class TestSnapshotsNamespace:
             )
 
             # Should raise RuntimeError with unexpected response message
-            with pytest.raises(RuntimeError, match="getSnapshotByAlias returned None"):
+            with pytest.raises(RuntimeError, match="returned no response"):
                 await snapshots.get_by_alias("nonexistent@alias")
 
     async def test_get_snapshot_error_response_raises_error(self):
@@ -143,7 +160,12 @@ class TestSnapshotsNamespace:
         with pytest.MonkeyPatch.context() as mp:
 
             async def mock_get_snapshot_by_alias_api(alias: str, *, client):
-                return mock_error  # Simulate API error response
+                return Response(
+                    status_code=HTTPStatus(404),
+                    content=b"",
+                    headers={},
+                    parsed=mock_error,
+                )
 
             mp.setattr(
                 "together_sandbox._snapshots.get_snapshot_by_alias_api",

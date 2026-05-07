@@ -23,9 +23,10 @@ from ._snapshots import (
     CreateImageSnapshotParams,
     CreateSnapshotResult,
     SnapshotProgress,
-    Snapshot
+    Snapshot,
 )
 from ._sandbox import Sandbox
+from ._utils import RetryConfig, RetryContext
 
 __all__ = [
     "TogetherSandbox",
@@ -39,5 +40,7 @@ __all__ = [
     "CreateImageSnapshotParams",
     "CreateSnapshotResult",
     "SnapshotProgress",
-    "Snapshot"
+    "Snapshot",
+    "RetryConfig",
+    "RetryContext",
 ]
