@@ -17,7 +17,7 @@ from together_sandbox.sandbox.models.update_exec_request_status import (
 )
 from .helpers import retry_until
 
-
+@pytest.mark.e2e
 @pytest.mark.asyncio
 class TestSandboxExecs:
     """E2E tests for creating and managing command executions."""
