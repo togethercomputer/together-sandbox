@@ -5,10 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
-from together_sandbox._sandbox import (
-    _unwrap_or_raise,
-)
 from together_sandbox._sandboxes import _resolve_connection
 from together_sandbox.sandbox.models.error import Error
 from together_sandbox.api.models.sandbox import Sandbox as SandboxModel
@@ -49,42 +45,3 @@ class TestResolveConnection:
         sandbox = _make_sandbox_model(agent_token=None)
         with pytest.raises(RuntimeError, match="no agent connection details"):
             _resolve_connection(sandbox)
-
-
-# ─── _unwrap_or_raise tests ───────────────────────────────────────────────────
-
-
-class TestUnwrapOrRaise:
-    """Tests for the _unwrap_or_raise() private helper."""
-
-    def test_returns_result_when_valid(self):
-        """Returns the value unchanged when it is not None or Error."""
-        obj = object()
-        assert _unwrap_or_raise(obj, op="testOp") is obj
-
-    def test_raises_on_none_without_context(self):
-        """Raises RuntimeError with op name when result is None and no context given."""
-        with pytest.raises(RuntimeError, match="testOp returned None$"):
-            _unwrap_or_raise(None, op="testOp")
-
-    def test_raises_on_none_with_context(self):
-        """Raises RuntimeError including context when result is None."""
-        with pytest.raises(RuntimeError, match="testOp returned None for path '/foo'"):
-            _unwrap_or_raise(None, op="testOp", context="for path '/foo'")
-
-    def test_raises_on_error_without_context(self):
-        """Raises RuntimeError with Error message when result is an Error."""
-        err = Error(code=500, message="internal error")
-        with pytest.raises(
-            RuntimeError, match="Failed to testOp: internal error \\(code: 500\\)"
-        ):
-            _unwrap_or_raise(err, op="testOp")
-
-    def test_raises_on_error_with_context(self):
-        """Raises RuntimeError including context when result is an Error."""
-        err = Error(code=404, message="not found")
-        with pytest.raises(
-            RuntimeError,
-            match="Failed to testOp for path '/bar': not found \\(code: 404\\)",
-        ):
-            _unwrap_or_raise(err, op="testOp", context="for path '/bar'")

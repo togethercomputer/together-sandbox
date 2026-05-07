@@ -85,7 +85,7 @@ def sync_detailed(
 ) -> Response[Error | list[ExecStdout]]:
     """Get exec output
 
-     Retrieves the plain text output from an exec's buffer
+     Retrieves buffered exec output as an array of ExecStdout objects
 
     Args:
         id (str):
@@ -119,7 +119,7 @@ def sync(
 ) -> Error | list[ExecStdout] | None:
     """Get exec output
 
-     Retrieves the plain text output from an exec's buffer
+     Retrieves buffered exec output as an array of ExecStdout objects
 
     Args:
         id (str):
@@ -148,7 +148,7 @@ async def asyncio_detailed(
 ) -> Response[Error | list[ExecStdout]]:
     """Get exec output
 
-     Retrieves the plain text output from an exec's buffer
+     Retrieves buffered exec output as an array of ExecStdout objects
 
     Args:
         id (str):
@@ -180,7 +180,7 @@ async def asyncio(
 ) -> Error | list[ExecStdout] | None:
     """Get exec output
 
-     Retrieves the plain text output from an exec's buffer
+     Retrieves buffered exec output as an array of ExecStdout objects
 
     Args:
         id (str):

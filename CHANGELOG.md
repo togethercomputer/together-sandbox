@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.7.5](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.4...together-sandbox-v1.7.5) (2026-05-06)
+
+
+### Bug Fixes
+
+* fix create file api request param issue ([ad21e51](https://github.com/togethercomputer/together-sandbox/commit/ad21e51410abbb2f5d2949fa53403ef1d7e20af0))
+
+## [1.7.4](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.3...together-sandbox-v1.7.4) (2026-05-05)
+
+
+### Bug Fixes
+
+* Fix get exec output api wrong response format ([3d629d4](https://github.com/togethercomputer/together-sandbox/commit/3d629d4ce36b005e3f98f6911923d0dfea4bee40))
+
+## [1.7.3](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.2...together-sandbox-v1.7.3) (2026-05-04)
+
+
+### Bug Fixes
+
+* fix exec output response issue ([a6ed6fc](https://github.com/togethercomputer/together-sandbox/commit/a6ed6fcec88921a2cb54fb37e127509150d4b553))
+
+## [1.7.2](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.1...together-sandbox-v1.7.2) (2026-05-04)
+
+
+### Bug Fixes
+
+* Fix createSnapshot enum issue ([d2df7e7](https://github.com/togethercomputer/together-sandbox/commit/d2df7e79e2b640b7469611db814c02bfede4ae39))
+
+## [1.7.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.0...together-sandbox-v1.7.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* fix create snapshot issue ([76234ae](https://github.com/togethercomputer/together-sandbox/commit/76234ae5c090b8175f73061a3ec2036ca2aa0d8d))
+* remove _unwrap_or_raise from alias call in _build_and_register; add context-based alias unit test ([5dcb451](https://github.com/togethercomputer/together-sandbox/commit/5dcb4511128b12a999c3433522e7f9d6cc306fef))
+
 ## [1.7.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.6.0...together-sandbox-v1.7.0) (2026-04-28)
 
 

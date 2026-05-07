@@ -5,6 +5,7 @@ import pathlib
 import tempfile
 
 import pytest
+import uuid
 
 from together_sandbox._snapshots import (
     CreateSnapshotResult,
@@ -33,10 +34,16 @@ class TestSnapshots:
     async def test_create_from_context_with_alias(self, docker_context: str) -> None:
         """Test snapshot creation from Docker build with alias."""
         sdk = TogetherSandbox(api_key=os.environ["CSB_API_KEY"])
-        result: CreateSnapshotResult = await sdk.snapshots.create(
-            CreateContextSnapshotParams(context=docker_context, alias="e2e-build")
-        )
-        assert result.snapshot_id
-        assert isinstance(result.snapshot_id, str)
-        assert result.alias is not None
-        assert "e2e-build" in result.alias
+        alias = f"e2e-build-{uuid.uuid4().hex[:8]}"
+        result: CreateSnapshotResult | None = None
+        try:
+            result = await sdk.snapshots.create(
+                CreateContextSnapshotParams(context=docker_context, alias=alias)
+            )
+            assert result.snapshot_id
+            assert isinstance(result.snapshot_id, str)
+            assert result.alias is not None
+            assert "e2e-build" in result.alias
+        finally:
+            if result is not None:
+                await sdk.snapshots.delete_by_id(result.snapshot_id)

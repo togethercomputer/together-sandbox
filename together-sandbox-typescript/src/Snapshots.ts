@@ -1,7 +1,7 @@
 import * as api from "./api-clients/api/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { isLocalEnvironment } from "./configuration.js";
-import { sleep } from "./utils.js";
+import { callApi, sleep } from "./utils.js";
 import {
   buildDockerImage,
   dockerLogin,
@@ -9,6 +9,7 @@ import {
   pushDockerImage,
 } from "./docker.js";
 import { randomUUID } from "crypto";
+import type { RetryConfig } from "./types.js";
 
 export type SnapshotProgress = { output: string } & (
   | { step: "prepare" }
@@ -78,65 +79,90 @@ export class SnapshotsNamespace {
   constructor(
     private readonly _apiClient: ApiClient,
     private readonly _baseUrl: string,
+    private readonly _retryConfig?: RetryConfig,
   ) {}
 
   // ─── Public entry points ──────────────────────────────────────────────────
 
   async getById(id: string): Promise<Snapshot> {
-    const result = await api.getSnapshot({
-      client: this._apiClient,
-      path: { id },
-      throwOnError: true,
-    });
+    const result = await callApi(
+      "snapshots.getById",
+      () =>
+        api.getSnapshot({
+          client: this._apiClient,
+          path: { id },
+        }),
+      this._retryConfig,
+    );
 
-    return result.data;
+    return result;
   }
 
   async getByAlias(alias: string): Promise<Snapshot> {
-    const result = await api.getSnapshotByAlias({
-      client: this._apiClient,
-      path: { alias },
-      throwOnError: true,
-    });
+    const result = await callApi(
+      "snapshots.getByAlias",
+      () =>
+        api.getSnapshotByAlias({
+          client: this._apiClient,
+          path: { alias },
+        }),
+      this._retryConfig,
+    );
 
-    return result.data;
+    return result;
   }
 
   async list(): Promise<Snapshot[]> {
-    const result = await api.listSnapshots({
-      client: this._apiClient,
-      throwOnError: true,
-    });
+    const result = await callApi(
+      "snapshots.list",
+      () =>
+        api.listSnapshots({
+          client: this._apiClient,
+        }),
+      this._retryConfig,
+    );
 
-    return result.data;
+    return result;
   }
 
   async alias(snapshotId: string, alias: string): Promise<void> {
-    await api.aliasSnapshot({
-      client: this._apiClient,
-      path: { snapshot_id: snapshotId },
-      body: { alias },
-      throwOnError: true,
-    });
+    await callApi(
+      "snapshots.alias",
+      () =>
+        api.aliasSnapshot({
+          client: this._apiClient,
+          path: { snapshot_id: snapshotId },
+          body: { alias },
+        }),
+      this._retryConfig,
+    );
   }
 
   async deleteById(id: string): Promise<void> {
-    await api.deleteSnapshot({
-      client: this._apiClient,
-      path: { id },
-      throwOnError: true,
-    });
+    await callApi(
+      "snapshots.deleteById",
+      () =>
+        api.deleteSnapshot({
+          client: this._apiClient,
+          path: { id },
+        }),
+      this._retryConfig,
+    );
   }
 
   async deleteByAlias(alias: string): Promise<void> {
     // Ensure consistency with API
     const cleanAlias = alias.startsWith("@") ? alias.slice(1) : alias;
 
-    await api.deleteSnapshotByAlias({
-      client: this._apiClient,
-      path: { alias: cleanAlias },
-      throwOnError: true,
-    });
+    await callApi(
+      "snapshots.deleteByAlias",
+      () =>
+        api.deleteSnapshotByAlias({
+          client: this._apiClient,
+          path: { alias: cleanAlias },
+        }),
+      this._retryConfig,
+    );
   }
 
   /**
@@ -144,6 +170,11 @@ export class SnapshotsNamespace {
    *
    * Pass `{ context, dockerfile?, alias?, onProgress?, memorySnapshot? }` to build from a Dockerfile.
    * Pass `{ image, alias?, onProgress? }` to register a public Docker image.
+   *
+   * @note The `snapshots.create` operation is not idempotent: retrying on a 500 error
+   * after the snapshot has been created will register a duplicate. If you are using
+   * retry configuration, consider excluding this operation via:
+   * `shouldRetry: ({ operation }) => operation !== 'snapshots.create'`
    */
   async create(params: CreateSnapshotParams): Promise<CreateSnapshotResult> {
     if ("context" in params) {
@@ -164,29 +195,39 @@ export class SnapshotsNamespace {
         output: "Registering snapshot...",
       });
 
-      const snapshotData = await api.createSnapshot({
-        client: this._apiClient,
-        body: { image: params.image, architecture: "amd64" },
-        throwOnError: true,
-      });
+      const snapshotData = await callApi(
+        "snapshots.create",
+        () =>
+          api.createSnapshot({
+            client: this._apiClient,
+            body: { image: params.image, architecture: "amd64" },
+          }),
+        this._retryConfig,
+      );
 
       // Create alias if needed
       if (params.alias) {
+        const alias = params.alias;
+
         params.onProgress?.({
           step: "alias",
           output: "Creating alias...",
         });
 
-        await api.aliasSnapshot({
-          client: this._apiClient,
-          path: { snapshot_id: snapshotData.data.id },
-          body: { alias: params.alias },
-          throwOnError: true,
-        });
+        await callApi(
+          "snapshots.alias",
+          () =>
+            api.aliasSnapshot({
+              client: this._apiClient,
+              path: { snapshot_id: snapshotData.id },
+              body: { alias },
+            }),
+          this._retryConfig,
+        );
       }
 
       return {
-        snapshotId: snapshotData.data.id,
+        snapshotId: snapshotData.id,
         alias: params.alias,
       };
     }
@@ -205,11 +246,15 @@ export class SnapshotsNamespace {
     const context = params.context;
     const apiClient = this._apiClient;
 
-    const credential = await api.issueContainerRegistryCredential({
-      client: this._apiClient,
-      throwOnError: true,
-    });
-    const registryUrl = credential.data.registry_url;
+    const credential = await callApi(
+      "snapshots.issueContainerRegistryCredential",
+      () =>
+        api.issueContainerRegistryCredential({
+          client: this._apiClient,
+        }),
+      this._retryConfig,
+    );
+    const registryUrl = credential.registry_url;
     const registryHost = registryUrl.split("/")[0];
     const imageName = `image-${randomUUID().toLowerCase()}`;
     const tag = randomUUID().toLowerCase();
@@ -236,8 +281,8 @@ export class SnapshotsNamespace {
     params.onProgress?.({ step: "auth", output: "Authenticating..." });
     await dockerLogin({
       registry: registryHost,
-      username: credential.data.username,
-      password: credential.data.password,
+      username: credential.username,
+      password: credential.password,
       onOutput: (output: string) => {
         const cleanOutput = stripAnsiCodes(output);
         params.onProgress?.({ step: "auth", output: cleanOutput });
@@ -255,13 +300,17 @@ export class SnapshotsNamespace {
       step: "register",
       output: "Registering snapshot...",
     });
-    const snapshotData = await api.createSnapshot({
-      client: apiClient,
-      body: { image: fullImageName, architecture },
-      throwOnError: true,
-    });
+    const snapshotData = await callApi(
+      "snapshots.create",
+      () =>
+        api.createSnapshot({
+          client: apiClient,
+          body: { image: fullImageName, architecture },
+        }),
+      this._retryConfig,
+    );
 
-    let snapshotId = snapshotData.data.id;
+    let snapshotId = snapshotData.id;
 
     if (params.memorySnapshot) {
       // Create a memory snapshot from a sandbox
@@ -274,25 +323,34 @@ export class SnapshotsNamespace {
       const memoryMb = 2048; // ~2GB
       const storageMb = 10240; // 10GB
 
-      const sandboxResult = await api.createSandbox({
-        body: {
-          snapshot_id: snapshotData.data.id,
-          ephemeral: true,
-          millicpu: cpuCount * 1000,
-          memory_bytes: memoryMb * 1024 * 1024,
-          disk_bytes: storageMb * 1024 * 1024,
-        },
-        throwOnError: true,
-      });
+      const sandboxResult = await callApi(
+        "snapshots.createSandboxForMemorySnapshot",
+        () =>
+          api.createSandbox({
+            body: {
+              snapshot_id: snapshotData.id,
+              ephemeral: true,
+              millicpu: cpuCount * 1000,
+              memory_bytes: memoryMb * 1024 * 1024,
+              disk_bytes: storageMb * 1024 * 1024,
+            },
+          }),
+        this._retryConfig,
+      );
 
       params.onProgress?.({
         step: "memory-snapshot",
         output: "Starting sandbox...",
       });
-      await api.startSandbox({
-        client: apiClient,
-        path: { id: sandboxResult.data.id },
-      });
+      await callApi(
+        "snapshots.startSandboxForMemorySnapshot",
+        () =>
+          api.startSandbox({
+            client: apiClient,
+            path: { id: sandboxResult.id },
+          }),
+        this._retryConfig,
+      );
 
       params.onProgress?.({
         step: "memory-snapshot",
@@ -304,14 +362,18 @@ export class SnapshotsNamespace {
         step: "memory-snapshot",
         output: "Hibernating sandbox...",
       });
-      const stopResult = await api.stopSandbox({
-        client: apiClient,
-        path: { id: sandboxResult.data.id },
-        body: { stop_type: "hibernate" },
-        throwOnError: true,
-      });
+      const stopResult = await callApi(
+        "snapshots.stopSandboxForMemorySnapshot",
+        () =>
+          api.stopSandbox({
+            client: apiClient,
+            path: { id: sandboxResult.id },
+            body: { stop_type: "hibernate" },
+          }),
+        this._retryConfig,
+      );
 
-      if (stopResult.data.stop_reason !== "hibernated") {
+      if (stopResult.stop_reason !== "hibernated") {
         throw new Error(
           "Could not create memory snapshot, Sandbox was not hibernated",
         );
@@ -320,34 +382,50 @@ export class SnapshotsNamespace {
         step: "memory-snapshot",
         output: "Retrieving snapshot...",
       });
-      const versionResult = await api.getSandboxVersionByNumber({
-        path: {
-          sandbox_id: sandboxResult.data.id,
-          number: stopResult.data.current_version_number,
-        },
-        throwOnError: true,
-      });
-      const snapshot = await api.getSnapshot({
-        throwOnError: true,
-        path: { id: versionResult.data.id },
-      });
+      const versionResult = await callApi(
+        "snapshots.getSandboxVersionForMemorySnapshot",
+        () =>
+          api.getSandboxVersionByNumber({
+            path: {
+              sandbox_id: sandboxResult.id,
+              number: stopResult.current_version_number,
+            },
+          }),
+        this._retryConfig,
+      );
+      const snapshot = await callApi(
+        "snapshots.getMemorySnapshot",
+        () =>
+          api.getSnapshot({
+            client: apiClient,
 
-      snapshotId = snapshot.data.id;
+            path: { id: versionResult.id },
+          }),
+        this._retryConfig,
+      );
+
+      snapshotId = snapshot.id;
     }
 
     // Create alias if needed
     if (params.alias) {
+      const alias = params.alias;
+
       params.onProgress?.({
         step: "alias",
         output: "Creating alias...",
       });
 
-      await api.aliasSnapshot({
-        client: apiClient,
-        path: { snapshot_id: snapshotId },
-        body: { alias: params.alias },
-        throwOnError: true,
-      });
+      await callApi(
+        "snapshots.alias",
+        () =>
+          api.aliasSnapshot({
+            client: apiClient,
+            path: { snapshot_id: snapshotId },
+            body: { alias },
+          }),
+        this._retryConfig,
+      );
     }
 
     return {
