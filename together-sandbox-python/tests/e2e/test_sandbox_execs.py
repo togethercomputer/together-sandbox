@@ -7,15 +7,9 @@ import sys
 
 import pytest
 
-from together_sandbox import Sandbox, CreateExecRequest, ExecStdoutType
-from together_sandbox.sandbox.models.create_exec_request_env import CreateExecRequestEnv
-from together_sandbox.sandbox.models.exec_stdin import ExecStdin
-from together_sandbox.sandbox.models.exec_stdin_type import ExecStdinType
-from together_sandbox.sandbox.models.update_exec_request import UpdateExecRequest
-from together_sandbox.sandbox.models.update_exec_request_status import (
-    UpdateExecRequestStatus,
-)
+from together_sandbox import Sandbox, ExecStdoutType
 from .helpers import retry_until
+
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
@@ -24,9 +18,7 @@ class TestSandboxExecs:
 
     async def test_create_exec(self, sandbox: Sandbox):
         """Test creating an exec"""
-        exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="echo", args=["hello"])
-        )
+        exec_item = await sandbox.execs.create(command="echo", args=["hello"])
         assert exec_item.id
         assert exec_item.command == "echo"
         assert exec_item.args == ["hello"]
@@ -34,9 +26,7 @@ class TestSandboxExecs:
 
     async def test_create_and_get_exec(self, sandbox: Sandbox):
         """Test creating and getting exec"""
-        exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="echo", args=["hello"])
-        )
+        exec_item = await sandbox.execs.create(command="echo", args=["hello"])
         gotten_exec_item = await sandbox.execs.get(exec_item.id)
 
         assert gotten_exec_item.id == exec_item.id
@@ -46,7 +36,7 @@ class TestSandboxExecs:
     async def test_create_and_list_exec(self, sandbox: Sandbox):
         """Test creating an exec and listing it."""
         exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="echo", args=["hello"], autorun=False)
+            command="echo", args=["hello"], autorun=False
         )
         exec_list = await sandbox.execs.list()
 
@@ -55,7 +45,7 @@ class TestSandboxExecs:
     async def test_delete_exec(self, sandbox: Sandbox):
         """Test deleting an exec."""
         exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="echo", args=["hello"], autorun=False)
+            command="echo", args=["hello"], autorun=False
         )
         await sandbox.execs.delete(exec_item.id)
 
@@ -64,9 +54,7 @@ class TestSandboxExecs:
 
     async def test_get_output(self, sandbox: Sandbox):
         """Test getting exec output."""
-        exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="echo", args=["hello"])
-        )
+        exec_item = await sandbox.execs.create(command="echo", args=["hello"])
 
         await retry_until(
             fn=lambda: sandbox.execs.get_output(exec_item.id),
@@ -76,9 +64,7 @@ class TestSandboxExecs:
 
     async def test_exec_exit_code(self, sandbox: Sandbox):
         """Test that exec exit codes are captured correctly."""
-        exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="sh", args=["-c", "exit 42"])
-        )
+        exec_item = await sandbox.execs.create(command="sh", args=["-c", "exit 42"])
 
         await retry_until(
             fn=lambda: sandbox.execs.get_output(exec_item.id),
@@ -88,9 +74,7 @@ class TestSandboxExecs:
 
     async def test_exec_stdout_vs_stderr(self, sandbox: Sandbox):
         """Test distinguishing stdout vs stderr output types."""
-        exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="echo", args=["hello"])
-        )
+        exec_item = await sandbox.execs.create(command="echo", args=["hello"])
 
         await retry_until(
             fn=lambda: sandbox.execs.get_output(exec_item.id),
@@ -105,7 +89,7 @@ class TestSandboxExecs:
         """Test exec with cwd (working directory)."""
         await sandbox.directories.create("/exec-cwd-test")
         exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="pwd", args=[], cwd="/exec-cwd-test")
+            command="pwd", args=[], cwd="/exec-cwd-test"
         )
 
         await retry_until(
@@ -116,9 +100,10 @@ class TestSandboxExecs:
 
     async def test_exec_with_env(self, sandbox: Sandbox):
         """Test exec with custom environment variables."""
-        env = CreateExecRequestEnv.from_dict({"MY_VAR": "test_value"})
         exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="sh", args=["-c", "echo $MY_VAR"], env=env)
+            command="sh",
+            args=["-c", "echo $MY_VAR"],
+            env={"MY_VAR": "test_value"},
         )
 
         await retry_until(
@@ -130,7 +115,7 @@ class TestSandboxExecs:
     async def test_exec_with_args(self, sandbox: Sandbox):
         """Test that exec args are forwarded correctly."""
         exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="echo", args=["one", "two", "three"])
+            command="echo", args=["one", "two", "three"]
         )
 
         await retry_until(
@@ -145,23 +130,20 @@ class TestSandboxExecs:
     async def test_exec_autorun_false(self, sandbox: Sandbox):
         """Test that exec with autorun=False does not run immediately."""
         exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="sleep", args=["5"], autorun=False)
+            command="sleep", args=["5"], autorun=False
         )
         item = await sandbox.execs.get(exec_item.id)
         assert item.status != "running"
 
-    async def test_update_exec_to_running(self, sandbox: Sandbox):
-        """Test updating exec status to running."""
+    async def test_resume_exec(self, sandbox: Sandbox):
+        """Test resuming a stopped exec (sets its status to running)."""
         exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="sleep", args=["5"], autorun=False)
+            command="sleep", args=["5"], autorun=False
         )
         item = await sandbox.execs.get(exec_item.id)
         assert item.status != "running"
 
-        await sandbox.execs.update(
-            exec_item.id,
-            UpdateExecRequest(status=UpdateExecRequestStatus.RUNNING),
-        )
+        await sandbox.execs.resume(exec_item.id)
 
         await retry_until(
             fn=lambda: sandbox.execs.get(exec_item.id),
@@ -171,9 +153,7 @@ class TestSandboxExecs:
 
     async def test_stream_output(self, sandbox: Sandbox):
         """Test streaming exec output via SSE."""
-        exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="echo", args=["streaming test"])
-        )
+        exec_item = await sandbox.execs.create(command="echo", args=["streaming test"])
         events = []
 
         async def collect_event():
@@ -202,13 +182,8 @@ class TestSandboxExecs:
 
     async def test_send_stdin(self, sandbox: Sandbox):
         """Test sending stdin to an interactive exec."""
-        exec_item = await sandbox.execs.create(
-            CreateExecRequest(command="cat", args=[], interactive=True)
-        )
-        await sandbox.execs.send_stdin(
-            exec_item.id,
-            ExecStdin(type_=ExecStdinType.STDIN, input_="hello stdin\n"),
-        )
+        exec_item = await sandbox.execs.create(command="cat", args=[], interactive=True)
+        await sandbox.execs.send_stdin(exec_item.id, "hello stdin\n")
         # Small delay to let the process respond
         await asyncio.sleep(0.5)
 
