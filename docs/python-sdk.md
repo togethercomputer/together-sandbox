@@ -50,10 +50,11 @@ The main entry point for the SDK.
 sdk = TogetherSandbox(api_key=None, base_url="https://api.codesandbox.io")
 ```
 
-| Parameter  | Type          | Description                                                        |
-| ---------- | ------------- | ------------------------------------------------------------------ |
-| `api_key`  | `str \| None` | Together AI API key. Falls back to the `TOGETHER_API_KEY` env var. |
-| `base_url` | `str`         | Management API base URL. Defaults to `https://api.codesandbox.io`. |
+| Parameter  | Type                  | Description                                                            |
+| ---------- | --------------------- | ---------------------------------------------------------------------- |
+| `api_key`  | `str \| None`         | Together AI API key. Falls back to the `TOGETHER_API_KEY` env var.     |
+| `base_url` | `str`                 | Management API base URL. Defaults to `https://api.codesandbox.io`.     |
+| `retry`    | `RetryConfig \| None` | Retry configuration for transient failures. See [Retry](#retry) below. |
 
 `TogetherSandbox` supports use as an async context manager:
 
@@ -498,6 +499,74 @@ await Sandbox.hibernate("sandbox-id", api_key="your-key")
 ```python
 await Sandbox.shutdown("sandbox-id", api_key="your-key")
 ```
+
+---
+
+## Retry
+
+All operations automatically retry on transient failures. By default:
+
+- **HTTP status codes** `408`, `429`, `500`, `502`, `503`, `504` trigger a retry.
+- **Network-level errors** — `httpx.TimeoutException` (timeout), `httpx.ConnectError` (connection refused), `httpx.RemoteProtocolError` (closed connection) — trigger a retry.
+- **3 total attempts** (1 initial + 2 retries).
+- **Exponential backoff**: starts at 0.5 s, doubles each attempt, plus up to 0.25 s of random jitter.
+
+Pass a `RetryConfig` to `TogetherSandbox(retry=...)` to customise this behaviour.
+
+### `RetryConfig`
+
+`RetryConfig` is a dataclass — instantiate it with keyword arguments.
+
+| Field          | Type                                                        | Default | Description                                                                                                                                                                                          |
+| -------------- | ----------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `max_attempts` | `int`                                                       | `3`     | Total number of attempts (including the first). Set to `1` to disable retries.                                                                                                                       |
+| `should_retry` | `Callable[[RetryContext], bool \| float] \| Awaitable[...]` | `None`  | Override the retry decision. Return `False` to abort immediately, `True` to retry with the default backoff delay, or a `float` (seconds) to retry after a custom delay. May be a coroutine function. |
+| `on_retry`     | `Callable[[RetryContext], None] \| Awaitable[None]`         | `None`  | Called before each retry. Use for logging, metrics, or UI progress updates. May be a coroutine function.                                                                                             |
+
+### `RetryContext`
+
+| Field       | Type          | Description                                                                                  |
+| ----------- | ------------- | -------------------------------------------------------------------------------------------- |
+| `operation` | `str`         | The operation that failed, e.g. `'startSandbox'`, `'files.read'`.                            |
+| `attempt`   | `int`         | 1-based number of the attempt that just failed.                                              |
+| `error`     | `Exception`   | The exception that was raised or the parsed error model.                                     |
+| `status`    | `int \| None` | HTTP status code, or `None` for network-level errors.                                        |
+| `delay`     | `float`       | **Seconds** to wait before the next attempt (default computed, override via `should_retry`). |
+
+### Example
+
+```python
+import asyncio
+from together_sandbox import TogetherSandbox, RetryConfig, RetryContext
+
+async def main():
+    sdk = TogetherSandbox(
+        api_key="...",
+        retry=RetryConfig(
+            max_attempts=4,
+            should_retry=lambda ctx: (
+                # Never retry snapshot creation — it is not idempotent
+                False if ctx.operation == "snapshots.create"
+                # Give up on auth errors
+                else False if ctx.status in (401, 403)
+                # Retry everything else with default backoff
+                else True
+            ),
+            on_retry=lambda ctx: print(
+                f"[retry] {ctx.operation} attempt {ctx.attempt} failed "
+                f"(HTTP {ctx.status or 'network'}) — retrying in {ctx.delay:.2f}s"
+            ),
+        ),
+    )
+
+asyncio.run(main())
+```
+
+> **Note — `snapshots.create` is not idempotent.** Retrying after a transient 500 once the snapshot has already been created will register a duplicate. Exclude it via `should_retry` as shown above, or use the shorthand:
+>
+> ```python
+> RetryConfig(should_retry=lambda ctx: ctx.operation != "snapshots.create")
+> ```
 
 ---
 

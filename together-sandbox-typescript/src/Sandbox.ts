@@ -1,10 +1,14 @@
 import * as api from "./api-clients/api/index.js";
 import * as sandboxApi from "./api-clients/sandbox/index.js";
 import { type Client as SandboxApiClient } from "./api-clients/sandbox/client/index.js";
-import type { SandboxInfo } from "./types.js";
+import type {
+  RetryConfig,
+  SandboxInfo,
+  TogetherSandboxConfig,
+} from "./types.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
-import type { TogetherSandboxConfig } from "./configuration.js";
 import { TogetherSandbox } from "./TogetherSandbox.js";
+import { callApi } from "./utils.js";
 
 /**
  * Options for watching a directory.
@@ -40,24 +44,12 @@ export interface StartOptions {
  * ```
  */
 export class Sandbox {
-  /** Raw VM start response data (id, cluster, workspace_path, etc.). */
-  readonly vmInfo: SandboxInfo;
-
-  /** The underlying sandbox API client (internal). */
-  private readonly _sandboxClient: SandboxApiClient;
-
-  /** Reference to the management API client, used for lifecycle calls. */
-  private readonly _apiClient: ApiClient;
-
   constructor(
-    vmInfo: SandboxInfo,
-    sandboxClient: SandboxApiClient,
-    apiClient: ApiClient,
-  ) {
-    this.vmInfo = vmInfo;
-    this._sandboxClient = sandboxClient;
-    this._apiClient = apiClient;
-  }
+    public readonly vmInfo: SandboxInfo,
+    private readonly _sandboxClient: SandboxApiClient,
+    private readonly _apiClient: ApiClient,
+    private readonly _retryConfig?: RetryConfig,
+  ) {}
 
   /** The VM/sandbox ID. */
   get id(): string {
@@ -72,12 +64,16 @@ export class Sandbox {
     const client = this._sandboxClient;
     return {
       read: async (path: string) => {
-        const result = await sandboxApi.readFile({
-          client,
-          path: { path },
-          throwOnError: true,
-        });
-        return result.data.content;
+        const result = await callApi(
+          "files.read",
+          () =>
+            sandboxApi.readFile({
+              client,
+              path: { path },
+            }),
+          this._retryConfig,
+        );
+        return result.content;
       },
       create: async (path: string, content: string | Blob | File) => {
         const body =
@@ -85,44 +81,64 @@ export class Sandbox {
             ? new Blob([content], { type: "application/octet-stream" })
             : content;
 
-        const result = await sandboxApi.createFile({
-          client,
-          path: { path },
-          body,
-          throwOnError: true,
-        });
-        return result.data.content;
+        const result = await callApi(
+          "files.create",
+          () =>
+            sandboxApi.createFile({
+              client,
+              path: { path },
+              body,
+            }),
+          this._retryConfig,
+        );
+        return result.content;
       },
       delete: async (path: string) => {
-        await sandboxApi.deleteFile({
-          client,
-          path: { path },
-          throwOnError: true,
-        });
+        await callApi(
+          "files.delete",
+          () =>
+            sandboxApi.deleteFile({
+              client,
+              path: { path },
+            }),
+          this._retryConfig,
+        );
       },
       move: async (from: string, to: string) => {
-        await sandboxApi.performFileAction({
-          client,
-          path: { path: from },
-          body: { action: "move" as const, destination: to },
-          throwOnError: true,
-        });
+        await callApi(
+          "files.move",
+          () =>
+            sandboxApi.performFileAction({
+              client,
+              path: { path: from },
+              body: { action: "move" as const, destination: to },
+            }),
+          this._retryConfig,
+        );
       },
       copy: async (from: string, to: string) => {
-        await sandboxApi.performFileAction({
-          client,
-          path: { path: from },
-          body: { action: "copy" as const, destination: to },
-          throwOnError: true,
-        });
+        await callApi(
+          "files.copy",
+          () =>
+            sandboxApi.performFileAction({
+              client,
+              path: { path: from },
+              body: { action: "copy" as const, destination: to },
+            }),
+          this._retryConfig,
+        );
       },
       stat: async (path: string) => {
-        const result = await sandboxApi.getFileStat({
-          client,
-          path: { path },
-          throwOnError: true,
-        });
-        return result.data;
+        const result = await callApi(
+          "files.stat",
+          () =>
+            sandboxApi.getFileStat({
+              client,
+              path: { path },
+            }),
+          this._retryConfig,
+        );
+        return result;
       },
       watch: async (path: string, options?: WatchOptions) => {
         const result = await sandboxApi.createWatcher({
@@ -134,7 +150,6 @@ export class Sandbox {
                 ignorePatterns: options.ignorePatterns,
               }
             : undefined,
-          throwOnError: true,
         });
 
         return result.stream;
@@ -147,26 +162,38 @@ export class Sandbox {
     const client = this._sandboxClient;
     return {
       list: async (path: string) => {
-        const result = await sandboxApi.listDirectory({
-          client,
-          path: { path },
-          throwOnError: true,
-        });
-        return result.data.files;
+        const result = await callApi(
+          "directories.list",
+          () =>
+            sandboxApi.listDirectory({
+              client,
+              path: { path },
+            }),
+          this._retryConfig,
+        );
+        return result.files;
       },
       create: async (path: string) => {
-        await sandboxApi.createDirectory({
-          client,
-          path: { path },
-          throwOnError: true,
-        });
+        await callApi(
+          "directories.create",
+          () =>
+            sandboxApi.createDirectory({
+              client,
+              path: { path },
+            }),
+          this._retryConfig,
+        );
       },
       delete: async (path: string) => {
-        await sandboxApi.deleteDirectory({
-          client,
-          path: { path },
-          throwOnError: true,
-        });
+        await callApi(
+          "directories.delete",
+          () =>
+            sandboxApi.deleteDirectory({
+              client,
+              path: { path },
+            }),
+          this._retryConfig,
+        );
       },
     };
   }
@@ -176,83 +203,109 @@ export class Sandbox {
     const client = this._sandboxClient;
     return {
       list: async () => {
-        const result = await sandboxApi.listExecs({
-          client,
-          throwOnError: true,
-        });
-        return result.data.execs;
+        const result = await callApi(
+          "execs.list",
+          () =>
+            sandboxApi.listExecs({
+              client,
+            }),
+          this._retryConfig,
+        );
+        return result.execs;
       },
       create: async (
         body: Parameters<typeof sandboxApi.createExec>[0]["body"],
       ) => {
-        const result = await sandboxApi.createExec({
-          client,
-          body,
-          throwOnError: true,
-        });
-        return result.data;
+        const result = await callApi(
+          "execs.create",
+          () =>
+            sandboxApi.createExec({
+              client,
+              body,
+            }),
+          this._retryConfig,
+        );
+        return result;
       },
       get: async (id: string) => {
-        const result = await sandboxApi.getExec({
-          client,
-          path: { id },
-          throwOnError: true,
-        });
-        return result.data;
+        const result = await callApi(
+          "execs.get",
+          () =>
+            sandboxApi.getExec({
+              client,
+              path: { id },
+            }),
+          this._retryConfig,
+        );
+        return result;
       },
       update: async (
         id: string,
         body: Parameters<typeof sandboxApi.updateExec>[0]["body"],
       ) => {
-        const result = await sandboxApi.updateExec({
-          client,
-          path: { id },
-          body,
-          throwOnError: true,
-        });
-        return result.data;
+        const result = await callApi(
+          "execs.update",
+          () =>
+            sandboxApi.updateExec({
+              client,
+              path: { id },
+              body,
+            }),
+          this._retryConfig,
+        );
+        return result;
       },
       delete: async (id: string) => {
-        await sandboxApi.deleteExec({
-          client,
-          path: { id },
-          throwOnError: true,
-        });
+        await callApi(
+          "execs.delete",
+          () =>
+            sandboxApi.deleteExec({
+              client,
+              path: { id },
+            }),
+          this._retryConfig,
+        );
       },
       streamOutput: async (id: string, lastSequence?: number) => {
         const result = await sandboxApi.streamExecOutput({
           client,
           path: { id },
           query: lastSequence !== undefined ? { lastSequence } : undefined,
-          throwOnError: true,
         });
         return result.stream;
       },
       getOutput: async (id: string, lastSequence?: number) => {
-        const result = await sandboxApi.getExecOutput({
-          client,
-          path: { id },
-          query: lastSequence !== undefined ? { lastSequence } : undefined,
-          throwOnError: true,
-        });
-        return result.data;
+        const result = await callApi(
+          "execs.getOutput",
+          () =>
+            sandboxApi.getExecOutput({
+              client,
+              path: { id },
+              query: lastSequence !== undefined ? { lastSequence } : undefined,
+            }),
+          this._retryConfig,
+        );
+        return result;
       },
       sendStdin: async (
         id: string,
         body: Parameters<typeof sandboxApi.execExecStdin>[0]["body"],
       ) => {
-        const result = await sandboxApi.execExecStdin({
-          client,
-          path: { id },
-          body,
-          throwOnError: true,
-        });
-        return result.data;
+        const result = await callApi(
+          "execs.sendStdin",
+          () =>
+            sandboxApi.execExecStdin({
+              client,
+              path: { id },
+              body,
+            }),
+          this._retryConfig,
+        );
+        return result;
       },
       streamList: async () => {
         const result = await sandboxApi.streamExecsList({
           client,
-          throwOnError: true,
         });
         return result.stream;
       },
@@ -264,16 +317,19 @@ export class Sandbox {
     const client = this._sandboxClient;
     return {
       list: async () => {
-        const result = await sandboxApi.listPorts({
-          client,
-          throwOnError: true,
-        });
-        return result.data.ports;
+        const result = await callApi(
+          "ports.list",
+          () =>
+            sandboxApi.listPorts({
+              client,
+            }),
+          this._retryConfig,
+        );
+        return result.ports;
       },
       streamList: async () => {
         const result = await sandboxApi.streamPortsList({
           client,
-          throwOnError: true,
         });
         return result.stream;
       },
@@ -284,43 +340,59 @@ export class Sandbox {
 
   /** Hibernate (suspend) this VM. */
   async hibernate(): Promise<void> {
-    await api.stopSandbox({
-      client: this._apiClient,
-      path: { id: this.id },
-      body: { stop_type: "hibernate" },
-      throwOnError: true,
-    });
+    await callApi(
+      "stopSandbox",
+      () =>
+        api.stopSandbox({
+          client: this._apiClient,
+          path: { id: this.id },
+          body: { stop_type: "hibernate" },
+        }),
+      this._retryConfig,
+    );
 
-    const waitResult = await api.waitForSandbox({
-      client: this._apiClient,
-      path: { id: this.id },
-      throwOnError: true,
-    });
+    const waitResult = await callApi(
+      "waitForSandbox",
+      () =>
+        api.waitForSandbox({
+          client: this._apiClient,
+          path: { id: this.id },
+        }),
+      this._retryConfig,
+    );
 
-    if (waitResult.data.status !== "stopped") {
+    if (waitResult.status !== "stopped") {
       throw new Error(
-        `Sandbox did not reach its stopped state, it is ${waitResult.data.status}, please try again`,
+        `Sandbox did not reach its stopped state, it is ${waitResult.status}, please try again`,
       );
     }
   }
 
   /** Shut down this VM. */
   async shutdown(): Promise<void> {
-    await api.stopSandbox({
-      client: this._apiClient,
-      path: { id: this.id },
-      body: { stop_type: "shutdown" },
-      throwOnError: true,
-    });
-    const waitResult = await api.waitForSandbox({
-      client: this._apiClient,
-      path: { id: this.id },
-      throwOnError: true,
-    });
+    await callApi(
+      "stopSandbox",
+      () =>
+        api.stopSandbox({
+          client: this._apiClient,
+          path: { id: this.id },
+          body: { stop_type: "shutdown" },
+        }),
+      this._retryConfig,
+    );
+    const waitResult = await callApi(
+      "waitForSandbox",
+      () =>
+        api.waitForSandbox({
+          client: this._apiClient,
+          path: { id: this.id },
+        }),
+      this._retryConfig,
+    );
 
-    if (waitResult.data.status !== "stopped") {
+    if (waitResult.status !== "stopped") {
       throw new Error(
-        `Sandbox did not reach its stopped state, it is ${waitResult.data.status}, please try again`,
+        `Sandbox did not reach its stopped state, it is ${waitResult.status}, please try again`,
       );
     }
   }

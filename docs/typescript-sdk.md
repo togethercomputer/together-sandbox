@@ -48,10 +48,11 @@ const sdk = new TogetherSandbox(config: TogetherSandboxConfig);
 
 ### `TogetherSandboxConfig`
 
-| Property  | Type     | Required | Description                                                                     |
-| --------- | -------- | -------- | ------------------------------------------------------------------------------- |
-| `apiKey`  | `string` | Yes      | Together AI API key. Falls back to `TOGETHER_API_KEY` env var if not set.       |
-| `baseUrl` | `string` | No       | Override the management API base URL. Defaults to `https://api.codesandbox.io`. |
+| Property  | Type          | Required | Description                                                                     |
+| --------- | ------------- | -------- | ------------------------------------------------------------------------------- |
+| `apiKey`  | `string`      | Yes      | Together AI API key. Falls back to `TOGETHER_API_KEY` env var if not set.       |
+| `baseUrl` | `string`      | No       | Override the management API base URL. Defaults to `https://api.codesandbox.io`. |
+| `retry`   | `RetryConfig` | No       | Retry configuration for transient failures. See [Retry](#retry) below.          |
 
 ### `sdk.sandboxes`
 
@@ -456,6 +457,72 @@ await Sandbox.shutdown("your-sandbox-id", {
   apiKey: process.env.TOGETHER_API_KEY!,
 });
 ```
+
+---
+
+## Retry
+
+All operations automatically retry on transient failures. By default:
+
+- **HTTP status codes** `408`, `429`, `500`, `502`, `503`, `504` trigger a retry.
+- **Network-level errors** (connection refused, timeout, closed connection) — any `TypeError` thrown by the fetch layer — trigger a retry.
+- **3 total attempts** (1 initial + 2 retries).
+- **Exponential backoff**: starts at 500 ms, doubles each attempt, plus up to 250 ms of random jitter.
+
+Pass a `RetryConfig` to `new TogetherSandbox({ retry: ... })` to customise this behaviour.
+
+### `RetryConfig`
+
+| Property      | Type                                                                     | Default | Description                                                                                                                                                                   |
+| ------------- | ------------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxAttempts` | `number`                                                                 | `3`     | Total number of attempts (including the first). Set to `1` to disable retries.                                                                                                |
+| `shouldRetry` | `(ctx: RetryContext) => boolean \| number \| Promise<boolean \| number>` | —       | Override the retry decision. Return `false` to abort immediately, `true` to retry with the default backoff delay, or a `number` (milliseconds) to retry after a custom delay. |
+| `onRetry`     | `(ctx: RetryContext) => void \| Promise<void>`                           | —       | Called before each retry. Use for logging, metrics, or UI progress updates.                                                                                                   |
+
+### `RetryContext`
+
+| Field       | Type                  | Description                                                                                      |
+| ----------- | --------------------- | ------------------------------------------------------------------------------------------------ |
+| `operation` | `string`              | The operation that failed, e.g. `'startSandbox'`, `'files.read'`.                                |
+| `attempt`   | `number`              | 1-based number of the attempt that just failed.                                                  |
+| `error`     | `unknown`             | The error that was thrown or the parsed error model.                                             |
+| `status`    | `number \| undefined` | HTTP status code, or `undefined` for network-level errors.                                       |
+| `delay`     | `number`              | **Milliseconds** to wait before the next attempt (default computed, override via `shouldRetry`). |
+
+### Example
+
+```typescript
+import {
+  TogetherSandbox,
+  type RetryConfig,
+  type RetryContext,
+} from "@together-sandbox/sdk";
+
+const sdk = new TogetherSandbox({
+  apiKey: process.env.TOGETHER_API_KEY!,
+  retry: {
+    maxAttempts: 4,
+    shouldRetry: ({ operation, attempt, status }: RetryContext) => {
+      // Never retry snapshot creation — it is not idempotent
+      if (operation === "snapshots.create") return false;
+      // Give up after attempt 3 on auth errors
+      if (status === 401 || status === 403) return false;
+      return true; // retry everything else with default backoff
+    },
+    onRetry: ({ operation, attempt, status, delay }: RetryContext) => {
+      console.warn(
+        `[retry] ${operation} attempt ${attempt} failed (HTTP ${status ?? "network"}) — retrying in ${delay} ms`,
+      );
+    },
+  },
+});
+```
+
+> **Note — `snapshots.create` is not idempotent.** Retrying after a transient 500 once the snapshot has already been created will register a duplicate. Exclude it via `shouldRetry` as shown above, or use the shorthand:
+>
+> ```typescript
+> shouldRetry: ({ operation }) => operation !== "snapshots.create";
+> ```
 
 ---
 

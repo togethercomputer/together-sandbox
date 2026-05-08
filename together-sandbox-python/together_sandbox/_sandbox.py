@@ -6,9 +6,9 @@ from types import TracebackType
 # ── Management API client ─────────────────────────────────────────────────────
 from .api.client import AuthenticatedClient as ApiClient
 
-# ── Management API endpoint functions ─────────────────────────────────────────
-from .api.api.default.stop_sandbox import asyncio as stop_sandbox_api
-from .api.api.default.wait_for_sandbox import asyncio as wait_for_sandbox_api
+# ── Management API endpoint functions (detailed variants) ─────────────────────
+from .api.api.default.stop_sandbox import asyncio_detailed as stop_sandbox_api
+from .api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
@@ -18,23 +18,31 @@ from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
 
-# ── Sandbox API endpoint functions (non-SSE) ─────────────────────────────────
-from .sandbox.api.files.read_file import asyncio as read_file_api
-from .sandbox.api.files.create_file import asyncio as create_file_api
-from .sandbox.api.files.delete_file import asyncio as delete_file_api
-from .sandbox.api.files.get_file_stat import asyncio as get_file_stat_api
-from .sandbox.api.files.perform_file_action import asyncio as perform_file_action_api
-from .sandbox.api.execs.list_execs import asyncio as list_execs_api
-from .sandbox.api.execs.create_exec import asyncio as create_exec_api
-from .sandbox.api.execs.get_exec import asyncio as get_exec_api
-from .sandbox.api.execs.get_exec_output import asyncio as get_exec_output_api
-from .sandbox.api.execs.update_exec import asyncio as update_exec_api
-from .sandbox.api.execs.delete_exec import asyncio as delete_exec_api
-from .sandbox.api.execs.exec_exec_stdin import asyncio as exec_exec_stdin_api
-from .sandbox.api.ports.list_ports import asyncio as list_ports_api
-from .sandbox.api.directories.list_directory import asyncio as list_directory_api
-from .sandbox.api.directories.create_directory import asyncio as create_directory_api
-from .sandbox.api.directories.delete_directory import asyncio as delete_directory_api
+# ── Sandbox API endpoint functions (detailed variants) ───────────────────────
+from .sandbox.api.files.read_file import asyncio_detailed as read_file_api
+from .sandbox.api.files.create_file import asyncio_detailed as create_file_api
+from .sandbox.api.files.delete_file import asyncio_detailed as delete_file_api
+from .sandbox.api.files.get_file_stat import asyncio_detailed as get_file_stat_api
+from .sandbox.api.files.perform_file_action import (
+    asyncio_detailed as perform_file_action_api,
+)
+from .sandbox.api.execs.list_execs import asyncio_detailed as list_execs_api
+from .sandbox.api.execs.create_exec import asyncio_detailed as create_exec_api
+from .sandbox.api.execs.get_exec import asyncio_detailed as get_exec_api
+from .sandbox.api.execs.get_exec_output import asyncio_detailed as get_exec_output_api
+from .sandbox.api.execs.update_exec import asyncio_detailed as update_exec_api
+from .sandbox.api.execs.delete_exec import asyncio_detailed as delete_exec_api
+from .sandbox.api.execs.exec_exec_stdin import asyncio_detailed as exec_exec_stdin_api
+from .sandbox.api.ports.list_ports import asyncio_detailed as list_ports_api
+from .sandbox.api.directories.list_directory import (
+    asyncio_detailed as list_directory_api,
+)
+from .sandbox.api.directories.create_directory import (
+    asyncio_detailed as create_directory_api,
+)
+from .sandbox.api.directories.delete_directory import (
+    asyncio_detailed as delete_directory_api,
+)
 
 # ── Sandbox API models ────────────────────────────────────────────────────────
 from .sandbox.models.create_exec_request import CreateExecRequest
@@ -51,7 +59,9 @@ from .sandbox.types import UNSET, File, Unset
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
 from ._streaming import stream_sse_json
-from ._utils import _unwrap_or_raise
+
+# ── Retry / call helper ───────────────────────────────────────────────────────
+from ._utils import RetryConfig, _call_api
 
 # ─── Files facade ─────────────────────────────────────────────────────────────
 
@@ -64,14 +74,21 @@ class Files:
     delegating existing methods to the underlying client.
     """
 
-    def __init__(self, sandbox_client: SandboxClient) -> None:
+    def __init__(
+        self,
+        sandbox_client: SandboxClient,
+        *,
+        retry: RetryConfig | None = None,
+    ) -> None:
         self._client = sandbox_client
+        self._retry = retry
 
     async def read(self, path: str) -> str:
         """Read file content at the specified path."""
-        result = _unwrap_or_raise(
-            await read_file_api(path, client=self._client),
-            op="readFile",
+        result = await _call_api(
+            "files.read",
+            lambda: read_file_api(path, client=self._client),
+            self._retry,
             context=f"for path {path!r}",
         )
         return result.content
@@ -87,33 +104,34 @@ class Files:
         Returns:
             The created file content
         """
-        # Convert string to bytes if necessary
         if isinstance(content, str):
             content_bytes = content.encode("utf-8")
         else:
             content_bytes = content
 
-        # Pass raw bytes — httpx requires bytes (not BytesIO) for async requests
         file_obj = File(payload=content_bytes)
-        result = _unwrap_or_raise(
-            await create_file_api(path, client=self._client, body=file_obj),
-            op="createFile",
+        result = await _call_api(
+            "files.create",
+            lambda: create_file_api(path, client=self._client, body=file_obj),
+            self._retry,
             context=f"for path {path!r}",
         )
         return result.content
 
     async def delete(self, path: str) -> None:
         """Delete a file at the specified path."""
-        _unwrap_or_raise(
-            await delete_file_api(path, client=self._client),
-            op="deleteFile",
+        await _call_api(
+            "files.delete",
+            lambda: delete_file_api(path, client=self._client),
+            self._retry,
             context=f"for path {path!r}",
         )
 
     async def move(self, from_path: str, to_path: str) -> None:
         """Move a file from one path to another."""
-        _unwrap_or_raise(
-            await perform_file_action_api(
+        await _call_api(
+            "files.move",
+            lambda: perform_file_action_api(
                 from_path,
                 client=self._client,
                 body=FileActionRequest(
@@ -121,14 +139,15 @@ class Files:
                     destination=to_path,
                 ),
             ),
-            op="moveFile",
+            self._retry,
             context=f"from {from_path!r} to {to_path!r}",
         )
 
     async def copy(self, from_path: str, to_path: str) -> None:
         """Copy a file from one path to another."""
-        _unwrap_or_raise(
-            await perform_file_action_api(
+        await _call_api(
+            "files.copy",
+            lambda: perform_file_action_api(
                 from_path,
                 client=self._client,
                 body=FileActionRequest(
@@ -136,15 +155,16 @@ class Files:
                     destination=to_path,
                 ),
             ),
-            op="copyFile",
+            self._retry,
             context=f"from {from_path!r} to {to_path!r}",
         )
 
     async def stat(self, path: str) -> FileInfo:
         """Get file metadata at the specified path."""
-        return _unwrap_or_raise(
-            await get_file_stat_api(path, client=self._client),
-            op="getFileStat",
+        return await _call_api(
+            "files.stat",
+            lambda: get_file_stat_api(path, client=self._client),
+            self._retry,
             context=f"for path {path!r}",
         )
 
@@ -188,13 +208,21 @@ class Execs:
     Poll ``get()`` until status is ``"finished"`` or ``"stopped"`` to wait for completion.
     """
 
-    def __init__(self, sandbox_client: SandboxClient) -> None:
+    def __init__(
+        self,
+        sandbox_client: SandboxClient,
+        *,
+        retry: RetryConfig | None = None,
+    ) -> None:
         self._client = sandbox_client
+        self._retry = retry
 
     async def list(self):
         """List all active execs."""
-        result = _unwrap_or_raise(
-            await list_execs_api(client=self._client), op="listExecs"
+        result = await _call_api(
+            "execs.list",
+            lambda: list_execs_api(client=self._client),
+            self._retry,
         )
         return result.execs
 
@@ -241,35 +269,40 @@ class Execs:
             uid=uid if uid is not None else UNSET,
             gid=gid if gid is not None else UNSET,
         )
-        return _unwrap_or_raise(
-            await create_exec_api(client=self._client, body=body), op="createExec"
+        return await _call_api(
+            "execs.create",
+            lambda: create_exec_api(client=self._client, body=body),
+            self._retry,
         )
 
     async def get(self, id_: str):
         """Get exec by ID."""
-        return _unwrap_or_raise(
-            await get_exec_api(id_, client=self._client),
-            op="getExec",
+        return await _call_api(
+            "execs.get",
+            lambda: get_exec_api(id_, client=self._client),
+            self._retry,
             context=f"for id {id_!r}",
         )
 
     async def resume(self, id_: str):
         """Resume a stopped exec (sets its status to ``running``)."""
-        return _unwrap_or_raise(
-            await update_exec_api(
+        return await _call_api(
+            "execs.resume",
+            lambda: update_exec_api(
                 id_,
                 client=self._client,
                 body=UpdateExecRequest(status=UpdateExecRequestStatus.RUNNING),
             ),
-            op="resumeExec",
+            self._retry,
             context=f"for id {id_!r}",
         )
 
     async def delete(self, id_: str) -> None:
         """Delete an exec."""
-        _unwrap_or_raise(
-            await delete_exec_api(id_, client=self._client),
-            op="deleteExec",
+        await _call_api(
+            "execs.delete",
+            lambda: delete_exec_api(id_, client=self._client),
+            self._retry,
             context=f"for id {id_!r}",
         )
 
@@ -288,13 +321,14 @@ class Execs:
 
     async def get_output(
         self, id_: str, last_sequence: int | None = None
-    ) -> list[ExecStdout]:
-        """Fetch exec output chunks as a list (one-shot poll)."""
-        return _unwrap_or_raise(
-            await get_exec_output_api(
+    ) -> ExecStdout:
+        """Fetch exec output as plain text (one-shot poll)."""
+        return await _call_api(
+            "execs.getOutput",
+            lambda: get_exec_output_api(
                 id_, client=self._client, last_sequence=last_sequence
             ),
-            op="getOutput",
+            self._retry,
             context=f"for id {id_!r}",
         )
 
@@ -305,13 +339,14 @@ class Execs:
             id_: Exec ID.
             data: Raw stdin data to send (e.g. ``"ls -la\\n"``).
         """
-        return _unwrap_or_raise(
-            await exec_exec_stdin_api(
+        return await _call_api(
+            "execs.sendStdin",
+            lambda: exec_exec_stdin_api(
                 id_,
                 client=self._client,
                 body=ExecStdin(type_=ExecStdinType.STDIN, input_=data),
             ),
-            op="execStdin",
+            self._retry,
             context=f"for id {id_!r}",
         )
 
@@ -329,8 +364,9 @@ class Execs:
             yet — if your terminal does not resize correctly, check the
             agent's expected format and adjust here.
         """
-        return _unwrap_or_raise(
-            await exec_exec_stdin_api(
+        return await _call_api(
+            "execs.resize",
+            lambda: exec_exec_stdin_api(
                 id_,
                 client=self._client,
                 body=ExecStdin(
@@ -338,7 +374,7 @@ class Execs:
                     input_=f"{cols}x{rows}",
                 ),
             ),
-            op="execResize",
+            self._retry,
             context=f"for id {id_!r}",
         )
 
@@ -360,13 +396,21 @@ class Ports:
     - ``stream_ports_list`` → ``stream_list``
     """
 
-    def __init__(self, sandbox_client: SandboxClient) -> None:
+    def __init__(
+        self,
+        sandbox_client: SandboxClient,
+        *,
+        retry: RetryConfig | None = None,
+    ) -> None:
         self._client = sandbox_client
+        self._retry = retry
 
     async def list(self):
         """List open ports."""
-        result = _unwrap_or_raise(
-            await list_ports_api(client=self._client), op="listPorts"
+        result = await _call_api(
+            "ports.list",
+            lambda: list_ports_api(client=self._client),
+            self._retry,
         )
         return result.ports
 
@@ -384,31 +428,40 @@ class Ports:
 class Directories:
     """Directory operations (list, create, delete)."""
 
-    def __init__(self, sandbox_client: SandboxClient) -> None:
+    def __init__(
+        self,
+        sandbox_client: SandboxClient,
+        *,
+        retry: RetryConfig | None = None,
+    ) -> None:
         self._client = sandbox_client
+        self._retry = retry
 
     async def list(self, path: str) -> list[FileInfo]:
         """List directory contents."""
-        result = _unwrap_or_raise(
-            await list_directory_api(path, client=self._client),
-            op="listDirectory",
+        result = await _call_api(
+            "directories.list",
+            lambda: list_directory_api(path, client=self._client),
+            self._retry,
             context=f"for path {path!r}",
         )
         return result.files
 
     async def create(self, path: str) -> None:
         """Create a directory."""
-        _unwrap_or_raise(
-            await create_directory_api(path, client=self._client),
-            op="createDirectory",
+        await _call_api(
+            "directories.create",
+            lambda: create_directory_api(path, client=self._client),
+            self._retry,
             context=f"for path {path!r}",
         )
 
     async def delete(self, path: str) -> None:
         """Delete a directory."""
-        _unwrap_or_raise(
-            await delete_directory_api(path, client=self._client),
-            op="deleteDirectory",
+        await _call_api(
+            "directories.delete",
+            lambda: delete_directory_api(path, client=self._client),
+            self._retry,
             context=f"for path {path!r}",
         )
 
@@ -450,10 +503,13 @@ class Sandbox:
         vm_info: SandboxModel,
         sandbox_client: SandboxClient,
         api_client: ApiClient,
+        *,
+        retry: RetryConfig | None = None,
     ) -> None:
         self._vm_info = vm_info
         self._sandbox_client = sandbox_client
         self._api_client = api_client
+        self._retry = retry
 
     # ── Properties ────────────────────────────────────────────────────────────
 
@@ -474,40 +530,43 @@ class Sandbox:
     @property
     def files(self) -> Files:
         """File system operations (read, create, delete, move, copy, stat, watch)."""
-        return Files(self._sandbox_client)
+        return Files(self._sandbox_client, retry=self._retry)
 
     @property
     def directories(self) -> Directories:
         """Directory operations (list, create, delete)."""
-        return Directories(self._sandbox_client)
+        return Directories(self._sandbox_client, retry=self._retry)
 
     @property
     def execs(self) -> Execs:
         """Shell exec operations (create, get, resume, stream_output, send_stdin, resize, stream_list)."""
-        return Execs(self._sandbox_client)
+        return Execs(self._sandbox_client, retry=self._retry)
 
     @property
     def ports(self) -> Ports:
         """Port discovery (list, stream_list)."""
-        return Ports(self._sandbox_client)
-
-    # NOTE: sandbox.streams is removed — use sandbox.files.watch() instead
+        return Ports(self._sandbox_client, retry=self._retry)
 
     # ── Lifecycle methods ─────────────────────────────────────────────────────
 
     async def hibernate(self) -> None:
         """Suspend (hibernate) this VM."""
-        await stop_sandbox_api(
-            self.id,
-            client=self._api_client,
-            body=StopSandboxBody(stop_type=StopSandboxBodyStopType.HIBERNATE),
-        )
-        vm_info = _unwrap_or_raise(
-            await wait_for_sandbox_api(self.id, client=self._api_client),
-            op="waitForSandbox",
+        await _call_api(
+            "sandboxes.hibernate",
+            lambda: stop_sandbox_api(
+                self.id,
+                client=self._api_client,
+                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.HIBERNATE),
+            ),
+            self._retry,
             context=f"for sandbox {self.id!r}",
         )
-
+        vm_info: SandboxModel = await _call_api(
+            "sandboxes.wait",
+            lambda: wait_for_sandbox_api(self.id, client=self._api_client),
+            self._retry,
+            context=f"for sandbox {self.id!r}",
+        )
         if vm_info.status != "stopped":
             raise RuntimeError(
                 f"Failed to hibernate sandbox '{self.id}'. Its final status was {vm_info.status}."
@@ -515,18 +574,22 @@ class Sandbox:
 
     async def shutdown(self) -> None:
         """Shut down this VM."""
-        await stop_sandbox_api(
-            self.id,
-            client=self._api_client,
-            body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN),
-        )
-
-        vm_info = _unwrap_or_raise(
-            await wait_for_sandbox_api(self.id, client=self._api_client),
-            op="waitForSandbox",
+        await _call_api(
+            "sandboxes.shutdown",
+            lambda: stop_sandbox_api(
+                self.id,
+                client=self._api_client,
+                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN),
+            ),
+            self._retry,
             context=f"for sandbox {self.id!r}",
         )
-
+        vm_info: SandboxModel = await _call_api(
+            "sandboxes.wait",
+            lambda: wait_for_sandbox_api(self.id, client=self._api_client),
+            self._retry,
+            context=f"for sandbox {self.id!r}",
+        )
         if vm_info.status != "stopped":
             raise RuntimeError(
                 f"Failed to stop sandbox '{self.id}'. Its final status was {vm_info.status}."
@@ -550,7 +613,7 @@ class Sandbox:
     ) -> None:
         await self._sandbox_client.__aexit__(exc_type, exc_val, exc_tb)
 
-    # ── Static factory methods ──────────────────────────────────────────────
+    # ── Static factory methods ────────────────────────────────────────────────
 
     @classmethod
     async def start(

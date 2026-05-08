@@ -8,8 +8,9 @@ import { Sandbox, type StartOptions } from "./Sandbox.js";
 import {
   type SandboxInfo,
   type CreateSandboxParams,
-  camelCaseKeys,
+  type RetryConfig,
 } from "./types.js";
+import { camelCaseKeys, callApi } from "./utils.js";
 
 /**
  * Extract the agent connection details from the Sandbox model.
@@ -27,26 +28,33 @@ function resolveConnectionDetails(sandbox: SandboxInfo): {
  * Sandbox lifecycle operations, accessed as `sdk.sandboxes.*`.
  */
 export class SandboxesNamespace {
-  constructor(private readonly _apiClient: ApiClient) {}
+  constructor(
+    private readonly _apiClient: ApiClient,
+    private readonly _retryConfig?: RetryConfig,
+  ) {}
 
   /**
    * Create a new sandbox (does not start the VM).
    */
   async create(params: CreateSandboxParams): Promise<SandboxInfo> {
-    const result = await api.createSandbox({
-      client: this._apiClient,
-      body: {
-        id: params.id,
-        snapshot_id: params.snapshotId,
-        snapshot_alias: params.snapshotAlias,
-        ephemeral: params.ephemeral,
-        millicpu: params.millicpu,
-        memory_bytes: params.memoryBytes,
-        disk_bytes: params.diskBytes,
-      },
-      throwOnError: true,
-    });
-    return camelCaseKeys(result.data);
+    const data = await callApi(
+      "createSandbox",
+      () =>
+        api.createSandbox({
+          client: this._apiClient,
+          body: {
+            id: params.id,
+            snapshot_id: params.snapshotId,
+            snapshot_alias: params.snapshotAlias,
+            ephemeral: params.ephemeral,
+            millicpu: params.millicpu,
+            memory_bytes: params.memoryBytes,
+            disk_bytes: params.diskBytes,
+          },
+        }),
+      this._retryConfig,
+    );
+    return camelCaseKeys(data);
   }
 
   /**
@@ -54,30 +62,39 @@ export class SandboxesNamespace {
    * with a fully wired sandbox client.
    */
   async start(sandboxId: string, options?: StartOptions): Promise<Sandbox> {
-    const result = await api.startSandbox({
-      client: this._apiClient,
-      path: { id: sandboxId },
-      body:
-        options?.versionNumber !== undefined
-          ? { version_number: options.versionNumber }
-          : undefined,
-      throwOnError: true,
-    });
-    const data = camelCaseKeys(result.data);
+    const body =
+      options?.versionNumber !== undefined
+        ? { version_number: options.versionNumber }
+        : undefined;
 
-    const waitResult = await api.waitForSandbox({
-      client: this._apiClient,
-      path: { id: sandboxId },
-      throwOnError: true,
-    });
+    await callApi(
+      "startSandbox",
+      () =>
+        api.startSandbox({
+          client: this._apiClient,
+          path: { id: sandboxId },
+          body,
+        }),
+      this._retryConfig,
+    );
 
-    if (waitResult.data.status !== "running") {
+    const waitResult = await callApi(
+      "waitForSandbox",
+      () =>
+        api.waitForSandbox({
+          client: this._apiClient,
+          path: { id: sandboxId },
+        }),
+      this._retryConfig,
+    );
+
+    if (waitResult.status !== "running") {
       throw new Error(
-        `Sandbox did not reach its running state, it is ${waitResult.data.status}, please try again`,
+        `Sandbox did not reach its running state, it is ${waitResult.status}, please try again`,
       );
     }
 
-    const finalData = camelCaseKeys(waitResult.data);
+    const finalData = camelCaseKeys(waitResult);
     const { url, token } = resolveConnectionDetails(finalData);
     const sandboxClient = createSandboxClient(
       createSandboxConfig({
@@ -86,28 +103,44 @@ export class SandboxesNamespace {
       }),
     );
 
-    return new Sandbox(finalData, sandboxClient, this._apiClient);
+    // Add error interceptor to handle non-retryable errors
+    sandboxClient.interceptors.error.use((error) => error);
+
+    return new Sandbox(
+      finalData,
+      sandboxClient,
+      this._apiClient,
+      this._retryConfig,
+    );
   }
 
   /**
    * Hibernate (suspend) a VM by sandbox ID.
    */
   async hibernate(sandboxId: string): Promise<void> {
-    await api.stopSandbox({
-      client: this._apiClient,
-      path: { id: sandboxId },
-      body: { stop_type: "hibernate" },
-      throwOnError: true,
-    });
-    const waitResult = await api.waitForSandbox({
-      client: this._apiClient,
-      path: { id: sandboxId },
-      throwOnError: true,
-    });
+    await callApi(
+      "stopSandbox",
+      () =>
+        api.stopSandbox({
+          client: this._apiClient,
+          path: { id: sandboxId },
+          body: { stop_type: "hibernate" },
+        }),
+      this._retryConfig,
+    );
+    const waitResult = await callApi(
+      "waitForSandbox",
+      () =>
+        api.waitForSandbox({
+          client: this._apiClient,
+          path: { id: sandboxId },
+        }),
+      this._retryConfig,
+    );
 
-    if (waitResult.data.status !== "stopped") {
+    if (waitResult.status !== "stopped") {
       throw new Error(
-        `Sandbox did not reach its stopped state, it is ${waitResult.data.status}, please try again`,
+        `Sandbox did not reach its stopped state, it is ${waitResult.status}, please try again`,
       );
     }
   }
@@ -116,21 +149,29 @@ export class SandboxesNamespace {
    * Shut down a VM by sandbox ID.
    */
   async shutdown(sandboxId: string): Promise<void> {
-    await api.stopSandbox({
-      client: this._apiClient,
-      path: { id: sandboxId },
-      body: { stop_type: "shutdown" },
-      throwOnError: true,
-    });
-    const waitResult = await api.waitForSandbox({
-      client: this._apiClient,
-      path: { id: sandboxId },
-      throwOnError: true,
-    });
+    await callApi(
+      "stopSandbox",
+      () =>
+        api.stopSandbox({
+          client: this._apiClient,
+          path: { id: sandboxId },
+          body: { stop_type: "shutdown" },
+        }),
+      this._retryConfig,
+    );
+    const waitResult = await callApi(
+      "waitForSandbox",
+      () =>
+        api.waitForSandbox({
+          client: this._apiClient,
+          path: { id: sandboxId },
+        }),
+      this._retryConfig,
+    );
 
-    if (waitResult.data.status !== "stopped") {
+    if (waitResult.status !== "stopped") {
       throw new Error(
-        `Sandbox did not reach its stopped state, it is ${waitResult.data.status}, please try again`,
+        `Sandbox did not reach its stopped state, it is ${waitResult.status}, please try again`,
       );
     }
   }

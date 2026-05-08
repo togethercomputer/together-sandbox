@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from unittest.mock import AsyncMock, MagicMock, patch
 from together_sandbox.api.types import UNSET
 from together_sandbox.sandbox.types import UNSET as SANDBOX_UNSET
@@ -14,7 +15,6 @@ from together_sandbox._sandbox import (
     Files,
     Ports,
     Sandbox,
-    _unwrap_or_raise,
 )
 from together_sandbox._sandboxes import SandboxesNamespace, _resolve_connection
 from together_sandbox._snapshots import (
@@ -26,6 +26,7 @@ from together_sandbox.api.models.container_registry_credential import (
     ContainerRegistryCredential,
 )
 from together_sandbox._together_sandbox import TogetherSandbox
+from together_sandbox.api.types import Response as ApiResponse
 from together_sandbox.sandbox.models.file_read_response import FileReadResponse
 from together_sandbox.sandbox.models.file_read_response_encoding import (
     FileReadResponseEncoding,
@@ -37,11 +38,10 @@ from together_sandbox.sandbox.models.file_action_response import FileActionRespo
 from together_sandbox.sandbox.models.exec_delete_response import ExecDeleteResponse
 from together_sandbox.sandbox.models.ports_list_response import PortsListResponse
 from together_sandbox.sandbox.models.error import Error
-from together_sandbox.sandbox.types import File
+from together_sandbox.sandbox.types import File, Response as SandboxResponse
 from together_sandbox.api.models.sandbox import Sandbox as SandboxModel
 from together_sandbox.api.models.create_sandbox_body import CreateSandboxBody
 from together_sandbox.api.models.start_sandbox_body import StartSandboxBody
-from together_sandbox.api.types import UNSET
 from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
 from together_sandbox.sandbox.models.create_exec_request_env import (
     CreateExecRequestEnv,
@@ -52,6 +52,29 @@ from together_sandbox.sandbox.models.update_exec_request import UpdateExecReques
 from together_sandbox.sandbox.models.update_exec_request_status import (
     UpdateExecRequestStatus,
 )
+
+# ─── Response helpers ─────────────────────────────────────────────────────────
+
+
+def make_api_response(status: int, parsed) -> ApiResponse:
+    """Build a mock management-API Response wrapper."""
+    return ApiResponse(
+        status_code=HTTPStatus(status),
+        content=b"",
+        headers={},
+        parsed=parsed,
+    )
+
+
+def make_sandbox_response(status: int, parsed) -> SandboxResponse:
+    """Build a mock sandbox-API Response wrapper."""
+    return SandboxResponse(
+        status_code=HTTPStatus(status),
+        content=b"",
+        headers={},
+        parsed=parsed,
+    )
+
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -109,14 +132,14 @@ class TestSandboxesNamespaceStart:
         with patch(
             "together_sandbox._sandboxes.start_sandbox_api",
             new_callable=AsyncMock,
-            return_value=vm_info,
+            return_value=make_api_response(200, vm_info),
         ) as mock_api:
             with patch(
                 "together_sandbox._sandboxes.wait_for_sandbox_api",
                 new_callable=AsyncMock,
-                return_value=_make_sandbox_model(
-                    status="running"
-                ),  # must pass the status guard
+                return_value=make_api_response(
+                    200, _make_sandbox_model(status="running")
+                ),
             ):
                 with patch("together_sandbox._sandboxes.SandboxClient"):
                     await ns.start("sandbox-1")
@@ -133,14 +156,14 @@ class TestSandboxesNamespaceStart:
         with patch(
             "together_sandbox._sandboxes.start_sandbox_api",
             new_callable=AsyncMock,
-            return_value=vm_info,
+            return_value=make_api_response(200, vm_info),
         ) as mock_api:
             with patch(
                 "together_sandbox._sandboxes.wait_for_sandbox_api",
                 new_callable=AsyncMock,
-                return_value=_make_sandbox_model(
-                    status="running"
-                ),  # must pass the status guard
+                return_value=make_api_response(
+                    200, _make_sandbox_model(status="running")
+                ),
             ):
                 with patch("together_sandbox._sandboxes.SandboxClient"):
                     await ns.start("sandbox-1", version_number=123)
@@ -159,12 +182,14 @@ class TestSandboxesNamespaceStart:
         with patch(
             "together_sandbox._sandboxes.start_sandbox_api",
             new_callable=AsyncMock,
-            return_value=vm_info,
+            return_value=make_api_response(200, vm_info),
         ) as mock_api:
             with patch(
                 "together_sandbox._sandboxes.wait_for_sandbox_api",
                 new_callable=AsyncMock,
-                return_value=_make_sandbox_model(status="running"),
+                return_value=make_api_response(
+                    200, _make_sandbox_model(status="running")
+                ),
             ):
                 with patch("together_sandbox._sandboxes.SandboxClient"):
                     await ns.start("sandbox-1", version_number=None)
@@ -190,7 +215,7 @@ class TestSandboxesNamespaceCreate:
         with patch(
             "together_sandbox._sandboxes.create_sandbox_api",
             new_callable=AsyncMock,
-            return_value=_make_sandbox_model(),
+            return_value=make_api_response(200, _make_sandbox_model()),
         ) as mock_api:
             await ns.create(
                 millicpu=1000,
@@ -216,7 +241,7 @@ class TestSandboxesNamespaceCreate:
         with patch(
             "together_sandbox._sandboxes.create_sandbox_api",
             new_callable=AsyncMock,
-            return_value=_make_sandbox_model(),
+            return_value=make_api_response(200, _make_sandbox_model()),
         ) as mock_api:
             await ns.create(
                 millicpu=2000,
@@ -307,7 +332,6 @@ class TestFiles:
         mock_client = MagicMock()
         facade = Files(mock_client)
 
-        # Mock the API response
         mock_response = FileReadResponse(
             path="/test.txt",
             content="Hello, world!",
@@ -317,21 +341,15 @@ class TestFiles:
         with patch(
             "together_sandbox._sandbox.create_file_api",
             new_callable=AsyncMock,
-            return_value=mock_response,
+            return_value=make_sandbox_response(200, mock_response),
         ) as mock_api:
             result = await facade.create("/test.txt", "Hello, world!")
 
-            # Verify the API was called
             assert mock_api.called
             call_args = mock_api.call_args
-
-            # Verify the client was passed
             assert call_args.kwargs["client"] == mock_client
-
-            # Verify the path was passed
             assert call_args.args[0] == "/test.txt"
 
-            # Verify a File object was created with binary content
             file_arg = call_args.kwargs["body"]
             assert isinstance(file_arg, File)
             assert isinstance(file_arg.payload, bytes)
@@ -339,7 +357,6 @@ class TestFiles:
             # Verify the content was encoded to UTF-8
             assert file_arg.payload == b"Hello, world!"
 
-            # Verify the response (unwrapped to content string)
             assert result == "Hello, world!"
 
     @pytest.mark.asyncio
@@ -348,7 +365,6 @@ class TestFiles:
         mock_client = MagicMock()
         facade = Files(mock_client)
 
-        # Binary content (e.g., image data)
         binary_data = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
 
         mock_response = FileReadResponse(
@@ -360,15 +376,13 @@ class TestFiles:
         with patch(
             "together_sandbox._sandbox.create_file_api",
             new_callable=AsyncMock,
-            return_value=mock_response,
+            return_value=make_sandbox_response(200, mock_response),
         ) as mock_api:
             result = await facade.create("/image.png", binary_data)
 
-            # Verify the API was called
             assert mock_api.called
             call_args = mock_api.call_args
 
-            # Verify a File object was created with the binary content
             file_arg = call_args.kwargs["body"]
             assert isinstance(file_arg, File)
             assert isinstance(file_arg.payload, bytes)
@@ -376,7 +390,6 @@ class TestFiles:
             # Verify the content is unchanged
             assert file_arg.payload == binary_data
 
-            # Verify the response (unwrapped to content string)
             assert result == "[binary]"
 
     @pytest.mark.asyncio
@@ -385,7 +398,6 @@ class TestFiles:
         mock_client = MagicMock()
         facade = Files(mock_client)
 
-        # Unicode content with emoji and international characters
         unicode_text = "Hello 世界 🌍 Привет"
 
         mock_response = FileReadResponse(
@@ -397,15 +409,13 @@ class TestFiles:
         with patch(
             "together_sandbox._sandbox.create_file_api",
             new_callable=AsyncMock,
-            return_value=mock_response,
+            return_value=make_sandbox_response(200, mock_response),
         ) as mock_api:
             result = await facade.create("/unicode.txt", unicode_text)
 
-            # Verify the API was called
             assert mock_api.called
             call_args = mock_api.call_args
 
-            # Verify the content was properly encoded to UTF-8
             file_arg = call_args.kwargs["body"]
             assert isinstance(file_arg.payload, bytes)
 
@@ -430,11 +440,10 @@ class TestFiles:
         with patch(
             "together_sandbox._sandbox.create_file_api",
             new_callable=AsyncMock,
-            return_value=mock_response,
+            return_value=make_sandbox_response(200, mock_response),
         ) as mock_api:
             result = await facade.create("/empty.txt", "")
 
-            # Verify the API was called
             assert mock_api.called
             call_args = mock_api.call_args
 
@@ -445,45 +454,6 @@ class TestFiles:
 
             # Verify the response (unwrapped to content string)
             assert result == ""
-
-
-# ─── _unwrap_or_raise tests ───────────────────────────────────────────────────
-
-
-class TestUnwrapOrRaise:
-    """Tests for the _unwrap_or_raise() private helper."""
-
-    def test_returns_result_when_valid(self):
-        """Returns the value unchanged when it is not None or Error."""
-        obj = object()
-        assert _unwrap_or_raise(obj, op="testOp") is obj
-
-    def test_raises_on_none_without_context(self):
-        """Raises RuntimeError with op name when result is None and no context given."""
-        with pytest.raises(RuntimeError, match="testOp returned None$"):
-            _unwrap_or_raise(None, op="testOp")
-
-    def test_raises_on_none_with_context(self):
-        """Raises RuntimeError including context when result is None."""
-        with pytest.raises(RuntimeError, match="testOp returned None for path '/foo'"):
-            _unwrap_or_raise(None, op="testOp", context="for path '/foo'")
-
-    def test_raises_on_error_without_context(self):
-        """Raises RuntimeError with Error message when result is an Error."""
-        err = Error(code=500, message="internal error")
-        with pytest.raises(
-            RuntimeError, match="Failed to testOp: internal error \\(code: 500\\)"
-        ):
-            _unwrap_or_raise(err, op="testOp")
-
-    def test_raises_on_error_with_context(self):
-        """Raises RuntimeError including context when result is an Error."""
-        err = Error(code=404, message="not found")
-        with pytest.raises(
-            RuntimeError,
-            match="Failed to testOp for path '/bar': not found \\(code: 404\\)",
-        ):
-            _unwrap_or_raise(err, op="testOp", context="for path '/bar'")
 
 
 # ─── Files error-path tests ───────────────────────────────────────────────────
@@ -499,20 +469,22 @@ class TestFilesErrorPaths:
         with patch(
             "together_sandbox._sandbox.read_file_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(404, err),
         ):
-            with pytest.raises(RuntimeError, match="Failed to readFile for path '/x'"):
+            with pytest.raises(
+                RuntimeError, match="Failed to files.read for path '/x'"
+            ):
                 await Files(mock_client).read("/x")
 
     @pytest.mark.asyncio
-    async def test_read_raises_on_none(self):
+    async def test_read_raises_on_undocumented_status(self):
         mock_client = MagicMock()
         with patch(
             "together_sandbox._sandbox.read_file_api",
             new_callable=AsyncMock,
-            return_value=None,
+            return_value=make_sandbox_response(500, None),
         ):
-            with pytest.raises(RuntimeError, match="readFile returned None"):
+            with pytest.raises(RuntimeError, match="files.read returned no response"):
                 await Files(mock_client).read("/x")
 
     @pytest.mark.asyncio
@@ -522,22 +494,22 @@ class TestFilesErrorPaths:
         with patch(
             "together_sandbox._sandbox.create_file_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(500, err),
         ):
             with pytest.raises(
-                RuntimeError, match="Failed to createFile for path '/x'"
+                RuntimeError, match="Failed to files.create for path '/x'"
             ):
                 await Files(mock_client).create("/x", "content")
 
     @pytest.mark.asyncio
-    async def test_create_raises_on_none(self):
+    async def test_create_raises_on_undocumented_status(self):
         mock_client = MagicMock()
         with patch(
             "together_sandbox._sandbox.create_file_api",
             new_callable=AsyncMock,
-            return_value=None,
+            return_value=make_sandbox_response(500, None),
         ):
-            with pytest.raises(RuntimeError, match="createFile returned None"):
+            with pytest.raises(RuntimeError, match="files.create returned no response"):
                 await Files(mock_client).create("/x", "content")
 
     @pytest.mark.asyncio
@@ -547,22 +519,22 @@ class TestFilesErrorPaths:
         with patch(
             "together_sandbox._sandbox.delete_file_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(404, err),
         ):
             with pytest.raises(
-                RuntimeError, match="Failed to deleteFile for path '/x'"
+                RuntimeError, match="Failed to files.delete for path '/x'"
             ):
                 await Files(mock_client).delete("/x")
 
     @pytest.mark.asyncio
-    async def test_delete_raises_on_none(self):
+    async def test_delete_raises_on_undocumented_status(self):
         mock_client = MagicMock()
         with patch(
             "together_sandbox._sandbox.delete_file_api",
             new_callable=AsyncMock,
-            return_value=None,
+            return_value=make_sandbox_response(500, None),
         ):
-            with pytest.raises(RuntimeError, match="deleteFile returned None"):
+            with pytest.raises(RuntimeError, match="files.delete returned no response"):
                 await Files(mock_client).delete("/x")
 
     @pytest.mark.asyncio
@@ -572,20 +544,20 @@ class TestFilesErrorPaths:
         with patch(
             "together_sandbox._sandbox.perform_file_action_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(400, err),
         ):
-            with pytest.raises(RuntimeError, match="Failed to moveFile"):
+            with pytest.raises(RuntimeError, match="Failed to files.move"):
                 await Files(mock_client).move("/src", "/dst")
 
     @pytest.mark.asyncio
-    async def test_move_raises_on_none(self):
+    async def test_move_raises_on_undocumented_status(self):
         mock_client = MagicMock()
         with patch(
             "together_sandbox._sandbox.perform_file_action_api",
             new_callable=AsyncMock,
-            return_value=None,
+            return_value=make_sandbox_response(500, None),
         ):
-            with pytest.raises(RuntimeError, match="moveFile returned None"):
+            with pytest.raises(RuntimeError, match="files.move returned no response"):
                 await Files(mock_client).move("/src", "/dst")
 
     @pytest.mark.asyncio
@@ -595,20 +567,20 @@ class TestFilesErrorPaths:
         with patch(
             "together_sandbox._sandbox.perform_file_action_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(400, err),
         ):
-            with pytest.raises(RuntimeError, match="Failed to copyFile"):
+            with pytest.raises(RuntimeError, match="Failed to files.copy"):
                 await Files(mock_client).copy("/src", "/dst")
 
     @pytest.mark.asyncio
-    async def test_copy_raises_on_none(self):
+    async def test_copy_raises_on_undocumented_status(self):
         mock_client = MagicMock()
         with patch(
             "together_sandbox._sandbox.perform_file_action_api",
             new_callable=AsyncMock,
-            return_value=None,
+            return_value=make_sandbox_response(500, None),
         ):
-            with pytest.raises(RuntimeError, match="copyFile returned None"):
+            with pytest.raises(RuntimeError, match="files.copy returned no response"):
                 await Files(mock_client).copy("/src", "/dst")
 
     @pytest.mark.asyncio
@@ -618,20 +590,20 @@ class TestFilesErrorPaths:
         with patch(
             "together_sandbox._sandbox.get_file_stat_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(404, err),
         ):
-            with pytest.raises(RuntimeError, match="Failed to getFileStat"):
+            with pytest.raises(RuntimeError, match="Failed to files.stat"):
                 await Files(mock_client).stat("/x")
 
     @pytest.mark.asyncio
-    async def test_stat_raises_on_none(self):
+    async def test_stat_raises_on_undocumented_status(self):
         mock_client = MagicMock()
         with patch(
             "together_sandbox._sandbox.get_file_stat_api",
             new_callable=AsyncMock,
-            return_value=None,
+            return_value=make_sandbox_response(500, None),
         ):
-            with pytest.raises(RuntimeError, match="getFileStat returned None"):
+            with pytest.raises(RuntimeError, match="files.stat returned no response"):
                 await Files(mock_client).stat("/x")
 
 
@@ -648,23 +620,23 @@ class TestExecsErrorPaths:
         with patch(
             "together_sandbox._sandbox.delete_exec_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(404, err),
         ):
             with pytest.raises(
-                RuntimeError, match="Failed to deleteExec for id 'exec-1'"
+                RuntimeError, match="Failed to execs.delete for id 'exec-1'"
             ):
                 await Execs(mock_client).delete("exec-1")
 
     @pytest.mark.asyncio
-    async def test_delete_raises_on_none(self):
+    async def test_delete_raises_on_undocumented_status(self):
         mock_client = MagicMock()
         with patch(
             "together_sandbox._sandbox.delete_exec_api",
             new_callable=AsyncMock,
-            return_value=None,
+            return_value=make_sandbox_response(500, None),
         ):
             with pytest.raises(
-                RuntimeError, match="deleteExec returned None for id 'exec-1'"
+                RuntimeError, match="execs.delete returned no response for id 'exec-1'"
             ):
                 await Execs(mock_client).delete("exec-1")
 
@@ -675,7 +647,7 @@ class TestExecsErrorPaths:
         with patch(
             "together_sandbox._sandbox.delete_exec_api",
             new_callable=AsyncMock,
-            return_value=ok,
+            return_value=make_sandbox_response(200, ok),
         ):
             await Execs(mock_client).delete("exec-1")  # should not raise
 
@@ -791,10 +763,10 @@ class TestExecsResume:
         with patch(
             "together_sandbox._sandbox.update_exec_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(404, err),
         ):
             with pytest.raises(
-                RuntimeError, match="Failed to resumeExec for id 'exec-1'"
+                RuntimeError, match="Failed to execs.resume for id 'exec-1'"
             ):
                 await Execs(mock_client).resume("exec-1")
 
@@ -846,10 +818,10 @@ class TestExecsSendStdinAndResize:
         with patch(
             "together_sandbox._sandbox.exec_exec_stdin_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(400, err),
         ):
             with pytest.raises(
-                RuntimeError, match="Failed to execStdin for id 'exec-1'"
+                RuntimeError, match="Failed to execs.sendStdin for id 'exec-1'"
             ):
                 await Execs(mock_client).send_stdin("exec-1", "data")
 
@@ -860,10 +832,10 @@ class TestExecsSendStdinAndResize:
         with patch(
             "together_sandbox._sandbox.exec_exec_stdin_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(400, err),
         ):
             with pytest.raises(
-                RuntimeError, match="Failed to execResize for id 'exec-1'"
+                RuntimeError, match="Failed to execs.resize for id 'exec-1'"
             ):
                 await Execs(mock_client).resize("exec-1", cols=80, rows=24)
 
@@ -881,20 +853,20 @@ class TestPortsErrorPaths:
         with patch(
             "together_sandbox._sandbox.list_ports_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(500, err),
         ):
-            with pytest.raises(RuntimeError, match="Failed to listPorts"):
+            with pytest.raises(RuntimeError, match="Failed to ports.list"):
                 await Ports(mock_client).list()
 
     @pytest.mark.asyncio
-    async def test_list_raises_on_none(self):
+    async def test_list_raises_on_undocumented_status(self):
         mock_client = MagicMock()
         with patch(
             "together_sandbox._sandbox.list_ports_api",
             new_callable=AsyncMock,
-            return_value=None,
+            return_value=make_sandbox_response(500, None),
         ):
-            with pytest.raises(RuntimeError, match="listPorts returned None"):
+            with pytest.raises(RuntimeError, match="ports.list returned no response"):
                 await Ports(mock_client).list()
 
     @pytest.mark.asyncio
@@ -904,7 +876,7 @@ class TestPortsErrorPaths:
         with patch(
             "together_sandbox._sandbox.list_ports_api",
             new_callable=AsyncMock,
-            return_value=ports_response,
+            return_value=make_sandbox_response(200, ports_response),
         ):
             result = await Ports(mock_client).list()
             assert result == []
@@ -923,23 +895,24 @@ class TestDirectoriesErrorPaths:
         with patch(
             "together_sandbox._sandbox.create_directory_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(400, err),
         ):
             with pytest.raises(
-                RuntimeError, match="Failed to createDirectory for path '/mydir'"
+                RuntimeError, match="Failed to directories.create for path '/mydir'"
             ):
                 await Directories(mock_client).create("/mydir")
 
     @pytest.mark.asyncio
-    async def test_create_raises_on_none(self):
+    async def test_create_raises_on_undocumented_status(self):
         mock_client = MagicMock()
         with patch(
             "together_sandbox._sandbox.create_directory_api",
             new_callable=AsyncMock,
-            return_value=None,
+            return_value=make_sandbox_response(500, None),
         ):
             with pytest.raises(
-                RuntimeError, match="createDirectory returned None for path '/mydir'"
+                RuntimeError,
+                match="directories.create returned no response for path '/mydir'",
             ):
                 await Directories(mock_client).create("/mydir")
 
@@ -950,7 +923,7 @@ class TestDirectoriesErrorPaths:
         with patch(
             "together_sandbox._sandbox.create_directory_api",
             new_callable=AsyncMock,
-            return_value=ok,
+            return_value=make_sandbox_response(200, ok),
         ):
             await Directories(mock_client).create("/mydir")  # should not raise
 
@@ -961,23 +934,24 @@ class TestDirectoriesErrorPaths:
         with patch(
             "together_sandbox._sandbox.delete_directory_api",
             new_callable=AsyncMock,
-            return_value=err,
+            return_value=make_sandbox_response(404, err),
         ):
             with pytest.raises(
-                RuntimeError, match="Failed to deleteDirectory for path '/mydir'"
+                RuntimeError, match="Failed to directories.delete for path '/mydir'"
             ):
                 await Directories(mock_client).delete("/mydir")
 
     @pytest.mark.asyncio
-    async def test_delete_raises_on_none(self):
+    async def test_delete_raises_on_undocumented_status(self):
         mock_client = MagicMock()
         with patch(
             "together_sandbox._sandbox.delete_directory_api",
             new_callable=AsyncMock,
-            return_value=None,
+            return_value=make_sandbox_response(500, None),
         ):
             with pytest.raises(
-                RuntimeError, match="deleteDirectory returned None for path '/mydir'"
+                RuntimeError,
+                match="directories.delete returned no response for path '/mydir'",
             ):
                 await Directories(mock_client).delete("/mydir")
 
@@ -988,7 +962,7 @@ class TestDirectoriesErrorPaths:
         with patch(
             "together_sandbox._sandbox.delete_directory_api",
             new_callable=AsyncMock,
-            return_value=ok,
+            return_value=make_sandbox_response(200, ok),
         ):
             await Directories(mock_client).delete("/mydir")  # should not raise
 
@@ -1009,24 +983,22 @@ class TestSnapshots:
             base_url="https://api.codesandbox.io",
         )
 
-        # Mock the create_snapshot_api response
-        mock_response = MagicMock()
-        mock_response.id = "snap-123"
+        mock_snapshot = MagicMock()
+        mock_snapshot.id = "snap-123"
 
         with patch(
             "together_sandbox._snapshots.create_snapshot_api",
             new_callable=AsyncMock,
-            return_value=mock_response,
+            return_value=make_api_response(200, mock_snapshot),
         ) as mock_create_snapshot:
             result = await snapshots.create(CreateImageSnapshotParams(image="node:24"))
 
-            # Verify create_snapshot_api was called
             assert mock_create_snapshot.called
             assert result.snapshot_id == "snap-123"
 
     @pytest.mark.asyncio
     async def test_create_with_image_and_alias(self):
-        """Test that create with image params calls aliasSnapshot when alias is provided."""
+        """Test that create with image params calls alias_snapshot_api when alias is provided."""
         mock_api_client = MagicMock()
 
         snapshots = SnapshotsNamespace(
@@ -1034,18 +1006,19 @@ class TestSnapshots:
             base_url="https://api.codesandbox.io",
         )
 
-        # Mock the API responses
-        mock_snapshot_response = MagicMock()
-        mock_snapshot_response.id = "snap-456"
+        mock_snapshot = MagicMock()
+        mock_snapshot.id = "snap-456"
 
         with patch(
             "together_sandbox._snapshots.create_snapshot_api",
             new_callable=AsyncMock,
-            return_value=mock_snapshot_response,
+            return_value=make_api_response(200, mock_snapshot),
         ) as mock_create_snapshot:
             with patch(
                 "together_sandbox._snapshots.alias_snapshot_api",
                 new_callable=AsyncMock,
+                # 204 No Content — documented success with no body
+                return_value=make_api_response(204, None),
             ) as mock_alias:
                 result = await snapshots.create(
                     CreateImageSnapshotParams(
@@ -1053,7 +1026,6 @@ class TestSnapshots:
                     )
                 )
 
-                # Verify both APIs were called
                 assert mock_create_snapshot.called
                 assert mock_alias.called
                 assert result.snapshot_id == "snap-456"
@@ -1070,8 +1042,8 @@ class TestSnapshots:
         assert not hasattr(ns, "from_image")
 
     @pytest.mark.asyncio
-    async def test_build_and_register_with_alias_succeeds_when_alias_returns_none(self):
-        """_build_and_register with alias= must succeed when alias_snapshot_api returns None (HTTP 204)."""
+    async def test_build_and_register_with_alias_succeeds_when_alias_returns_204(self):
+        """_build_and_register with alias= must succeed when alias_snapshot_api returns 204 No Content."""
         mock_api_client = MagicMock()
 
         snapshots = SnapshotsNamespace(
@@ -1093,7 +1065,7 @@ class TestSnapshots:
             patch(
                 "together_sandbox._snapshots.issue_container_registry_credential_api",
                 new_callable=AsyncMock,
-                return_value=credential,
+                return_value=make_api_response(200, credential),
             ),
             patch(
                 "together_sandbox._snapshots.build_docker_image", new_callable=AsyncMock
@@ -1105,12 +1077,13 @@ class TestSnapshots:
             patch(
                 "together_sandbox._snapshots.create_snapshot_api",
                 new_callable=AsyncMock,
-                return_value=mock_snapshot,
+                return_value=make_api_response(200, mock_snapshot),
             ),
             patch(
                 "together_sandbox._snapshots.alias_snapshot_api",
                 new_callable=AsyncMock,
-                return_value=None,  # real HTTP 204 success shape
+                # Real 204 No Content — _call_api must treat this as success
+                return_value=make_api_response(204, None),
             ),
         ]
 

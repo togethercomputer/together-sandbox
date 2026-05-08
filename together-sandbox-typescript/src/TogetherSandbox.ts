@@ -24,13 +24,10 @@ import {
   createConfig as createApiConfig,
 } from "./api-clients/api/client/index.js";
 
-import {
-  getInferredApiKey,
-  getInferredBaseUrl,
-  type TogetherSandboxConfig,
-} from "./configuration.js";
+import { getInferredApiKey, getInferredBaseUrl } from "./configuration.js";
 import { SandboxesNamespace } from "./Sandboxes.js";
 import { SnapshotsNamespace } from "./Snapshots.js";
+import type { TogetherSandboxConfig } from "./types.js";
 
 // ─── TogetherSandbox (main facade) ──────────────────────────────────────────
 
@@ -77,7 +74,7 @@ export class TogetherSandbox {
       }),
     );
 
-    this.sandboxes = new SandboxesNamespace(apiClient);
-    this.snapshots = new SnapshotsNamespace(apiClient, baseUrl);
+    this.sandboxes = new SandboxesNamespace(apiClient, config?.retry);
+    this.snapshots = new SnapshotsNamespace(apiClient, baseUrl, config?.retry);
   }
 }

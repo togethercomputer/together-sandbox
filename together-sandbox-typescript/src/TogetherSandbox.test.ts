@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { TogetherSandbox } from "./TogetherSandbox.js";
 import { Sandbox } from "./Sandbox.js";
-import { camelCaseKeys, type SandboxInfo } from "./types.js";
+import { type SandboxInfo } from "./types.js";
 import * as api from "./api-clients/api/index.js";
+import { camelCaseKeys } from "./utils.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
