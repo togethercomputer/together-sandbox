@@ -69,42 +69,40 @@ async with TogetherSandbox() as sdk:
 
 Sandbox lifecycle namespace.
 
-#### `sdk.sandboxes.create(body: CreateSandboxBody): Coroutine[SandboxModel]`
+#### `sdk.sandboxes.create(*, millicpu, memory_bytes, disk_bytes, id=None, snapshot_id=None, snapshot_alias=None, ephemeral=None) -> SandboxModel`
 
 Creates a new sandbox record from a snapshot. Does not start the VM — call `sdk.sandboxes.start()` with the returned ID afterwards.
 
 ```python
-from together_sandbox.api.models.create_sandbox_body import CreateSandboxBody
-
-sandbox_model = await sdk.sandboxes.create(CreateSandboxBody(
+sandbox_model = await sdk.sandboxes.create(
     snapshot_alias="my-app@v1",
     millicpu=1000,
     memory_bytes=512 * 1024 * 1024,
     disk_bytes=10 * 1024 * 1024 * 1024,
-))
+)
 
 sandbox = await sdk.sandboxes.start(sandbox_model.id)
 ```
 
-| Parameter        | Type            | Required | Description                                                                         |
-| ---------------- | --------------- | -------- | ----------------------------------------------------------------------------------- |
-| `snapshot_id`    | `UUID \| Unset` | \*       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.    |
-| `snapshot_alias` | `str \| Unset`  | \*       | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required. |
-| `millicpu`       | `int`           | Yes      | CPU allocation in millicpu (must be > 0, multiple of 250).                          |
-| `memory_bytes`   | `int`           | Yes      | Memory allocation in bytes.                                                         |
-| `disk_bytes`     | `int`           | Yes      | Disk allocation in bytes.                                                           |
-| `id`             | `str \| Unset`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                             |
-| `ephemeral`      | `bool \| Unset` | No       | Mark the sandbox as ephemeral.                                                      |
+| Parameter        | Type           | Required | Description                                                                         |
+| ---------------- | -------------- | -------- | ----------------------------------------------------------------------------------- |
+| `millicpu`       | `int`          | Yes      | CPU allocation in millicpu (must be > 0, multiple of 250).                          |
+| `memory_bytes`   | `int`          | Yes      | Memory allocation in bytes.                                                         |
+| `disk_bytes`     | `int`          | Yes      | Disk allocation in bytes.                                                           |
+| `snapshot_id`    | `str \| None`  | \*       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.    |
+| `snapshot_alias` | `str \| None`  | \*       | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required. |
+| `id`             | `str \| None`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                             |
+| `ephemeral`      | `bool \| None` | No       | Mark the sandbox as ephemeral.                                                      |
 
-#### `sdk.sandboxes.start(sandbox_id, *, start_options=None): Coroutine[Sandbox]`
+#### `sdk.sandboxes.start(sandbox_id, *, version_number=None) -> Sandbox`
 
 Starts the VM for the given sandbox ID and returns a connected [`Sandbox`](#sandbox) instance.
 
 ```python
 sandbox = await sdk.sandboxes.start("your-sandbox-id")
 
-# With optional start options:
-sandbox = await sdk.sandboxes.start("your-sandbox-id", start_options={"version_number": 3})
+# Pin a specific VM version:
+sandbox = await sdk.sandboxes.start("your-sandbox-id", version_number=3)
 ```
 
 #### `sdk.sandboxes.hibernate(sandbox_id): Coroutine[None]`
@@ -138,10 +136,9 @@ Create a snapshot from either a local Docker context or an existing public Docke
 Build a Docker image from a local directory and register it as a snapshot. Requires Docker to be installed and running.
 
 ```python
-from together_sandbox import CreateFromContextParams
-from together_sandbox.api.models.create_sandbox_body import CreateSandboxBody
+from together_sandbox import CreateContextSnapshotParams
 
-result = await sdk.snapshots.create(CreateFromContextParams(
+result = await sdk.snapshots.create(CreateContextSnapshotParams(
     context="./my-app",
     dockerfile="./my-app/Dockerfile.prod",  # optional
     alias="my-app@v1",                      # optional
@@ -149,12 +146,12 @@ result = await sdk.snapshots.create(CreateFromContextParams(
 ))
 
 # Use the snapshot ID to create a sandbox:
-sandbox_model = await sdk.sandboxes.create(CreateSandboxBody(
+sandbox_model = await sdk.sandboxes.create(
     snapshot_id=result.snapshot_id,
     millicpu=1000,
     memory_bytes=512 * 1024 * 1024,
     disk_bytes=10 * 1024 * 1024 * 1024,
-))
+)
 ```
 
 | Parameter     | Type                                         | Description                                                                                                 |
@@ -169,9 +166,9 @@ sandbox_model = await sdk.sandboxes.create(CreateSandboxBody(
 Register an existing public Docker image as a snapshot — no local build required.
 
 ```python
-from together_sandbox import CreateFromImageParams
+from together_sandbox import CreateImageSnapshotParams
 
-result = await sdk.snapshots.create(CreateFromImageParams(
+result = await sdk.snapshots.create(CreateImageSnapshotParams(
     image="node:22",
     alias="my-node@latest",  # optional
 ))
@@ -329,19 +326,30 @@ List all active execs.
 execs = await sandbox.execs.list()
 ```
 
-#### `execs.create(body: CreateExecRequest) -> Exec`
+#### `execs.create(command, args, *, autorun=None, interactive=None, pty=None, cwd=None, env=None, uid=None, gid=None) -> Exec`
 
 Create a new exec (run a command).
 
 ```python
-from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
-
-exec_ = await sandbox.execs.create(CreateExecRequest(
+exec_ = await sandbox.execs.create(
     command="npm",
     args=["install"],
     cwd="/workspace",
-))
+    env={"NODE_ENV": "production"},
+)
 ```
+
+| Parameter     | Type                     | Required | Description                                                 |
+| ------------- | ------------------------ | -------- | ----------------------------------------------------------- |
+| `command`     | `str`                    | Yes      | Command to execute (e.g. `"npm"`).                          |
+| `args`        | `list[str]`              | Yes      | Command line arguments (e.g. `["install"]`).                |
+| `autorun`     | `bool \| None`           | No       | Whether to automatically start the exec (defaults to true). |
+| `interactive` | `bool \| None`           | No       | Whether to start an interactive shell session.              |
+| `pty`         | `bool \| None`           | No       | Whether to start a PTY shell session.                       |
+| `cwd`         | `str \| None`            | No       | Working directory for the command.                          |
+| `env`         | `dict[str, str] \| None` | No       | Environment variables to set, as a plain dict.              |
+| `uid`         | `int \| None`            | No       | User ID to run the command as (defaults to 1000).           |
+| `gid`         | `int \| None`            | No       | Group ID to run the command as (defaults to 1000).          |
 
 #### `execs.get(id_) -> Exec`
 
@@ -351,14 +359,12 @@ Get an exec by ID.
 exec_ = await sandbox.execs.get("exec-id")
 ```
 
-#### `execs.update(id_, body: UpdateExecRequest) -> Exec`
+#### `execs.resume(id_) -> Exec`
 
-Update exec status.
+Resume a stopped exec (sets its status back to `running`).
 
 ```python
-from together_sandbox.sandbox.models.update_exec_request import UpdateExecRequest
-
-await sandbox.execs.update("exec-id", UpdateExecRequest(status="stopped"))
+await sandbox.execs.resume("exec-id")
 ```
 
 #### `execs.delete(id_) -> None`
@@ -386,14 +392,20 @@ One-shot poll for exec output (non-streaming).
 output = await sandbox.execs.get_output("exec-id")
 ```
 
-#### `execs.send_stdin(id_, body: ExecStdin) -> None`
+#### `execs.send_stdin(id_, data: str) -> None`
 
-Send stdin input to a running exec.
+Send raw stdin data to a running exec.
 
 ```python
-from together_sandbox.sandbox.models.exec_stdin import ExecStdin
+await sandbox.execs.send_stdin("exec-id", "yes\n")
+```
 
-await sandbox.execs.send_stdin("exec-id", ExecStdin(input="yes\n"))
+#### `execs.resize(id_, cols: int, rows: int) -> None`
+
+Resize the PTY for an interactive exec.
+
+```python
+await sandbox.execs.resize("exec-id", cols=80, rows=24)
 ```
 
 #### `execs.stream_list() -> AsyncIterator[dict]`
@@ -470,7 +482,7 @@ async with await sdk.sandboxes.start("sandbox-id") as sandbox:
 
 Convenience classmethods that create a temporary SDK client internally.
 
-### `Sandbox.start(sandbox_id, *, api_key=None, base_url=..., start_options=None)`
+### `Sandbox.start(sandbox_id, *, api_key=None, base_url=..., version_number=None)`
 
 ```python
 sandbox = await Sandbox.start("sandbox-id", api_key="your-key")

@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - CSB-1027-create-end-to-end-tests-for-python-sdk
   workflow_dispatch:
 
 jobs:
