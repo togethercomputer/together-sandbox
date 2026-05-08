@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from together_sandbox import TogetherSandbox, Sandbox, CreateSandboxParams
+from together_sandbox import TogetherSandbox
 
 from .helpers import get_snapshot_id
 
@@ -17,9 +17,7 @@ class TestSandboxLifecycle:
         """Test creating a new sandbox and starting it."""
         snapshot_id = get_snapshot_id()
 
-        sandbox = await sdk.sandboxes.create(
-            CreateSandboxParams(snapshot_id=snapshot_id)
-        )
+        sandbox = await sdk.sandboxes.create(snapshot_id=snapshot_id)
 
         # Verify sandbox has an ID
         assert sandbox.id is not None
@@ -38,9 +36,7 @@ class TestSandboxLifecycle:
         """Test using sandbox as an async context manager."""
         snapshot_id = get_snapshot_id()
 
-        created_sandbox = await sdk.sandboxes.create(
-            CreateSandboxParams(snapshot_id=snapshot_id)
-        )
+        created_sandbox = await sdk.sandboxes.create(snapshot_id=snapshot_id)
 
         # Use sandbox as context manager
         async with await sdk.sandboxes.start(sandbox_id=created_sandbox.id) as sandbox:

@@ -1,10 +1,10 @@
 export function getInferredApiKey() {
-  return process.env?.TOGETHER_API_KEY || process.env?.CSB_API_KEY;
+  return process.env?.TOGETHER_API_KEY;
 }
 
 export function getInferredBaseUrl() {
-  if (process.env.CSB_BASE_URL) {
-    return process.env.CSB_BASE_URL;
+  if (process.env.TOGETHER_BASE_URL) {
+    return process.env.TOGETHER_BASE_URL;
   }
 
   return "https://api.bartender.codesandbox.stream";

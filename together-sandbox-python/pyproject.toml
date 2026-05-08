@@ -28,5 +28,5 @@ packages = ["together_sandbox"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-markers = ["e2e: end-to-end tests that require CSB_API_KEY"]
+markers = ["e2e: end-to-end tests that require TOGETHER_API_KEY"]
 norecursedirs = ["e2e"]

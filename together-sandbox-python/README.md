@@ -60,11 +60,11 @@ Set the following environment variables before running e2e tests:
 
 ```bash
 # Required
-export CSB_API_KEY="your-api-key-here"
+export TOGETHER_API_KEY="your-api-key-here"
 
 # Optional
-export CSB_SNAPSHOT_ID="snapshot-id"  # If you want to test with a specific template
-export CSB_BASE_URL="https://api.codesandbox.io"  # Override default base URL
+export TOGETHER_SNAPSHOT_ID="snapshot-id"  # If you want to test with a specific snapshot
+export TOGETHER_BASE_URL="https://api.codesandbox.io"  # Override default base URL
 ```
 
 ## Running Tests
@@ -179,12 +179,12 @@ result = await retry_until(
 
 ## Troubleshooting
 
-### Tests skip with "CSB_API_KEY environment variable not set"
+### Tests skip with "TOGETHER_API_KEY environment variable not set"
 
-Make sure you've exported the `CSB_API_KEY` environment variable:
+Make sure you've exported the `TOGETHER_API_KEY` environment variable:
 
 ```bash
-export CSB_API_KEY="your-api-key"
+export TOGETHER_API_KEY="your-api-key"
 ```
 
 ### Tests fail with timeout errors

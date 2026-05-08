@@ -62,7 +62,7 @@ export class TogetherSandbox {
 
     if (!apiKey) {
       throw new Error(
-        "apiKey must be provided or TOGETHER_API_KEY or CSB_API_KEY env var must be set",
+        "apiKey must be provided or TOGETHER_API_KEY env var must be set",
       );
     }
 

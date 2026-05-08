@@ -24,6 +24,11 @@ from ._utils import _call_api, _resolve_connection
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
 
+# Default sandbox resource allocation. Match the TS SDK / CLI helper.
+DEFAULT_MILLICPU = 1000  # 1 vCPU
+DEFAULT_MEMORY_BYTES = 2048 * 1024 * 1024  # 2 GiB
+DEFAULT_DISK_BYTES = 10240 * 1024 * 1024  # 10 GiB
+
 
 class SandboxesNamespace:
     """Sandbox lifecycle operations accessed as ``sdk.sandboxes.*``."""
@@ -94,9 +99,9 @@ class SandboxesNamespace:
     async def create(
         self,
         *,
-        millicpu: int,
-        memory_bytes: int,
-        disk_bytes: int,
+        millicpu: int = DEFAULT_MILLICPU,
+        memory_bytes: int = DEFAULT_MEMORY_BYTES,
+        disk_bytes: int = DEFAULT_DISK_BYTES,
         id: str | None = None,
         snapshot_id: str | None = None,
         snapshot_alias: str | None = None,

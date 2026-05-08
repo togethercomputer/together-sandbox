@@ -93,29 +93,19 @@ On success, both subcommands print the snapshot ID or alias:
 ✔ Snapshot created: my-app@v1
 ```
 
-Use the snapshot ID or alias to create new sandboxes via the SDK:
+Use the snapshot ID or alias to create new sandboxes via the SDK. Resource params default to **1 vCPU / 2 GiB memory / 10 GiB disk** — pass `millicpu`, `memoryBytes`/`memory_bytes`, or `diskBytes`/`disk_bytes` explicitly to override.
 
 ```typescript
 // TypeScript
 const sandboxModel = await sdk.sandboxes.create({
-  snapshot_alias: "my-app@v1",
-  millicpu: 1000,
-  memory_bytes: 512 * 1024 * 1024,
-  disk_bytes: 10 * 1024 * 1024 * 1024,
+  snapshotAlias: "my-app@v1",
 });
 const sandbox = await sdk.sandboxes.start(sandboxModel.id);
 ```
 
 ```python
 # Python
-from together_sandbox.api.models.create_sandbox_body import CreateSandboxBody
-
-sandbox_model = await sdk.sandboxes.create(CreateSandboxBody(
-    snapshot_alias="my-app@v1",
-    millicpu=1000,
-    memory_bytes=512 * 1024 * 1024,
-    disk_bytes=10 * 1024 * 1024 * 1024,
-))
+sandbox_model = await sdk.sandboxes.create(snapshot_alias="my-app@v1")
 sandbox = await sdk.sandboxes.start(sandbox_model.id)
 ```
 
