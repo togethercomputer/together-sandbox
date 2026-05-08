@@ -13,6 +13,7 @@ import httpx
 from .api.models import Error as ApiError
 from .api.types import Response
 from .sandbox.models.error import Error as SandboxError
+from .api.models.sandbox import Sandbox as SandboxModel
 
 # ─── ANSI / encoding helpers ─────────────────────────────────────────────────
 
@@ -78,6 +79,7 @@ class RetryConfig:
                 on_retry=lambda ctx: print(f"Retrying {ctx.operation} (attempt {ctx.attempt})"),
             ),
         )
+    return result
     """
 
     max_attempts: int = 3
@@ -231,3 +233,12 @@ async def _call_api(
     # ── 4. All attempts exhausted (or broke early) ────────────────────
     assert last_error is not None
     raise last_error
+
+
+def _resolve_connection(sandbox: SandboxModel) -> tuple[str, str]:
+    """
+    Extract the agent connection details from the Sandbox model.
+    """
+    if not sandbox.agent_url or not sandbox.agent_token:
+        raise RuntimeError("Sandbox has no agent connection details")
+    return sandbox.agent_url, sandbox.agent_token

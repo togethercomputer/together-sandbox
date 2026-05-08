@@ -99,15 +99,12 @@ export class SnapshotsNamespace {
   }
 
   async getByAlias(alias: string): Promise<Snapshot> {
-    // Ensure consistency with API
-    const cleanAlias = alias.startsWith("@") ? alias.slice(1) : alias;
-
     const result = await callApi(
       "snapshots.getByAlias",
       () =>
         api.getSnapshotByAlias({
           client: this._apiClient,
-          path: { alias: cleanAlias },
+          path: { alias },
         }),
       this._retryConfig,
     );

@@ -9,6 +9,7 @@ export type CreateArgs = {
   dockerfile?: string;
   image?: string;
   alias?: string;
+  ci?: boolean;
 };
 
 export const createCommand: yargs.CommandModule<
@@ -35,6 +36,11 @@ export const createCommand: yargs.CommandModule<
         type: "string",
         describe: "Alias for the snapshot (namespace@tag or just tag)",
       })
+      .option("ci", {
+        type: "boolean",
+        default: false,
+        describe: "CI mode: plain stdout, no spinner",
+      })
       .check((argv) => {
         if (!argv.context && !argv.image)
           throw new Error("Provide either --context or --image.");
@@ -49,40 +55,53 @@ export const createCommand: yargs.CommandModule<
     const sdk = new TogetherSandbox();
     const spinner = ora({ stream: process.stdout });
 
-    spinner.start();
+    if (!argv.ci) {
+      spinner.start();
+    }
 
     try {
       let params: CreateSnapshotParams;
+      const onProgress = (event: { output: string }) => {
+        if (argv.ci) {
+          console.log(event.output);
+        } else {
+          spinner.text = event.output;
+        }
+      };
 
       if (argv.context) {
         const resolvedContext = path.resolve(argv.context);
         const resolvedDockerfile = argv.dockerfile
           ? path.resolve(argv.dockerfile)
           : undefined;
-
         params = {
           context: resolvedContext,
           dockerfile: resolvedDockerfile,
           alias: argv.alias,
-          onProgress: (event: { output: string }) => {
-            spinner.text = event.output;
-          },
+          onProgress,
         };
       } else {
         params = {
           image: argv.image!,
           alias: argv.alias,
-          onProgress: (event: { output: string }) => {
-            spinner.text = event.output;
-          },
+          onProgress,
         };
       }
 
       const result = await sdk.snapshots.create(params);
-      spinner.succeed(`Snapshot created: ${result.alias || result.snapshotId}`);
+      if (argv.ci) {
+        console.log(result.snapshotId);
+      } else {
+        spinner.succeed(
+          `Snapshot created: ${result.snapshotId}${result.alias ? " (" + result.alias + ")" : ""}`,
+        );
+      }
       process.exit(0);
     } catch (error) {
-      spinner.fail();
+      if (!argv.ci) {
+        spinner.fail();
+      }
+
       console.error(
         error instanceof Error
           ? error.message

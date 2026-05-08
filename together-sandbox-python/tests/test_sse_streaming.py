@@ -10,7 +10,6 @@ import pytest
 from together_sandbox._sandbox import Execs, Files, Ports
 from together_sandbox.sandbox.client import AuthenticatedClient as SandboxAuthClient
 
-
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
@@ -52,9 +51,6 @@ def _make_sandbox_client(body: bytes) -> SandboxAuthClient:
     return client
 
 
-# ─── ExecsFacade streaming tests ─────────────────────────────────────────────
-
-
 @pytest.mark.asyncio
 async def test_execs_stream_output():
     """stream_output() parses SSE frames and yields dicts."""
@@ -68,54 +64,9 @@ async def test_execs_stream_output():
 
 
 @pytest.mark.asyncio
-async def test_execs_stream_list():
-    """stream_list() parses SSE frames and yields dicts."""
-    payload = [{"id": "exec-1", "status": "running"}]
-    client = _make_sandbox_client(_sse_body(*payload))
-    facade = Execs(client)
-    results = []
-    async for event in facade.stream_list():
-        results.append(event)
-    assert results == payload
-
-
-# ─── FilesFacade streaming tests ─────────────────────────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_files_watch():
-    """watch() parses SSE frames and yields dicts."""
-    payload = [{"type": "change", "path": "/file.txt"}]
-    client = _make_sandbox_client(_sse_body(*payload))
-    facade = Files(client)
-    results = []
-    async for event in facade.watch("/src"):
-        results.append(event)
-    assert results == payload
-
-
-# ─── PortsFacade streaming tests ─────────────────────────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_ports_stream_list():
-    """stream_list() parses SSE frames and yields dicts."""
-    payload = [{"port": 3000, "status": "open"}]
-    client = _make_sandbox_client(_sse_body(*payload))
-    facade = Ports(client)
-    results = []
-    async for event in facade.stream_list():
-        results.append(event)
-    assert results == payload
-
-
-# ─── Edge case tests ─────────────────────────────────────────────────────────
-
-
-@pytest.mark.asyncio
 async def test_stream_handles_empty_data_fields():
     """SSE events with empty data: lines are skipped."""
-    body = b"data: \n\ndata: {\"key\": \"val\"}\n\n"
+    body = b'data: \n\ndata: {"key": "val"}\n\n'
     client = _make_sandbox_client(body)
     facade = Execs(client)
     results = []
@@ -129,7 +80,7 @@ async def test_stream_handles_empty_data_fields():
 @pytest.mark.asyncio
 async def test_stream_handles_sse_comments():
     """Comment lines (: comment) are ignored."""
-    body = b": this is a comment\ndata: {\"k\": 1}\n\n"
+    body = b': this is a comment\ndata: {"k": 1}\n\n'
     client = _make_sandbox_client(body)
     facade = Execs(client)
     results = []

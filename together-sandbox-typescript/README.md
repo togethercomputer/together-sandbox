@@ -2,7 +2,7 @@
 
 TypeScript SDK for the Together Sandbox API.
 
-> **API reference:** See [`docs/typescript-sdk.md`](../docs/typescript-sdk.md) for the full SDK reference.
+[SDK Docs](../docs/typescript-sdk.md)
 
 ## Generating the API clients
 

@@ -17,84 +17,11 @@ npm install https://github.com/togethercomputer/together-sandbox/releases/latest
 pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
 ```
 
-Set your Together AI API key:
+## Docs
 
-```bash
-export TOGETHER_API_KEY=your_api_key
-```
-
-## CLI
-
-### `build`
-
-Builds and deploys a sandbox from the current directory.
-
-```bash
-together-sandbox build <directory>
-```
-
----
-
-## TypeScript SDK
-
-```typescript
-import { TogetherSandbox } from "@together-sandbox/sdk";
-
-const sdk = new TogetherSandbox({ apiKey: process.env.TOGETHER_API_KEY });
-
-// Start a sandbox — URL/token wiring is handled automatically
-const sandbox = await sdk.sandboxes.start("your-sandbox-id");
-
-// Read a file — returns the file content as a string
-const content = await sandbox.files.read("/package.json");
-console.log(content);
-
-// Run a command
-const exec = await sandbox.execs.create({
-  command: "bash",
-  args: ["-c", "echo hello"],
-});
-
-// Shutdown when done
-await sandbox.shutdown();
-```
-
-The low-level generated clients are also available for advanced use. See the [TypeScript SDK README](together-sandbox-typescript/README.md) for details.
-
----
-
-## Python SDK
-
-```python
-import asyncio
-from together_sandbox import TogetherSandbox
-
-async def main():
-    # api_key defaults to TOGETHER_API_KEY environment variable
-    sdk = TogetherSandbox(api_key="your-api-key")
-
-    # Start a sandbox — URL/token wiring is handled automatically
-    async with await sdk.sandboxes.start("your-sandbox-id") as sb:
-        content = await sb.files.read("/package.json")
-        print(content)
-
-asyncio.run(main())
-```
-
-The low-level generated clients are also available for advanced use. See the [Python SDK README](together-sandbox-python/README.md) for details.
-
----
-
-### Troubleshooting
-
-| Issue                        | Solution                                                      |
-| ---------------------------- | ------------------------------------------------------------- |
-| **CLI not found**            | Ensure `/usr/local/bin` is in your PATH, or use `INSTALL_DIR` |
-| **TypeScript SDK 404**       | Verify the release exists and you have repository access      |
-| **Python SDK install fails** | Ensure you have git installed and repository access           |
-| **Authentication errors**    | Check your `TOGETHER_API_KEY` environment variable            |
-
----
+- [CLI](./docs/cli.md)
+- [TypeScript SDK](./docs/typescript-sdk.md)
+- [Python SDK](./docs/python-sdk.md)
 
 ## Development
 

@@ -25,6 +25,8 @@ from ._snapshots import (
     Snapshot,
 )
 from ._sandbox import Sandbox
+from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
+from together_sandbox.sandbox.models.exec_stdout_type import ExecStdoutType
 from ._utils import RetryConfig, RetryContext
 
 __all__ = [
@@ -38,6 +40,8 @@ __all__ = [
     "CreateSnapshotResult",
     "SnapshotProgress",
     "Snapshot",
+    "CreateExecRequest",
+    "ExecStdoutType",
     "RetryConfig",
     "RetryContext",
 ]
