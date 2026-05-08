@@ -2,11 +2,22 @@ import type {
   Sandbox as SandboxModel,
   CreateSandboxData,
 } from "./api-clients/api/types.gen.js";
-import type { CamelCasedProperties } from "./utils.js";
 
 /**
  * Configuration for the {@link TogetherSandbox} facade.
  */
+type SnakeToCamelCase<S extends string> =
+  S extends `${infer Head}_${infer Tail}`
+    ? `${Head}${Capitalize<SnakeToCamelCase<Tail>>}`
+    : S;
+
+/**
+ * Converts all top-level property keys from snake_case to camelCase.
+ * Shallow transformation — only affects direct keys, not nested objects.
+ */
+export type CamelCasedProperties<T extends object> = {
+  [K in keyof T as SnakeToCamelCase<K & string>]: T[K];
+};
 export interface TogetherSandboxConfig {
   /** Together AI API key. */
   apiKey?: string;

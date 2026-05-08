@@ -1,0 +1,95 @@
+name: e2e
+
+on:
+  push:
+    branches:
+      - main
+      - CSB-1027-create-end-to-end-tests-for-python-sdk
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      snapshot_id: ${{ steps.snapshot.outputs.snapshot_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Install openapi-python-client
+        run: pip install openapi-python-client
+
+      - name: Generate SDKs
+        run: bash generate.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-sdk
+          path: |
+            together-sandbox-typescript/src/api-clients/
+            together-sandbox-python/together_sandbox/api/
+            together-sandbox-python/together_sandbox/sandbox/
+
+      - name: Build CLI binary
+        working-directory: together-sandbox-cli
+        run: bun run build:binary
+
+      - name: Create snapshot
+        id: snapshot
+        working-directory: together-sandbox-cli
+        run: |
+          SNAPSHOT_ID=$(./dist/together-sandbox snapshots create --image alpine:latest --ci | tail -1)
+          echo "snapshot_id=$SNAPSHOT_ID" >> $GITHUB_OUTPUT
+        env:
+          CSB_API_KEY: ${{ secrets.CSB_API_KEY }}
+
+  e2e-python:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: generated-sdk
+      - name: Install dependencies
+        run: |
+          cd together-sandbox-python
+          pip install ".[dev]"
+      - name: Run e2e tests
+        run: pytest tests/e2e/ -v
+        working-directory: together-sandbox-python
+        env:
+          CSB_API_KEY: ${{ secrets.CSB_API_KEY }}
+          CSB_SNAPSHOT_ID: ${{ needs.prepare.outputs.snapshot_id }}
+
+  e2e-typescript:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          name: generated-sdk
+      - name: Install dependencies
+        run: npm ci
+      - name: Run e2e tests
+        run: npm run test:e2e
+        working-directory: together-sandbox-typescript
+        env:
+          CSB_API_KEY: ${{ secrets.CSB_API_KEY }}
+          CSB_SNAPSHOT_ID: ${{ needs.prepare.outputs.snapshot_id }}

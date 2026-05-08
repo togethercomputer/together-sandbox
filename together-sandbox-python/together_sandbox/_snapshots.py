@@ -33,8 +33,6 @@ from .api.models.create_snapshot_body import CreateSnapshotBody
 from .api.models.create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
 from .api.models.container_registry_credential import ContainerRegistryCredential
 from .api.models.snapshot import Snapshot
-from .api.models.error import Error
-from .api.types import UNSET
 
 # ── Helpers ────────────────────────────────────────────────────────────
 from .docker import (
@@ -45,6 +43,7 @@ from .docker import (
     is_docker_available,
     push_docker_image,
 )
+from ._utils import _call_api
 
 # ─── Snapshot types ──────────────────────────────────────────────────────────
 
@@ -214,13 +213,10 @@ class SnapshotsNamespace:
             >>> print(snapshot.id)
             >>> print(snapshot.byte_size)
         """
-        # Remove leading '@' if present (for consistency with API)
-        clean_alias = alias.lstrip("@")
-
         return await _call_api(
             "snapshots.getByAlias",
             lambda: get_snapshot_by_alias_api(
-                clean_alias,
+                alias,
                 client=self._api_client,
             ),
             self._retry,

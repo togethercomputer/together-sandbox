@@ -41,12 +41,9 @@ Python generator), then runs `npm run generate` in the TypeScript package and
 
 | Variable                     | Purpose                                                |
 | ---------------------------- | ------------------------------------------------------ |
-| `TOGETHER_API_KEY`           | Required. Together AI API key.                         |
-| `TOGETHER_BASE_URL`          | Optional. Override management API base URL (CLI only). |
+| `CSB_API_KEY`                | Required. CSB AI API key.                              |
+| `CSB_BASE_URL`               | Optional. Override management API base URL (CLI only). |
 | `CODESANDBOX_SENTRY_ENABLED` | Optional. Set to `"true"` to enable Sentry in the CLI. |
-
-The canonical env var is **`TOGETHER_API_KEY`**. Do not introduce new
-`CSB_API_KEY` fallbacks — that name is a legacy alias in the CLI only.
 
 ## Commit conventions
 

@@ -19,18 +19,11 @@ from .api.models.create_sandbox_body import CreateSandboxBody
 from .api.models.start_sandbox_body import StartSandboxBody
 from .api.types import UNSET
 
-# ── Retry / call helper ───────────────────────────────────────────────────────
-from ._utils import RetryConfig, _call_api
+# ── Helpers ─────────────────────────────────────────────────────
+from ._utils import _call_api, _resolve_connection
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
-
-
-def _resolve_connection(sandbox: SandboxModel) -> tuple[str, str]:
-    """Extract the agent connection details from the Sandbox model."""
-    if not sandbox.agent_url or not sandbox.agent_token:
-        raise RuntimeError("Sandbox has no agent connection details")
-    return sandbox.agent_url, sandbox.agent_token
 
 
 class SandboxesNamespace:
@@ -105,9 +98,9 @@ class SandboxesNamespace:
                 params.snapshot_alias if params.snapshot_alias is not None else UNSET
             ),
             ephemeral=params.ephemeral if params.ephemeral is not None else UNSET,
-            millicpu=params.millicpu,
-            memory_bytes=params.memory_bytes,
-            disk_bytes=params.disk_bytes,
+            millicpu=params.cpus * 1000,
+            memory_bytes=params.memory_gb * 1000 * 1024 * 1024,
+            disk_bytes=params.disk_gb * 1000 * 1024 * 1024,
         )
         return await _call_api(
             "createSandbox",

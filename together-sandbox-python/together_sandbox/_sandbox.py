@@ -55,16 +55,13 @@ from .sandbox.models.file_info import FileInfo
 from .sandbox.models.exec_stdin import ExecStdin
 from .sandbox.models.exec_stdout import ExecStdout
 from .sandbox.models.update_exec_request import UpdateExecRequest
-from .sandbox.models.error import Error
 from .sandbox.types import File
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
 from ._streaming import stream_sse_json
 
-# ── Retry / call helper ───────────────────────────────────────────────────────
+# ── Utils ─────────────────────────────────────────────────────
 from ._utils import RetryConfig, _call_api
-
-# ─── Files facade ─────────────────────────────────────────────────────────────
 
 
 class Files:
@@ -110,6 +107,7 @@ class Files:
         else:
             content_bytes = content
 
+        # Create a File object with binary content
         file_obj = File(payload=content_bytes)
         result = await _call_api(
             "files.create",
