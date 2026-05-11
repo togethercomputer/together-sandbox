@@ -1,11 +1,5 @@
 import type { RetryConfig, RetryContext } from "./types";
-import {
-  ApiError,
-  SandboxError,
-  isApiErrorShape,
-  isSandboxErrorShape,
-  type ApiErrorDetail,
-} from "./errors.js";
+import { HttpError, isApiErrorShape, isSandboxErrorShape } from "./errors.js";
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -15,96 +9,72 @@ export function sleep(ms: number): Promise<void> {
 
 export const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
+const BASE_DELAY = 500; // ms
+const JITTER = 250; // ms
+
 /**
- * Call an API operation with automatic retry logic.
+ * Generic retry loop with exponential backoff + jitter.
  *
- * @param operation - Operation name (e.g., 'startSandbox') for error messages
- * @param fn - Function that calls the generated client without throwOnError
- * @param config - Optional retry configuration
- * @param context - Optional context appended to error messages (e.g. `"for sandbox 'abc123'"`)
- * @returns The unwrapped data payload
- * @throws {ApiError} When the management API returns a documented error response
- * @throws {SandboxError} When the in-VM sandbox API returns an error response
- * @throws {TypeError} When a network-level failure occurs
+ * Use this for non-HTTP operations (e.g. wrapping a subprocess call) that
+ * should honor the same `RetryConfig` shape exposed to SDK consumers as
+ * {@link callApi}. For HTTP calls, prefer `callApi` which adds error-model
+ * unwrapping on top of this primitive.
+ *
+ * @param operation - Operation name surfaced in `RetryContext.operation`.
+ * @param fn - The work to attempt; receives the 1-based attempt number.
+ * @param config - Optional retry configuration (max attempts, callbacks).
+ * @param options - Optional `isRetryable` predicate (defaults to retry on any
+ *   thrown error) and `context` string appended to thrown error messages.
+ * @returns The resolved value of `fn` on the first successful attempt.
+ * @throws The last error encountered when all attempts are exhausted or when
+ *   `isRetryable` / `shouldRetry` decide to stop.
  */
-export async function callApi<T>(
+export async function withRetry<T>(
   operation: string,
-  fn: () => Promise<{
-    data?: T;
-    error?: unknown;
-    response: Response;
-  }>,
+  fn: (attempt: number) => Promise<T>,
   config?: RetryConfig,
-  context?: string,
+  options?: {
+    /** Decides retry when no HTTP status is available. Defaults to `() => true`. */
+    isRetryable?: (error: unknown) => boolean;
+    /** Optional context appended to error messages. */
+    context?: string;
+  },
 ): Promise<T> {
   const maxAttempts = config?.maxAttempts ?? 3;
   const shouldRetry = config?.shouldRetry;
   const onRetry = config?.onRetry;
-
-  const BASE_DELAY = 500; // ms
-  const JITTER = 250; // ms
+  const isRetryable = options?.isRetryable ?? (() => true);
+  const context = options?.context;
 
   let lastError: unknown;
-  let lastStatus: number | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    // ── 1. Call fn — catch only network errors ──────────────────────
-    let result: { data?: T; error?: unknown; response: Response } | undefined;
-    let caughtError: unknown;
     try {
-      result = await fn();
+      return await fn(attempt);
     } catch (err) {
-      caughtError = err;
-    }
+      lastError =
+        err instanceof Error
+          ? err
+          : new Error(
+              `${operation}${context ? ` ${context}` : ""}: ${String(err)}`,
+            );
 
-    // ── 2. Determine what failed ─────────────────────────────────────
-    let failedError: unknown;
-    let failedStatus: number | undefined;
+      if (attempt >= maxAttempts) break;
 
-    if (caughtError !== undefined) {
-      failedError = caughtError;
-      failedStatus = undefined;
-    } else if (result!.error !== undefined) {
-      const err = result!.error;
-      const status = result!.response.status;
-      const suffix = context ? ` ${context}` : "";
-      if (isApiErrorShape(err)) {
-        failedError = new ApiError(
-          `Failed to ${operation}${suffix}: ${err.message} (code: ${err.code})`,
-          err.code,
-          status,
-          err.errors as ApiErrorDetail[],
-        );
-      } else if (isSandboxErrorShape(err)) {
-        failedError = new SandboxError(
-          `Failed to ${operation}${suffix}: ${err.message} (code: ${err.code})`,
-          err.code,
-          status,
-        );
-      } else {
-        failedError =
-          err instanceof Error
-            ? err
-            : new Error(`${operation}: ${String(err)}`);
-      }
-      failedStatus = status;
-    } else {
-      return result!.data as T;
-    }
-
-    lastError = failedError;
-    lastStatus = failedStatus;
-
-    // ── 3. Decide whether to retry ───────────────────────────────────
-    if (attempt < maxAttempts) {
       const defaultDelay =
         BASE_DELAY * Math.pow(2, attempt - 1) + Math.random() * JITTER;
+
+      // Surface `.status` to the RetryContext when the thrown error carries
+      // one (e.g. `HttpError`) so user `shouldRetry` callbacks can branch on
+      // HTTP status. Plain Errors / TypeErrors leave it undefined.
+      const errStatus = (lastError as { status?: unknown })?.status;
+      const status = typeof errStatus === "number" ? errStatus : undefined;
 
       const ctx: RetryContext = {
         operation,
         attempt,
-        error: failedError,
-        status: failedStatus,
+        error: lastError,
+        status,
         delay: defaultDelay,
       };
 
@@ -112,10 +82,7 @@ export async function callApi<T>(
       if (shouldRetry) {
         decision = await shouldRetry(ctx);
       } else {
-        decision =
-          failedError instanceof TypeError ||
-          (failedStatus !== undefined &&
-            RETRYABLE_STATUS_CODES.has(failedStatus));
+        decision = isRetryable(lastError);
       }
 
       if (decision === false) break;
@@ -130,12 +97,91 @@ export async function callApi<T>(
     }
   }
 
-  // ── 4. All attempts exhausted (or broke early) ───────────────────
   if (lastError instanceof Error) throw lastError;
   throw new Error(
-    lastStatus !== undefined
-      ? `${operation}: HTTP ${lastStatus}`
-      : `${operation}: ${String(lastError)}`,
+    `${operation}${context ? ` ${context}` : ""}: ${String(lastError)}`,
+  );
+}
+
+/**
+ * Call an API operation with automatic retry logic.
+ *
+ * @param operation - Operation name (e.g., 'startSandbox') for error messages
+ * @param fn - Function that calls the generated client without throwOnError
+ * @param config - Optional retry configuration
+ * @param context - Optional context appended to error messages (e.g. `"for sandbox 'abc123'"`)
+ * @returns The unwrapped data payload
+ * @throws {HttpError} For any failure — HTTP error responses surface as
+ *   `HttpError` with the actual status; transport-level failures (network,
+ *   DNS, TLS, timeout) surface as `HttpError` with `status: 0`.
+ */
+export async function callApi<T>(
+  operation: string,
+  fn: () => Promise<{
+    data?: T;
+    error?: unknown;
+    response: Response;
+  }>,
+  config?: RetryConfig,
+  context?: string,
+): Promise<T> {
+  const suffix = context ? ` ${context}` : "";
+
+  return withRetry<T>(
+    operation,
+    async () => {
+      // ── 1. Call fn — wrap transport-level failures (fetch TypeError) into
+      //      `HttpError` with status 0 so all failures surface as a single type.
+      let result: { data?: T; error?: unknown; response: Response };
+      try {
+        result = await fn();
+      } catch (err) {
+        const cause = err instanceof Error ? err.message : String(err);
+        throw new HttpError(`${operation}${suffix}: ${cause}`, 0);
+      }
+
+      if (result.error !== undefined) {
+        const err = result.error;
+        const status = result.response.status;
+        if (isApiErrorShape(err)) {
+          // Append field-level details only when present — keeps the common
+          // empty-errors case clean (no trailing `\n[]`).
+          const tail =
+            err.errors.length > 0 ? `\n${JSON.stringify(err.errors)}` : "";
+          throw new HttpError(
+            `Failed to ${operation}${suffix}: ${err.message} (code: ${err.code})${tail}`,
+            status,
+          );
+        }
+        if (isSandboxErrorShape(err)) {
+          throw new HttpError(
+            `Failed to ${operation}${suffix}: ${err.message} (code: ${err.code})`,
+            status,
+          );
+        }
+        // Fallback: preserve the original message but surface `.status` via a
+        // typed `HttpError` so `isRetryable` and user `shouldRetry` callbacks
+        // can branch on the HTTP status code.
+        if (err instanceof Error) {
+          throw new HttpError(err.message, status);
+        }
+        throw new HttpError(`${operation}${suffix}: ${String(err)}`, status);
+      }
+
+      return result.data as T;
+    },
+    config,
+    {
+      context,
+      // HTTP-specific predicate: retry on transport failures (`status: 0`)
+      // or on documented retryable status codes (extracted from the thrown
+      // `HttpError`'s `.status` field).
+      isRetryable: (err) => {
+        const status = (err as { status?: unknown })?.status;
+        if (typeof status !== "number") return false;
+        return status === 0 || RETRYABLE_STATUS_CODES.has(status);
+      },
+    },
   );
 }
 

@@ -1,7 +1,7 @@
 import * as api from "./api-clients/api/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { isLocalEnvironment } from "./configuration.js";
-import { callApi, sleep } from "./utils.js";
+import { callApi, sleep, withRetry } from "./utils.js";
 import {
   buildDockerImage,
   dockerLogin,
@@ -289,12 +289,29 @@ export class SnapshotsNamespace {
       },
     });
 
-    // Push Docker Image
+    // Push Docker Image — wrapped in `withRetry` because `docker push` is
+    // naturally idempotent (content-addressed layers) and transient registry
+    // failures are common. We don't retry build (non-deterministic) or login
+    // (fast, separate concern).
     params.onProgress?.({ step: "push", output: "Pushing Docker image..." });
-    await pushDockerImage(fullImageName, (output: string) => {
-      const cleanOutput = stripAnsiCodes(output);
-      params.onProgress?.({ step: "push", output: cleanOutput });
-    });
+    await withRetry(
+      "snapshots.pushDockerImage",
+      () =>
+        pushDockerImage(fullImageName, (output: string) => {
+          const cleanOutput = stripAnsiCodes(output);
+          params.onProgress?.({ step: "push", output: cleanOutput });
+        }),
+      {
+        ...this._retryConfig,
+        onRetry: async (ctx) => {
+          params.onProgress?.({
+            step: "push",
+            output: `Push failed (attempt ${ctx.attempt}), retrying in ${Math.round(ctx.delay)}ms…`,
+          });
+          await this._retryConfig?.onRetry?.(ctx);
+        },
+      },
+    );
 
     params.onProgress?.({
       step: "register",
