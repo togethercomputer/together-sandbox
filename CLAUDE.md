@@ -39,11 +39,10 @@ Python generator), then runs `npm run generate` in the TypeScript package and
 
 ## Environment variables
 
-| Variable                     | Purpose                                                |
-| ---------------------------- | ------------------------------------------------------ |
-| `CSB_API_KEY`                | Required. CSB AI API key.                              |
-| `CSB_BASE_URL`               | Optional. Override management API base URL (CLI only). |
-| `CODESANDBOX_SENTRY_ENABLED` | Optional. Set to `"true"` to enable Sentry in the CLI. |
+| Variable            | Purpose                                                |
+| ------------------- | ------------------------------------------------------ |
+| `TOGETHER_API_KEY`  | Required. Together AI API key.                         |
+| `TOGETHER_BASE_URL` | Optional. Override management API base URL (CLI only). |
 
 ## Commit conventions
 

@@ -69,30 +69,27 @@ async with TogetherSandbox() as sdk:
 
 Sandbox lifecycle namespace.
 
-#### `sdk.sandboxes.create(*, millicpu, memory_bytes, disk_bytes, id=None, snapshot_id=None, snapshot_alias=None, ephemeral=None) -> SandboxModel`
+#### `sdk.sandboxes.create(*, millicpu=1000, memory_bytes=2*1024**3, disk_bytes=10*1024**3, id=None, snapshot_id=None, snapshot_alias=None, ephemeral=None) -> SandboxModel`
 
 Creates a new sandbox record from a snapshot. Does not start the VM — call `sdk.sandboxes.start()` with the returned ID afterwards.
 
 ```python
-sandbox_model = await sdk.sandboxes.create(
-    snapshot_alias="my-app@v1",
-    millicpu=1000,
-    memory_bytes=512 * 1024 * 1024,
-    disk_bytes=10 * 1024 * 1024 * 1024,
-)
+sandbox_model = await sdk.sandboxes.create(snapshot_alias="my-app@v1")
 
 sandbox = await sdk.sandboxes.start(sandbox_model.id)
 ```
 
-| Parameter        | Type           | Required | Description                                                                         |
-| ---------------- | -------------- | -------- | ----------------------------------------------------------------------------------- |
-| `millicpu`       | `int`          | Yes      | CPU allocation in millicpu (must be > 0, multiple of 250).                          |
-| `memory_bytes`   | `int`          | Yes      | Memory allocation in bytes.                                                         |
-| `disk_bytes`     | `int`          | Yes      | Disk allocation in bytes.                                                           |
-| `snapshot_id`    | `str \| None`  | \*       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.    |
-| `snapshot_alias` | `str \| None`  | \*       | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required. |
-| `id`             | `str \| None`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                             |
-| `ephemeral`      | `bool \| None` | No       | Mark the sandbox as ephemeral.                                                      |
+Resource params (`millicpu`, `memory_bytes`, `disk_bytes`) default to **1 vCPU / 2 GiB memory / 10 GiB disk** if omitted.
+
+| Parameter        | Type           | Required | Description                                                                                 |
+| ---------------- | -------------- | -------- | ------------------------------------------------------------------------------------------- |
+| `snapshot_id`    | `str \| None`  | \*       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.            |
+| `snapshot_alias` | `str \| None`  | \*       | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.         |
+| `millicpu`       | `int`          | No       | CPU allocation in millicpu (must be ≥ 250 and a multiple of 250). Default: `1000` (1 vCPU). |
+| `memory_bytes`   | `int`          | No       | Memory allocation in bytes. Default: `2 * 1024 ** 3` (2 GiB).                               |
+| `disk_bytes`     | `int`          | No       | Disk allocation in bytes. Default: `10 * 1024 ** 3` (10 GiB).                               |
+| `id`             | `str \| None`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                                     |
+| `ephemeral`      | `bool \| None` | No       | Mark the sandbox as ephemeral.                                                              |
 
 #### `sdk.sandboxes.start(sandbox_id, *, version_number=None) -> Sandbox`
 
@@ -146,12 +143,7 @@ result = await sdk.snapshots.create(CreateContextSnapshotParams(
 ))
 
 # Use the snapshot ID to create a sandbox:
-sandbox_model = await sdk.sandboxes.create(
-    snapshot_id=result.snapshot_id,
-    millicpu=1000,
-    memory_bytes=512 * 1024 * 1024,
-    disk_bytes=10 * 1024 * 1024 * 1024,
-)
+sandbox_model = await sdk.sandboxes.create(snapshot_id=result.snapshot_id)
 ```
 
 | Parameter     | Type                                         | Description                                                                                                 |

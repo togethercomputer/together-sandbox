@@ -24,6 +24,11 @@ function resolveConnectionDetails(sandbox: SandboxInfo): {
   return { url: sandbox.agentUrl, token: sandbox.agentToken };
 }
 
+// Default sandbox resource allocation. Match the CLI/snapshot helper.
+export const DEFAULT_MILLICPU = 1000; // 1 vCPU
+export const DEFAULT_MEMORY_BYTES = 2048 * 1024 * 1024; // 2 GiB
+export const DEFAULT_DISK_BYTES = 10240 * 1024 * 1024; // 10 GiB
+
 /**
  * Sandbox lifecycle operations, accessed as `sdk.sandboxes.*`.
  */
@@ -47,9 +52,9 @@ export class SandboxesNamespace {
             snapshot_id: params.snapshotId,
             snapshot_alias: params.snapshotAlias,
             ephemeral: params.ephemeral,
-            millicpu: params.millicpu,
-            memory_bytes: params.memoryBytes,
-            disk_bytes: params.diskBytes,
+            millicpu: params.millicpu ?? DEFAULT_MILLICPU,
+            memory_bytes: params.memoryBytes ?? DEFAULT_MEMORY_BYTES,
+            disk_bytes: params.diskBytes ?? DEFAULT_DISK_BYTES,
           },
         }),
       this._retryConfig,

@@ -10,6 +10,11 @@ import {
 } from "./docker.js";
 import { randomUUID } from "crypto";
 import type { RetryConfig } from "./types.js";
+import {
+  DEFAULT_DISK_BYTES,
+  DEFAULT_MEMORY_BYTES,
+  DEFAULT_MILLICPU,
+} from "./Sandboxes.js";
 
 export type SnapshotProgress = { output: string } & (
   | { step: "prepare" }
@@ -319,10 +324,6 @@ export class SnapshotsNamespace {
         output: "Creating sandbox...",
       });
 
-      const cpuCount = 1;
-      const memoryMb = 2048; // ~2GB
-      const storageMb = 10240; // 10GB
-
       const sandboxResult = await callApi(
         "snapshots.createSandboxForMemorySnapshot",
         () =>
@@ -330,9 +331,9 @@ export class SnapshotsNamespace {
             body: {
               snapshot_id: snapshotData.id,
               ephemeral: true,
-              millicpu: cpuCount * 1000,
-              memory_bytes: memoryMb * 1024 * 1024,
-              disk_bytes: storageMb * 1024 * 1024,
+              millicpu: DEFAULT_MILLICPU,
+              memory_bytes: DEFAULT_MEMORY_BYTES,
+              disk_bytes: DEFAULT_DISK_BYTES,
             },
           }),
         this._retryConfig,

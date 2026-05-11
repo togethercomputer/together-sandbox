@@ -35,9 +35,19 @@ export type SandboxInfo = CamelCasedProperties<SandboxModel>;
 /**
  * Public camelCase version of the create sandbox request parameters.
  */
-export type CreateSandboxParams = CamelCasedProperties<
-  CreateSandboxData["body"]
->;
+type RawCreateSandboxParams = CamelCasedProperties<CreateSandboxData["body"]>;
+
+export type CreateSandboxParams = Omit<
+  RawCreateSandboxParams,
+  "millicpu" | "memoryBytes" | "diskBytes"
+> & {
+  /** CPU allocation in millicpu. Must be ≥ 250 and a multiple of 250. Default: 1000 (1 vCPU). */
+  millicpu?: number;
+  /** Memory allocation in bytes. Default: 2 GiB. */
+  memoryBytes?: number;
+  /** Disk allocation in bytes. Default: 10 GiB. */
+  diskBytes?: number;
+};
 
 export interface RetryContext {
   operation: string; // e.g. 'startSandbox'

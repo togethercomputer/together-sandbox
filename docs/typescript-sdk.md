@@ -64,24 +64,23 @@ Creates a new sandbox record from a snapshot. Does not start the VM — call `sd
 
 ```typescript
 const sandboxModel = await sdk.sandboxes.create({
-  snapshot_alias: "my-app@v1",
-  millicpu: 1000,
-  memory_bytes: 512 * 1024 * 1024,
-  disk_bytes: 10 * 1024 * 1024 * 1024,
+  snapshotAlias: "my-app@v1",
 });
 
 const sandbox = await sdk.sandboxes.start(sandboxModel.id);
 ```
 
-| Property         | Type      | Required | Description                                                                         |
-| ---------------- | --------- | -------- | ----------------------------------------------------------------------------------- |
-| `snapshot_id`    | `string`  | \*       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.    |
-| `snapshot_alias` | `string`  | \*       | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required. |
-| `millicpu`       | `number`  | Yes      | CPU allocation in millicpu (must be > 0, multiple of 250).                          |
-| `memory_bytes`   | `number`  | Yes      | Memory allocation in bytes.                                                         |
-| `disk_bytes`     | `number`  | Yes      | Disk allocation in bytes.                                                           |
-| `id`             | `string`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                             |
-| `ephemeral`      | `boolean` | No       | Mark the sandbox as ephemeral.                                                      |
+Resource params (`millicpu`, `memoryBytes`, `diskBytes`) default to **1 vCPU / 2 GiB memory / 10 GiB disk** if omitted.
+
+| Property        | Type      | Required | Description                                                                                 |
+| --------------- | --------- | -------- | ------------------------------------------------------------------------------------------- |
+| `snapshotId`    | `string`  | \*       | ID of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.              |
+| `snapshotAlias` | `string`  | \*       | Alias of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.           |
+| `millicpu`      | `number`  | No       | CPU allocation in millicpu (must be ≥ 250 and a multiple of 250). Default: `1000` (1 vCPU). |
+| `memoryBytes`   | `number`  | No       | Memory allocation in bytes. Default: `2 * 1024 * 1024 * 1024` (2 GiB).                      |
+| `diskBytes`     | `number`  | No       | Disk allocation in bytes. Default: `10 * 1024 * 1024 * 1024` (10 GiB).                      |
+| `id`            | `string`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                                     |
+| `ephemeral`     | `boolean` | No       | Mark the sandbox as ephemeral.                                                              |
 
 #### `sdk.sandboxes.start(sandboxId, options?): Promise<Sandbox>`
 
@@ -134,10 +133,7 @@ const result = await sdk.snapshots.create({
 
 // Use the snapshot ID to create a sandbox:
 const sandboxModel = await sdk.sandboxes.create({
-  snapshot_id: result.snapshotId,
-  millicpu: 1000,
-  memory_bytes: 512 * 1024 * 1024,
-  disk_bytes: 10 * 1024 * 1024 * 1024,
+  snapshotId: result.snapshotId,
 });
 ```
 
@@ -151,10 +147,7 @@ const result = await sdk.snapshots.create({
 
 // Use the alias to create a sandbox:
 const sandboxModel = await sdk.sandboxes.create({
-  snapshot_alias: result.alias,
-  millicpu: 1000,
-  memory_bytes: 512 * 1024 * 1024,
-  disk_bytes: 10 * 1024 * 1024 * 1024,
+  snapshotAlias: result.alias,
 });
 ```
 

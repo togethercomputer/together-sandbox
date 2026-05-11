@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import pathlib
 import tempfile
+from collections.abc import Iterator
 
 import pytest
 import uuid
@@ -13,11 +14,20 @@ from together_sandbox._snapshots import (
 )
 from together_sandbox._together_sandbox import TogetherSandbox
 
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.skipif(
+        not os.environ.get("TOGETHER_API_KEY"),
+        reason="TOGETHER_API_KEY not set",
+    ),
+]
+
+
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 
 @pytest.fixture(scope="module")
-def docker_context() -> str:
+def docker_context() -> Iterator[str]:
     with tempfile.TemporaryDirectory(prefix="e2e-snapshot-") as d:
         (pathlib.Path(d) / "Dockerfile").write_text("FROM alpine:latest\n")
         yield d
@@ -33,7 +43,7 @@ class TestSnapshots:
     @pytest.mark.timeout(300)
     async def test_create_from_context_with_alias(self, docker_context: str) -> None:
         """Test snapshot creation from Docker build with alias."""
-        sdk = TogetherSandbox(api_key=os.environ["CSB_API_KEY"])
+        sdk = TogetherSandbox(api_key=os.environ["TOGETHER_API_KEY"])
         alias = f"e2e-build-{uuid.uuid4().hex[:8]}"
         result: CreateSnapshotResult | None = None
         try:
