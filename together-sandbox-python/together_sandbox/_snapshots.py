@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 
+import asyncio
 import os
 import platform
 
@@ -8,7 +9,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from uuid import uuid4, UUID
 from .api.client import AuthenticatedClient as ApiClient
-from ._utils import _strip_ansi, RetryConfig, _call_api
+from ._utils import (
+    _strip_ansi,
+    RetryConfig,
+    RetryContext,
+    _call_api,
+    _with_retry,
+)
 from ._configuration import is_local_environment
 
 # ── Snapshot API endpoint functions (detailed variants) ───────────────────────
@@ -43,7 +50,6 @@ from .docker import (
     is_docker_available,
     push_docker_image,
 )
-from ._utils import _call_api
 
 # ─── Snapshot types ──────────────────────────────────────────────────────────
 
@@ -339,11 +345,36 @@ class SnapshotsNamespace:
             )
         )
 
+        # Push Docker Image — wrapped in `_with_retry` because `docker push`
+        # is naturally idempotent (content-addressed layers) and transient
+        # registry failures are common. We don't retry build (non-deterministic)
+        # or login (fast, separate concern).
         _emit("push", "Pushing Docker image...")
-        await push_docker_image(
-            full_image_name,
-            on_output=lambda out: _emit("push", _strip_ansi(out)),
+
+        async def _push() -> None:
+            await push_docker_image(
+                full_image_name,
+                on_output=lambda out: _emit("push", _strip_ansi(out)),
+            )
+
+        async def _on_push_retry(ctx: RetryContext) -> None:
+            _emit(
+                "push",
+                f"Push failed (attempt {ctx.attempt}), "
+                f"retrying in {ctx.delay:.1f}s…",
+            )
+            if self._retry and self._retry.on_retry:
+                result = self._retry.on_retry(ctx)
+                if asyncio.iscoroutine(result):
+                    await result
+
+        push_retry = RetryConfig(
+            max_attempts=self._retry.max_attempts if self._retry else 3,
+            should_retry=self._retry.should_retry if self._retry else None,
+            on_retry=_on_push_retry,
         )
+
+        await _with_retry("snapshots.pushDockerImage", _push, push_retry)
 
         _emit("register", "Registering snapshot...")
         snapshot_data = await _call_api(

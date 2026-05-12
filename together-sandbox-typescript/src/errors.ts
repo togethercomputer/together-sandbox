@@ -1,71 +1,28 @@
 /**
- * Typed error classes thrown by {@link callApi}.
+ * Public error classes raised by {@link callApi}.
  *
- * These mirror the two error models in the Python SDK:
- * - {@link ApiError}    ↔ `together_sandbox/api/models/error.py`
- * - {@link SandboxError} ↔ `together_sandbox/sandbox/models/error.py`
+ * Mirrors `together_sandbox.errors` (Python).
  */
 
-// ─── ApiError ─────────────────────────────────────────────────────────────────
+// ─── HttpError ────────────────────────────────────────────────────────────────
 
 /**
- * Detail item inside an {@link ApiError}.
- * Matches the inline schema of `_Error.errors[]` in `api-clients/api/types.gen.ts`.
- */
-export type ApiErrorDetail = {
-  parameter?: string;
-  code?: string;
-  message?: string;
-  details?: Record<string, unknown>;
-};
-
-/**
- * Thrown when the management API returns a documented error response
- * (e.g. 400 Bad Request, 401 Unauthorized, 404 Not Found).
+ * Thrown by `callApi` when an HTTP request fails with a non-success status.
  *
- * Mirrors `together_sandbox.api.models.Error`.
- */
-export class ApiError extends Error {
-  /** API-level error code string (e.g. `"NOT_FOUND"`, `"BAD_REQUEST"`). */
-  readonly code: string;
-  /** HTTP status code of the response. */
-  readonly status: number;
-  /** Field-level validation details, when provided by the API. */
-  readonly errors: ApiErrorDetail[];
-
-  constructor(
-    message: string,
-    code: string,
-    status: number,
-    errors: ApiErrorDetail[],
-  ) {
-    super(message);
-    this.name = "ApiError";
-    this.code = code;
-    this.status = status;
-    this.errors = errors;
-    // Restore prototype chain for `instanceof` checks across transpilation targets
-    Object.setPrototypeOf(this, new.target.prototype);
-  }
-}
-
-// ─── SandboxError ─────────────────────────────────────────────────────────────
-
-/**
- * Thrown when the in-VM sandbox API returns an error response.
+ * Surfaces the HTTP status code via `status` so retry-decision logic and
+ * user-supplied `shouldRetry` callbacks can branch on it via
+ * `RetryContext.status`. The error message preserves the API's error code
+ * and message when the response payload matched a documented shape.
  *
- * Mirrors `together_sandbox.sandbox.models.error.Error`.
+ * Mirrors `together_sandbox.errors.HttpError` (Python).
  */
-export class SandboxError extends Error {
-  /** Numeric error code returned by the sandbox agent. */
-  readonly code: number;
+export class HttpError extends Error {
   /** HTTP status code of the response. */
   readonly status: number;
 
-  constructor(message: string, code: number, status: number) {
+  constructor(message: string, status: number) {
     super(message);
-    this.name = "SandboxError";
-    this.code = code;
+    this.name = "HttpError";
     this.status = status;
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -77,8 +34,8 @@ export class SandboxError extends Error {
  * Returns true when `e` has the shape of a management API error
  * (`{ code: string; message: string; errors: unknown[] }`).
  *
- * Used by `callApi` to detect management-API error payloads before wrapping
- * them in an {@link ApiError}.
+ * Used by `callApi` to detect management-API error payloads when formatting
+ * the {@link HttpError} message.
  */
 export function isApiErrorShape(
   e: unknown,
@@ -99,8 +56,8 @@ export function isApiErrorShape(
  * Returns true when `e` has the shape of a sandbox API error
  * (`{ code: number; message: string }`).
  *
- * Used by `callApi` to detect in-VM sandbox error payloads before wrapping
- * them in a {@link SandboxError}.
+ * Used by `callApi` to detect in-VM sandbox error payloads when formatting
+ * the {@link HttpError} message.
  */
 export function isSandboxErrorShape(
   e: unknown,

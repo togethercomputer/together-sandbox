@@ -16,6 +16,7 @@ from together_sandbox._utils import (
 )
 from together_sandbox.api.models import Error as ApiError
 from together_sandbox.api.types import Response
+from together_sandbox.errors import HttpError
 from together_sandbox.sandbox.models.error import Error as SandboxError
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -150,13 +151,17 @@ class TestCallApiDefaultRetryConnectionError:
         assert fn.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_reraises_network_error_after_max_attempts(self):
+    async def test_wraps_network_error_into_http_error_after_max_attempts(self):
         fn = AsyncMock(side_effect=httpx.TimeoutException("timed out"))
 
         with patch("together_sandbox._utils.asyncio.sleep"):
-            with pytest.raises(httpx.TimeoutException):
+            with pytest.raises(HttpError) as exc_info:
                 await _call_api("testOp", fn, RetryConfig(max_attempts=2))
 
+        assert exc_info.value.status == 0
+        assert "timed out" in str(exc_info.value)
+        # Original transport exception preserved on __cause__ for debugging.
+        assert isinstance(exc_info.value.__cause__, httpx.TimeoutException)
         assert fn.call_count == 2
 
 

@@ -453,12 +453,51 @@ await Sandbox.shutdown("your-sandbox-id", {
 
 ---
 
+## Errors
+
+### `HttpError`
+
+Thrown by SDK operations for **every** failure. Extends the built-in `Error`.
+HTTP-level errors (non-success status) and transport-level failures (DNS,
+timeout, connection refused, TLS) both surface as `HttpError`, distinguished
+by the `status` field.
+
+| Property  | Type     | Description                                                                           |
+| --------- | -------- | ------------------------------------------------------------------------------------- |
+| `message` | `string` | Formatted message including the underlying API error code or transport cause.         |
+| `status`  | `number` | HTTP status code, or `0` as a sentinel for transport failures (no response received). |
+
+Because `0` is not a valid HTTP status, you can use `e.status === 0` to branch
+on "the request never reached the server" without losing the rest of the
+error-handling shape. The original `TypeError` from `fetch` is preserved in the
+formatted message but isn't exposed as a separate field.
+
+```typescript
+import { HttpError } from "@together-sandbox/sdk";
+
+try {
+  await sdk.sandboxes.start("...");
+} catch (e) {
+  if (e instanceof HttpError) {
+    if (e.status === 0) {
+      // transport-level failure (DNS / timeout / connection refused)
+    } else if (e.status === 404) {
+      // not found
+      return null;
+    }
+  }
+  throw e;
+}
+```
+
+---
+
 ## Retry
 
 All operations automatically retry on transient failures. By default:
 
 - **HTTP status codes** `408`, `429`, `500`, `502`, `503`, `504` trigger a retry.
-- **Network-level errors** (connection refused, timeout, closed connection) — any `TypeError` thrown by the fetch layer — trigger a retry.
+- **Transport-level failures** (connection refused, timeout, TLS errors, etc.) — these surface as `HttpError` with `status === 0` — trigger a retry.
 - **3 total attempts** (1 initial + 2 retries).
 - **Exponential backoff**: starts at 500 ms, doubles each attempt, plus up to 250 ms of random jitter.
 
@@ -478,8 +517,8 @@ Pass a `RetryConfig` to `new TogetherSandbox({ retry: ... })` to customise this 
 | ----------- | --------------------- | ------------------------------------------------------------------------------------------------ |
 | `operation` | `string`              | The operation that failed, e.g. `'startSandbox'`, `'files.read'`.                                |
 | `attempt`   | `number`              | 1-based number of the attempt that just failed.                                                  |
-| `error`     | `unknown`             | The error that was thrown or the parsed error model.                                             |
-| `status`    | `number \| undefined` | HTTP status code, or `undefined` for network-level errors.                                       |
+| `error`     | `unknown`             | The [`HttpError`](#httperror) that was thrown.                                                   |
+| `status`    | `number \| undefined` | HTTP status code, or `0` for transport-level failures.                                           |
 | `delay`     | `number`              | **Milliseconds** to wait before the next attempt (default computed, override via `shouldRetry`). |
 
 ### Example
@@ -503,8 +542,9 @@ const sdk = new TogetherSandbox({
       return true; // retry everything else with default backoff
     },
     onRetry: ({ operation, attempt, status, delay }: RetryContext) => {
+      const label = status === 0 ? "transport" : `HTTP ${status}`;
       console.warn(
-        `[retry] ${operation} attempt ${attempt} failed (HTTP ${status ?? "network"}) — retrying in ${delay} ms`,
+        `[retry] ${operation} attempt ${attempt} failed (${label}) — retrying in ${delay} ms`,
       );
     },
   },

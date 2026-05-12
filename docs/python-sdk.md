@@ -494,12 +494,48 @@ await Sandbox.shutdown("sandbox-id", api_key="your-key")
 
 ---
 
+## Errors
+
+### `HttpError`
+
+Raised by SDK operations for **every** failure. Inherits from `RuntimeError`,
+so existing `except RuntimeError:` clauses keep working. HTTP-level errors
+(non-success status) and transport-level failures (DNS, timeout, connection
+refused) both surface as `HttpError`, distinguished by the `status` field.
+
+| Attribute | Type    | Description                                                                           |
+| --------- | ------- | ------------------------------------------------------------------------------------- |
+| `args`    | `tuple` | Standard exception args — first element is the formatted message.                     |
+| `status`  | `int`   | HTTP status code, or `0` as a sentinel for transport failures (no response received). |
+
+Because `0` is not a valid HTTP status, `e.status == 0` cleanly identifies
+"the request never reached the server" without losing the rest of the
+error-handling shape. The original transport exception (`httpx.TimeoutException`,
+`httpx.ConnectError`, `httpx.RemoteProtocolError`) is preserved on
+`__cause__` for debugging tracebacks.
+
+```python
+from together_sandbox import HttpError
+
+try:
+    await sdk.sandboxes.start("...")
+except HttpError as e:
+    if e.status == 0:
+        # transport-level failure (DNS / timeout / connection refused)
+        raise
+    elif e.status == 404:
+        return None  # not found
+    raise
+```
+
+---
+
 ## Retry
 
 All operations automatically retry on transient failures. By default:
 
 - **HTTP status codes** `408`, `429`, `500`, `502`, `503`, `504` trigger a retry.
-- **Network-level errors** — `httpx.TimeoutException` (timeout), `httpx.ConnectError` (connection refused), `httpx.RemoteProtocolError` (closed connection) — trigger a retry.
+- **Transport-level failures** (`httpx.TimeoutException`, `httpx.ConnectError`, `httpx.RemoteProtocolError`) — these surface as `HttpError` with `status == 0` — trigger a retry.
 - **3 total attempts** (1 initial + 2 retries).
 - **Exponential backoff**: starts at 0.5 s, doubles each attempt, plus up to 0.25 s of random jitter.
 
@@ -521,8 +557,8 @@ Pass a `RetryConfig` to `TogetherSandbox(retry=...)` to customise this behaviour
 | ----------- | ------------- | -------------------------------------------------------------------------------------------- |
 | `operation` | `str`         | The operation that failed, e.g. `'startSandbox'`, `'files.read'`.                            |
 | `attempt`   | `int`         | 1-based number of the attempt that just failed.                                              |
-| `error`     | `Exception`   | The exception that was raised or the parsed error model.                                     |
-| `status`    | `int \| None` | HTTP status code, or `None` for network-level errors.                                        |
+| `error`     | `Exception`   | The [`HttpError`](#httperror) that was raised.                                               |
+| `status`    | `int \| None` | HTTP status code, or `0` for transport-level failures.                                       |
 | `delay`     | `float`       | **Seconds** to wait before the next attempt (default computed, override via `should_retry`). |
 
 ### Example
@@ -546,7 +582,8 @@ async def main():
             ),
             on_retry=lambda ctx: print(
                 f"[retry] {ctx.operation} attempt {ctx.attempt} failed "
-                f"(HTTP {ctx.status or 'network'}) — retrying in {ctx.delay:.2f}s"
+                f"({'transport' if ctx.status == 0 else f'HTTP {ctx.status}'}) "
+                f"— retrying in {ctx.delay:.2f}s"
             ),
         ),
     )
