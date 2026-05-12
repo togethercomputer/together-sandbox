@@ -429,7 +429,7 @@
     "/authorize": {
       "post": {
         "operationId": "authorize",
-        "summary": "Authorize access to a namespace or container registry namespace",
+        "summary": "Authorize access to a project or container registry project",
         "requestBody": {
           "required": true,
           "content": {
@@ -437,13 +437,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "namespace": {
+                  "project_id": {
                     "type": "string",
-                    "description": "Namespace to authorize access to. Mutually exclusive with container_registry_namespace."
-                  },
-                  "container_registry_namespace": {
-                    "type": "string",
-                    "description": "Base32-encoded project ID from the container registry path. Mutually exclusive with namespace."
+                    "description": "Project ID to authorize access to. Accepts a plain project ID (proj_* or ws_*) or a base32-encoded project ID from the container registry path."
                   }
                 }
               }
@@ -525,7 +521,7 @@
         "summary": "List sandboxes",
         "parameters": [
           {
-            "name": "namespace",
+            "name": "project_id",
             "in": "query",
             "schema": {
               "type": "string"
@@ -1267,7 +1263,7 @@
         "summary": "List snapshots",
         "parameters": [
           {
-            "name": "namespace",
+            "name": "project_id",
             "in": "query",
             "schema": {
               "type": "string"
@@ -1328,14 +1324,15 @@
                 "properties": {
                   "image": {
                     "type": "string",
-                    "description": "Full image reference (e.g. registry.example.com/repo/name:tag)."
+                    "description": "Container image reference. Parsed as `[registry/][repository/]name[:tag]`, using Docker Hub and `latest` as defaults when omitted.\n"
                   },
                   "architecture": {
                     "type": "string",
                     "enum": [
                       "amd64",
                       "arm64"
-                    ]
+                    ],
+                    "description": "Expected image architecture."
                   }
                 }
               }

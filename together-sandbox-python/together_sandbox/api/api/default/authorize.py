@@ -73,7 +73,7 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     body: AuthorizeBody,
 ) -> Response[Any | Error]:
-    """Authorize access to a namespace or container registry namespace
+    """Authorize access to a project or container registry project
 
     Args:
         body (AuthorizeBody):
@@ -102,7 +102,7 @@ def sync(
     client: AuthenticatedClient | Client,
     body: AuthorizeBody,
 ) -> Any | Error | None:
-    """Authorize access to a namespace or container registry namespace
+    """Authorize access to a project or container registry project
 
     Args:
         body (AuthorizeBody):
@@ -126,7 +126,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     body: AuthorizeBody,
 ) -> Response[Any | Error]:
-    """Authorize access to a namespace or container registry namespace
+    """Authorize access to a project or container registry project
 
     Args:
         body (AuthorizeBody):
@@ -153,7 +153,7 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     body: AuthorizeBody,
 ) -> Any | Error | None:
-    """Authorize access to a namespace or container registry namespace
+    """Authorize access to a project or container registry project
 
     Args:
         body (AuthorizeBody):

@@ -16,8 +16,9 @@ T = TypeVar("T", bound="CreateSnapshotBody")
 class CreateSnapshotBody:
     """
     Attributes:
-        image (str): Full image reference (e.g. registry.example.com/repo/name:tag).
-        architecture (CreateSnapshotBodyArchitecture | Unset):
+        image (str): Container image reference. Parsed as `[registry/][repository/]name[:tag]`, using Docker Hub and
+            `latest` as defaults when omitted.
+        architecture (CreateSnapshotBodyArchitecture | Unset): Expected image architecture.
     """
 
     image: str
