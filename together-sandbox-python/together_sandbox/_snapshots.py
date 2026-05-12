@@ -149,7 +149,7 @@ class SnapshotsNamespace:
             if os.getenv("TOGETHER_LOCAL_BUILD") == "1":
                 result = await self._build_and_register(params)
             else:
-                result = await self._build_image_via_builder(params)
+                result = await self._build_image_remotely(params)
 
             _emit("register", "Registering snapshot...")
 
@@ -338,7 +338,7 @@ class SnapshotsNamespace:
 
     # ─── Private helpers ──────────────────────────────────────────────────────
 
-    async def _build_image_via_builder(
+    async def _build_image_remotely(
         self,
         params: CreateContextSnapshotParams,
     ) -> dict[str, str | CreateSnapshotBodyArchitecture]:
@@ -374,8 +374,21 @@ class SnapshotsNamespace:
         # The server derives the namespace from the auth token; pass name:tag only.
         image_ref = f"{image_name}:{image_tag}"
 
+        def _emit(step: str, output: str) -> None:
+            if params.on_progress:
+                params.on_progress(SnapshotProgress(step=step, output=output))
+
+        class _BuildLogger:
+            def debug(self, msg: str) -> None:
+                _emit("build", _strip_ansi(msg))
+
+            def warning(self, msg: str) -> None:
+                _emit("build", _strip_ansi(msg))
+
         ib_client = RemoteImageBuilderClient(
-            api_url=ib_api_url, token=self._api_key, logger=None
+            api_url=ib_api_url,
+            token=self._api_key,
+            logger=_BuildLogger(),
         )
         image_ref_str = await ib_client.build(
             context_dir=context_dir,
