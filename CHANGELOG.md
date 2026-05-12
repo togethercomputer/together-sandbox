@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.8.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.5...together-sandbox-v1.8.0) (2026-05-12)
+
+
+### Features
+
+* add e2e test skeleton for python sdk ([b276203](https://github.com/togethercomputer/together-sandbox/commit/b2762038a3ee4431c11300d3734578143b4f76d4))
+* log from remote builder to build emitter ([91411bb](https://github.com/togethercomputer/together-sandbox/commit/91411bb5de7383c4d645edd63cb143f726e2ce1e))
+* normalize the surface interface of Python SDK ([8a7e59a](https://github.com/togethercomputer/together-sandbox/commit/8a7e59a970c03cc69215270e557960f6ba1740d8))
+* normalize the surface interface of Python SDK ([9a41bff](https://github.com/togethercomputer/together-sandbox/commit/9a41bff82c217cdabbd0cba8df99e2a4620c826d))
+* remote build ([7a2e7b0](https://github.com/togethercomputer/together-sandbox/commit/7a2e7b08151072e6966f38d77b84be1fadbb8246))
+* remote build for Python sdk ([593c030](https://github.com/togethercomputer/together-sandbox/commit/593c03038eac5b29ee47eb5e95def9b826b467e8))
+* retry mechanism for known status codes ([e2e3949](https://github.com/togethercomputer/together-sandbox/commit/e2e394955e3ae1b2df6639cd9f0dc6cdadea245a))
+* retry mechanism for known status codes ([3fd504a](https://github.com/togethercomputer/together-sandbox/commit/3fd504a9294601911f3f2c34eb4c79a0389b40e8))
+* Standardize on TOGETHER_* environment variables and default machine config ([32cf4de](https://github.com/togethercomputer/together-sandbox/commit/32cf4de93a6b781924db3c485582dd202250ac7c))
+
+
+### Bug Fixes
+
+* adjust missing fixes to e2e tests ([4eabc5a](https://github.com/togethercomputer/together-sandbox/commit/4eabc5a1355f262ef00ba6057599e6dd0c8cd926))
+* guarantee snapshot id output in CLI with --ci flag ([c05220e](https://github.com/togethercomputer/together-sandbox/commit/c05220e5d1199687b90149521493313d8320db70))
+* normalize HTTP error types across sdks and retry docker push ([fdc523f](https://github.com/togethercomputer/together-sandbox/commit/fdc523f30165ddca86f3b89c0aecf176707455f6))
+* normalize HTTP error types across sdks and retry docker push ([50f2bba](https://github.com/togethercomputer/together-sandbox/commit/50f2bba505017e08129b31ad8fab84307b4fb370))
+
 ## [1.7.5](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.4...together-sandbox-v1.7.5) (2026-05-06)
 
 
