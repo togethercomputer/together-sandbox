@@ -41,10 +41,20 @@ class TestSnapshots:
     """End-to-end tests for snapshot creation."""
 
     @pytest.mark.timeout(300)
-    async def test_create_from_context_with_alias(self, docker_context: str) -> None:
-        """Test snapshot creation from Docker build with alias."""
+    async def test_create_from_context_local(
+        self,
+        docker_context: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Snapshot creation that builds the Docker image locally on the runner.
+
+        Forces ``TOGETHER_LOCAL_BUILD=1`` so the SDK takes the
+        ``_build_and_register`` (local ``docker buildx``) path.
+        """
+        monkeypatch.setenv("TOGETHER_LOCAL_BUILD", "1")
+
         sdk = TogetherSandbox(api_key=os.environ["TOGETHER_API_KEY"])
-        alias = f"e2e-build-{uuid.uuid4().hex[:8]}"
+        alias = f"e2e-local-{uuid.uuid4().hex[:8]}"
         result: CreateSnapshotResult | None = None
         try:
             result = await sdk.snapshots.create(
@@ -53,7 +63,36 @@ class TestSnapshots:
             assert result.snapshot_id
             assert isinstance(result.snapshot_id, str)
             assert result.alias is not None
-            assert "e2e-build" in result.alias
+            assert "e2e-local" in result.alias
+        finally:
+            if result is not None:
+                await sdk.snapshots.delete_by_id(result.snapshot_id)
+
+    @pytest.mark.timeout(300)
+    async def test_create_from_context_remote(
+        self,
+        docker_context: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Snapshot creation that delegates the build to the remote image-builder.
+
+        Ensures ``TOGETHER_LOCAL_BUILD`` is unset so the SDK takes the
+        ``_build_image_via_builder`` path (uploads the context tar to the
+        builder service and streams logs via SSE).
+        """
+        monkeypatch.delenv("TOGETHER_LOCAL_BUILD", raising=False)
+
+        sdk = TogetherSandbox(api_key=os.environ["TOGETHER_API_KEY"])
+        alias = f"e2e-remote-{uuid.uuid4().hex[:8]}"
+        result: CreateSnapshotResult | None = None
+        try:
+            result = await sdk.snapshots.create(
+                CreateContextSnapshotParams(context=docker_context, alias=alias)
+            )
+            assert result.snapshot_id
+            assert isinstance(result.snapshot_id, str)
+            assert result.alias is not None
+            assert "e2e-remote" in result.alias
         finally:
             if result is not None:
                 await sdk.snapshots.delete_by_id(result.snapshot_id)

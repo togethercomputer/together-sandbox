@@ -12,12 +12,12 @@ from ...types import UNSET, Response, Unset
 
 def _get_kwargs(
     *,
-    namespace: str | Unset = UNSET,
+    project_id: str | Unset = UNSET,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
 
-    params["namespace"] = namespace
+    params["project_id"] = project_id
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -78,12 +78,12 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    namespace: str | Unset = UNSET,
+    project_id: str | Unset = UNSET,
 ) -> Response[Error | list[Sandbox]]:
     """List sandboxes
 
     Args:
-        namespace (str | Unset):
+        project_id (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -94,7 +94,7 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        namespace=namespace,
+        project_id=project_id,
     )
 
     response = client.get_httpx_client().request(
@@ -107,12 +107,12 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    namespace: str | Unset = UNSET,
+    project_id: str | Unset = UNSET,
 ) -> Error | list[Sandbox] | None:
     """List sandboxes
 
     Args:
-        namespace (str | Unset):
+        project_id (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -124,19 +124,19 @@ def sync(
 
     return sync_detailed(
         client=client,
-        namespace=namespace,
+        project_id=project_id,
     ).parsed
 
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    namespace: str | Unset = UNSET,
+    project_id: str | Unset = UNSET,
 ) -> Response[Error | list[Sandbox]]:
     """List sandboxes
 
     Args:
-        namespace (str | Unset):
+        project_id (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -147,7 +147,7 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        namespace=namespace,
+        project_id=project_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -158,12 +158,12 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    namespace: str | Unset = UNSET,
+    project_id: str | Unset = UNSET,
 ) -> Error | list[Sandbox] | None:
     """List sandboxes
 
     Args:
-        namespace (str | Unset):
+        project_id (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -176,6 +176,6 @@ async def asyncio(
     return (
         await asyncio_detailed(
             client=client,
-            namespace=namespace,
+            project_id=project_id,
         )
     ).parsed

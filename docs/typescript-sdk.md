@@ -119,9 +119,11 @@ Snapshot creation namespace. Snapshots are images you can pass to `sdk.sandboxes
 
 #### `sdk.snapshots.create(params): Promise<CreateSnapshotResult>`
 
-Create a snapshot from either a local Dockerfile or an existing Docker image. Requires Docker to be installed and running when building from a local context.
+Create a snapshot from either a Docker build context (built remotely by default) or an existing Docker image.
 
-**From a local Dockerfile:**
+**From a build context (remote build):**
+
+Submit a Docker build context to Together's remote image-builder service. The service builds the image, pushes it to the internal registry, and the SDK then registers it as a snapshot. No local Docker installation is required.
 
 ```typescript
 const result = await sdk.snapshots.create({
@@ -136,6 +138,12 @@ const sandboxModel = await sdk.sandboxes.create({
   snapshotId: result.snapshotId,
 });
 ```
+
+> **Local build opt-in.** Set `TOGETHER_LOCAL_BUILD=1` in the environment to build the image with your own Docker daemon and push it to the registry from your machine instead of using the remote image-builder. This requires Docker to be installed and running. Useful for debugging build issues locally or when working in restricted network environments.
+>
+> ```bash
+> export TOGETHER_LOCAL_BUILD=1
+> ```
 
 **From a public Docker image:**
 

@@ -15,40 +15,31 @@ T = TypeVar("T", bound="AuthorizeBody")
 class AuthorizeBody:
     """
     Attributes:
-        namespace (str | Unset): Namespace to authorize access to. Mutually exclusive with container_registry_namespace.
-        container_registry_namespace (str | Unset): Base32-encoded project ID from the container registry path. Mutually
-            exclusive with namespace.
+        project_id (str | Unset): Project ID to authorize access to. Accepts a plain project ID (proj_* or ws_*) or a
+            base32-encoded project ID from the container registry path.
     """
 
-    namespace: str | Unset = UNSET
-    container_registry_namespace: str | Unset = UNSET
+    project_id: str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        namespace = self.namespace
-
-        container_registry_namespace = self.container_registry_namespace
+        project_id = self.project_id
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
-        if namespace is not UNSET:
-            field_dict["namespace"] = namespace
-        if container_registry_namespace is not UNSET:
-            field_dict["container_registry_namespace"] = container_registry_namespace
+        if project_id is not UNSET:
+            field_dict["project_id"] = project_id
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        namespace = d.pop("namespace", UNSET)
-
-        container_registry_namespace = d.pop("container_registry_namespace", UNSET)
+        project_id = d.pop("project_id", UNSET)
 
         authorize_body = cls(
-            namespace=namespace,
-            container_registry_namespace=container_registry_namespace,
+            project_id=project_id,
         )
 
         authorize_body.additional_properties = d

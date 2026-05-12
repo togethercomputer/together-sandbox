@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - CSB-1442
+      - CSB-1450
   workflow_dispatch:
 
 jobs:
@@ -49,6 +49,7 @@ jobs:
         run: |
           SNAPSHOT_ID=$(./dist/together-sandbox snapshots create --image alpine:latest --ci | tail -1)
           echo "snapshot_id=$SNAPSHOT_ID" >> $GITHUB_OUTPUT
+          echo "::notice title=prepare::snapshot_id=$SNAPSHOT_ID"
         env:
           TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
 
@@ -85,7 +86,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: generated-sdk
-      - name: Install dependencies
+      - name: Install dependencies™
+
         run: npm ci
       - name: Run e2e tests
         run: npm run test:e2e

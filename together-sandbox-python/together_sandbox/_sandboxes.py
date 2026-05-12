@@ -19,7 +19,7 @@ from .api.models.start_sandbox_body import StartSandboxBody
 from .api.types import UNSET
 
 # ── Helpers ─────────────────────────────────────────────────────
-from ._utils import _call_api, _resolve_connection
+from ._utils import RetryConfig, _call_api, _resolve_connection
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient

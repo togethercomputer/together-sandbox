@@ -59,7 +59,7 @@ class TogetherSandbox:
         )
         self.sandboxes = SandboxesNamespace(self._api_client, retry=retry)
         self.snapshots = SnapshotsNamespace(
-            self._api_client, self._base_url, retry=retry
+            self._api_client, self._base_url, retry=retry, api_key=resolved_key
         )
 
     # NOTE: sdk.api_client is removed from the public surface.
