@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - CSB-1442
+      - CSB-1450
   workflow_dispatch:
 
 jobs:

@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import os
 import platform
+import time
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -16,7 +17,7 @@ from ._utils import (
     _call_api,
     _with_retry,
 )
-from ._configuration import is_local_environment
+from ._configuration import get_inferred_base_url, is_local_environment
 
 # ── Snapshot API endpoint functions (detailed variants) ───────────────────────
 from .api.api.default.create_snapshot import asyncio_detailed as create_snapshot_api
@@ -50,6 +51,9 @@ from .docker import (
     is_docker_available,
     push_docker_image,
 )
+
+# ─── Remote Snapshot Builder ──────────────────────────────────────────────────────────
+from ._remote_image_builder import RemoteImageBuilderClient
 
 # ─── Snapshot types ──────────────────────────────────────────────────────────
 
@@ -98,10 +102,12 @@ class SnapshotsNamespace:
         base_url: str,
         *,
         retry: RetryConfig | None = None,
+        api_key: str,
     ) -> None:
         self._api_client = api_client
         self._base_url = base_url
         self._retry = retry
+        self._api_key = api_key
 
     # ─── Public entry points ──────────────────────────────────────────────────
 
@@ -136,7 +142,46 @@ class SnapshotsNamespace:
                     "Docker is not available. Please install Docker to use snapshot builds."
                 )
 
-            return await self._build_and_register(params)
+            def _emit(step: str, output: str) -> None:
+                if params.on_progress:
+                    params.on_progress(SnapshotProgress(step=step, output=output))
+
+            if os.getenv("TOGETHER_LOCAL_BUILD") == "1":
+                result = await self._build_and_register(params)
+            else:
+                result = await self._build_image_via_builder(params)
+
+            _emit("register", "Registering snapshot...")
+
+            snapshot_data = await _call_api(
+                "snapshots.create",
+                lambda: create_snapshot_api(
+                    client=self._api_client,
+                    body=CreateSnapshotBody(
+                        image=result["image"],
+                        architecture=result["architecture"],
+                    ),
+                ),
+                self._retry,
+            )
+
+            snapshot_id = str(snapshot_data.id)
+
+            if params.alias:
+                alias = params.alias
+                _emit("alias", "Creating alias...")
+                await _call_api(
+                    "snapshots.alias",
+                    lambda: alias_snapshot_api(
+                        snapshot_data.id,
+                        client=self._api_client,
+                        body=AliasSnapshotBody(alias=alias),
+                    ),
+                    self._retry,
+                )
+
+            return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)
+
         else:
             # Image-based snapshot — no Docker required
             def _emit(step: str, output: str) -> None:
@@ -293,10 +338,74 @@ class SnapshotsNamespace:
 
     # ─── Private helpers ──────────────────────────────────────────────────────
 
+    async def _build_image_via_builder(
+        self,
+        params: CreateContextSnapshotParams,
+    ) -> dict[str, str | CreateSnapshotBodyArchitecture]:
+        """
+        Build a Docker image using the remote image-builder service.
+
+        Derives the image-builder URL from the configured base URL by replacing
+        "api.bartender." or "api." with "builder.". Uses the SDK's API key as
+        the auth token. Returns a dict with ``image`` and ``architecture`` keys,
+        compatible with ``create_snapshot``.
+
+        Raises:
+            RuntimeError: If the build fails.
+        """
+        from pathlib import Path
+
+        csb_base_url = get_inferred_base_url()
+        ib_api_url = csb_base_url.replace("api.bartender.", "builder.").replace(
+            "api.", "builder."
+        )
+
+        context_dir = Path(os.path.realpath(params.context))
+        dockerfile_path = (
+            Path(os.path.realpath(params.dockerfile))
+            if params.dockerfile
+            else context_dir / "Dockerfile"
+        )
+        dockerfile_rel = str(dockerfile_path.relative_to(context_dir))
+
+        image_name = context_dir.name.lower().replace("_", "-")
+        image_tag = str(int(time.time()))
+
+        # The server derives the namespace from the auth token; pass name:tag only.
+        image_ref = f"{image_name}:{image_tag}"
+
+        ib_client = RemoteImageBuilderClient(
+            api_url=ib_api_url, token=self._api_key, logger=None
+        )
+        image_ref_str = await ib_client.build(
+            context_dir=context_dir,
+            image_name=image_ref,
+            dockerfile=dockerfile_rel,
+            nydus=True,
+        )
+
+        architecture_str = os.getenv("TOGETHER_REMOTE_ARCHITECTURE")
+        if architecture_str:
+            try:
+                architecture = CreateSnapshotBodyArchitecture(architecture_str)
+            except ValueError as e:
+                raise RuntimeError(
+                    f"Invalid TOGETHER_REMOTE_ARCHITECTURE={architecture_str!r}; "
+                    f"expected one of: "
+                    f"{[a.value for a in CreateSnapshotBodyArchitecture]}"
+                ) from e
+        else:
+            architecture = CreateSnapshotBodyArchitecture.AMD64
+
+        return {
+            "image": image_ref_str,
+            "architecture": architecture,
+        }
+
     async def _build_and_register(
         self,
         params: CreateContextSnapshotParams,
-    ) -> CreateSnapshotResult:
+    ) -> dict[str, str | CreateSnapshotBodyArchitecture]:
         architecture = (
             CreateSnapshotBodyArchitecture.ARM64
             if platform.machine().lower() == "arm64"
@@ -376,32 +485,7 @@ class SnapshotsNamespace:
 
         await _with_retry("snapshots.pushDockerImage", _push, push_retry)
 
-        _emit("register", "Registering snapshot...")
-        snapshot_data = await _call_api(
-            "snapshots.create",
-            lambda: create_snapshot_api(
-                client=self._api_client,
-                body=CreateSnapshotBody(
-                    image=full_image_name,
-                    architecture=architecture,
-                ),
-            ),
-            self._retry,
-        )
-
-        snapshot_id = str(snapshot_data.id)
-
-        if params.alias:
-            alias = params.alias
-            _emit("alias", "Creating alias...")
-            await _call_api(
-                "snapshots.alias",
-                lambda: alias_snapshot_api(
-                    snapshot_data.id,
-                    client=self._api_client,
-                    body=AliasSnapshotBody(alias=alias),
-                ),
-                self._retry,
-            )
-
-        return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)
+        return {
+            "image": full_image_name,
+            "architecture": architecture,
+        }
