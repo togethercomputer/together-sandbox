@@ -57,6 +57,12 @@ together-sandbox snapshots create [options]
 | `--image <ref>`       | `string` | Docker image reference. Mutually exclusive with `--context`.                               |
 | `--alias <alias>`     | `string` | Alias for the snapshot (`tag` or `namespace@tag`).                                         |
 
+> **Build mode.** By default, `--context` submits the build to Together's remote image-builder service — no local Docker is required for the build itself. Set `TOGETHER_LOCAL_BUILD=1` to fall back to building locally with your own Docker daemon and pushing to the registry from your machine:
+>
+> ```bash
+> TOGETHER_LOCAL_BUILD=1 together-sandbox snapshots create --context ./my-app
+> ```
+
 #### Examples
 
 Build from the current directory:

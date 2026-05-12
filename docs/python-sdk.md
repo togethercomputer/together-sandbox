@@ -126,11 +126,11 @@ Snapshot creation namespace. Snapshots are images you can pass to `sdk.sandboxes
 
 #### `sdk.snapshots.create(params): Coroutine[CreateSnapshotResult]`
 
-Create a snapshot from either a local Docker context or an existing public Docker image.
+Create a snapshot from either a Docker build context (built remotely by default) or an existing public Docker image.
 
-**From a local Dockerfile:**
+**From a build context (remote build):**
 
-Build a Docker image from a local directory and register it as a snapshot. Requires Docker to be installed and running.
+Submit a Docker build context to Together's remote image-builder service. The service builds the image, pushes it to the internal registry, and the SDK then registers it as a snapshot. No local Docker installation is required.
 
 ```python
 from together_sandbox import CreateContextSnapshotParams
@@ -145,6 +145,12 @@ result = await sdk.snapshots.create(CreateContextSnapshotParams(
 # Use the snapshot ID to create a sandbox:
 sandbox_model = await sdk.sandboxes.create(snapshot_id=result.snapshot_id)
 ```
+
+> **Local build opt-in.** Set `TOGETHER_LOCAL_BUILD=1` in the environment to build the image with your own Docker daemon and push it to the registry from your machine instead of using the remote image-builder. This requires Docker to be installed and running. Useful for debugging build issues locally or when working in restricted network environments.
+>
+> ```bash
+> export TOGETHER_LOCAL_BUILD=1
+> ```
 
 | Parameter     | Type                                         | Description                                                                                                 |
 | ------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
