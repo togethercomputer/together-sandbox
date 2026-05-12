@@ -90,7 +90,15 @@ export const createCommand: yargs.CommandModule<
 
       const result = await sdk.snapshots.create(params);
       if (argv.ci) {
-        console.log(result.snapshotId);
+        // Guarantee we have written the snapshot id as last output before letting process exit.
+        // Doing console.log and sync exit, can drop the last log
+        await new Promise<void>((resolve, reject) =>
+          process.stdout.write(
+            `${result.snapshotId}
+`,
+            (err) => (err ? reject(err) : resolve()),
+          ),
+        );
       } else {
         spinner.succeed(
           `Snapshot created: ${result.snapshotId}${result.alias ? " (" + result.alias + ")" : ""}`,
