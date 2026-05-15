@@ -58,7 +58,11 @@ together-sandbox snapshots create [options]
 | `--alias <alias>`     | `string`  | Alias for the snapshot (`tag` or `namespace@tag`).                                                           |
 | `--ci`                | `boolean` | CI mode: plain stdout with no spinner. On success, only the snapshot ID is written to stdout. Default: off.  |
 
-> **Note on `--context`.** Builds happen with your local Docker daemon — the CLI bundles the TypeScript SDK, which currently always builds locally. Docker must be installed and running.
+> **Build mode.** By default, `--context` submits the build to Together's remote image-builder service — no local Docker is required for the build itself. Set `TOGETHER_LOCAL_BUILD=1` to fall back to building locally with your own Docker daemon and pushing to the registry from your machine:
+>
+> ```bash
+> TOGETHER_LOCAL_BUILD=1 together-sandbox snapshots create --context ./my-app
+> ```
 
 #### Examples
 
