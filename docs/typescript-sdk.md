@@ -91,7 +91,7 @@ const sandbox = await sdk.sandboxes.start("your-sandbox-id");
 
 // With optional start options:
 const sandbox = await sdk.sandboxes.start("your-sandbox-id", {
-  startOptions: { versionNumber: 3 },
+  versionNumber: 3,
 });
 ```
 
