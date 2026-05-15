@@ -560,15 +560,16 @@ so existing `except RuntimeError:` clauses keep working. HTTP-level errors
 (non-success status) and transport-level failures (DNS, timeout, connection
 refused) both surface as `HttpError`, distinguished by the `status` field.
 
-| Attribute | Type          | Description                                                                              |
-| --------- | ------------- | ---------------------------------------------------------------------------------------- |
-| `args`    | `tuple`       | Standard exception args — first element is the formatted message.                        |
-| `status`  | `int \| None` | HTTP status code, or `None` as a sentinel for transport failures (no response received). |
+| Attribute | Type    | Description                                                                           |
+| --------- | ------- | ------------------------------------------------------------------------------------- |
+| `args`    | `tuple` | Standard exception args — first element is the formatted message.                     |
+| `status`  | `int`   | HTTP status code, or `0` as a sentinel for transport failures (no response received). |
 
-`e.status is None` identifies "the request never reached the server" without
-losing the rest of the error-handling shape. The original transport exception
-(`httpx.TimeoutException`, `httpx.ConnectError`, `httpx.RemoteProtocolError`)
-is preserved on `__cause__` for debugging tracebacks.
+Because `0` is not a valid HTTP status, `e.status == 0` cleanly identifies
+"the request never reached the server" without losing the rest of the
+error-handling shape. The original transport exception (`httpx.TimeoutException`,
+`httpx.ConnectError`, `httpx.RemoteProtocolError`) is preserved on
+`__cause__` for debugging tracebacks.
 
 ```python
 from together_sandbox import HttpError
@@ -576,7 +577,7 @@ from together_sandbox import HttpError
 try:
     await sdk.sandboxes.start("...")
 except HttpError as e:
-    if e.status is None:
+    if e.status == 0:
         # transport-level failure (DNS / timeout / connection refused)
         raise
     elif e.status == 404:
@@ -591,7 +592,7 @@ except HttpError as e:
 All operations automatically retry on transient failures. By default:
 
 - **HTTP status codes** `408`, `429`, `500`, `502`, `503`, `504` trigger a retry.
-- **Transport-level failures** (`httpx.TimeoutException`, `httpx.ConnectError`, `httpx.RemoteProtocolError`) — these surface as `HttpError` with `status is None` — trigger a retry.
+- **Transport-level failures** (`httpx.TimeoutException`, `httpx.ConnectError`, `httpx.RemoteProtocolError`) — these surface as `HttpError` with `status == 0` — trigger a retry.
 - **3 total attempts** (1 initial + 2 retries).
 - **Exponential backoff**: starts at 0.5 s, doubles each attempt, plus up to 0.25 s of random jitter.
 
@@ -614,7 +615,7 @@ Pass a `RetryConfig` to `TogetherSandbox(retry=...)` to customise this behaviour
 | `operation` | `str`         | The operation that failed, e.g. `'startSandbox'`, `'files.read'`.                            |
 | `attempt`   | `int`         | 1-based number of the attempt that just failed.                                              |
 | `error`     | `Exception`   | The [`HttpError`](#httperror) that was raised.                                               |
-| `status`    | `int \| None` | HTTP status code, or `None` for transport-level failures.                                    |
+| `status`    | `int \| None` | HTTP status code, or `0` for transport-level failures.
 | `delay`     | `float`       | **Seconds** to wait before the next attempt (default computed, override via `should_retry`). |
 
 ### Example
@@ -638,7 +639,7 @@ async def main():
             ),
             on_retry=lambda ctx: print(
                 f"[retry] {ctx.operation} attempt {ctx.attempt} failed "
-                f"({'transport' if ctx.status is None else f'HTTP {ctx.status}'}) "
+                f"({'transport' if ctx.status == 0 else f'HTTP {ctx.status}'}) "
                 f"— retrying in {ctx.delay:.2f}s"
             ),
         ),
