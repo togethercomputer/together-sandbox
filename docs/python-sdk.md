@@ -47,13 +47,13 @@ asyncio.run(main())
 The main entry point for the SDK.
 
 ```python
-sdk = TogetherSandbox(api_key=None, base_url="https://api.codesandbox.io")
+sdk = TogetherSandbox(api_key=None, base_url="https://api.bartender.codesandbox.stream")
 ```
 
 | Parameter  | Type                  | Description                                                            |
 | ---------- | --------------------- | ---------------------------------------------------------------------- |
 | `api_key`  | `str \| None`         | Together AI API key. Falls back to the `TOGETHER_API_KEY` env var.     |
-| `base_url` | `str`                 | Management API base URL. Defaults to `https://api.codesandbox.io`.     |
+| `base_url` | `str`                 | Management API base URL. Defaults to `https://api.bartender.codesandbox.stream`. Override via the `TOGETHER_BASE_URL` env var. |
 | `retry`    | `RetryConfig \| None` | Retry configuration for transient failures. See [Retry](#retry) below. |
 
 `TogetherSandbox` supports use as an async context manager:
@@ -192,6 +192,57 @@ print(result.snapshot_id)
 | -------- | ----- | ----------------------------------------------------------------------------------------------------------- |
 | `step`   | `str` | Current stage: `"prepare"`, `"build"`, `"auth"`, `"push"`, `"register"`, `"memory-snapshot"`, or `"alias"`. |
 | `output` | `str` | Human-readable progress message.                                                                            |
+
+#### `sdk.snapshots.get_by_id(id) -> Snapshot`
+
+Fetch snapshot metadata by ID.
+
+```python
+snapshot = await sdk.snapshots.get_by_id("snapshot-id")
+print(snapshot.id, snapshot.byte_size)
+```
+
+#### `sdk.snapshots.get_by_alias(alias) -> Snapshot`
+
+Fetch snapshot metadata by alias.
+
+```python
+snapshot = await sdk.snapshots.get_by_alias("my-app@v1")
+```
+
+#### `sdk.snapshots.list() -> list[Snapshot]`
+
+List all snapshots for the account.
+
+```python
+snapshots = await sdk.snapshots.list()
+for s in snapshots:
+    print(s.id)
+```
+
+#### `sdk.snapshots.alias(snapshot_id, alias) -> None`
+
+Assign (or update) an alias on an existing snapshot.
+
+```python
+await sdk.snapshots.alias("snapshot-id", "my-app@v2")
+```
+
+#### `sdk.snapshots.delete_by_id(id) -> None`
+
+Delete a snapshot by ID.
+
+```python
+await sdk.snapshots.delete_by_id("snapshot-id")
+```
+
+#### `sdk.snapshots.delete_by_alias(alias) -> None`
+
+Delete a snapshot by alias. A leading `@` is stripped automatically.
+
+```python
+await sdk.snapshots.delete_by_alias("my-app@v1")
+```
 
 ---
 
@@ -564,7 +615,7 @@ Pass a `RetryConfig` to `TogetherSandbox(retry=...)` to customise this behaviour
 | `operation` | `str`         | The operation that failed, e.g. `'startSandbox'`, `'files.read'`.                            |
 | `attempt`   | `int`         | 1-based number of the attempt that just failed.                                              |
 | `error`     | `Exception`   | The [`HttpError`](#httperror) that was raised.                                               |
-| `status`    | `int \| None` | HTTP status code, or `0` for transport-level failures.                                       |
+| `status`    | `int \| None` | HTTP status code, or `0` for transport-level failures.
 | `delay`     | `float`       | **Seconds** to wait before the next attempt (default computed, override via `should_retry`). |
 
 ### Example
@@ -607,6 +658,8 @@ asyncio.run(main())
 
 ## Environment variables
 
-| Variable           | Description                         |
-| ------------------ | ----------------------------------- |
-| `TOGETHER_API_KEY` | Required. Your Together AI API key. |
+| Variable                | Description                                                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TOGETHER_API_KEY`      | Required. Your Together AI API key.                                                                                                        |
+| `TOGETHER_BASE_URL`     | Optional. Override the management API base URL.                                                                                            |
+| `TOGETHER_LOCAL_BUILD`  | Optional. Set to `1` to build context-based snapshots with your local Docker daemon instead of Together's remote image-builder. See above. |
