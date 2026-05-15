@@ -50,18 +50,15 @@ together-sandbox snapshots create [options]
 
 #### Options
 
-| Option                | Type     | Description                                                                                |
-| --------------------- | -------- | ------------------------------------------------------------------------------------------ |
-| `--context <dir>`     | `string` | Path to the Docker build context directory. Mutually exclusive with `--image`.             |
-| `--dockerfile <file>` | `string` | Path to a Dockerfile (only with `--context`). Defaults to `Dockerfile` inside `--context`. |
-| `--image <ref>`       | `string` | Docker image reference. Mutually exclusive with `--context`.                               |
-| `--alias <alias>`     | `string` | Alias for the snapshot (`tag` or `namespace@tag`).                                         |
+| Option                | Type      | Description                                                                                                  |
+| --------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
+| `--context <dir>`     | `string`  | Path to the Docker build context directory. Mutually exclusive with `--image`.                               |
+| `--dockerfile <file>` | `string`  | Path to a Dockerfile (only with `--context`). Defaults to `Dockerfile` inside `--context`.                   |
+| `--image <ref>`       | `string`  | Docker image reference. Mutually exclusive with `--context`.                                                 |
+| `--alias <alias>`     | `string`  | Alias for the snapshot (`tag` or `namespace@tag`).                                                           |
+| `--ci`                | `boolean` | CI mode: plain stdout with no spinner. On success, only the snapshot ID is written to stdout. Default: off.  |
 
-> **Build mode.** By default, `--context` submits the build to Together's remote image-builder service — no local Docker is required for the build itself. Set `TOGETHER_LOCAL_BUILD=1` to fall back to building locally with your own Docker daemon and pushing to the registry from your machine:
->
-> ```bash
-> TOGETHER_LOCAL_BUILD=1 together-sandbox snapshots create --context ./my-app
-> ```
+> **Note on `--context`.** Builds happen with your local Docker daemon — the CLI bundles the TypeScript SDK, which currently always builds locally. Docker must be installed and running.
 
 #### Examples
 
@@ -93,27 +90,19 @@ together-sandbox snapshots create --image python:3.12-slim --alias my-python@lat
 
 ## Output
 
-On success, both subcommands print the snapshot ID or alias:
+**Interactive mode (default):** the command prints a spinner-driven progress log, then a success line on completion:
 
 ```
-✔ Snapshot created: my-app@v1
+✔ Snapshot created: <snapshot-id> (my-app@v1)
 ```
 
-Use the snapshot ID or alias to create new sandboxes via the SDK. Resource params default to **1 vCPU / 2 GiB memory / 10 GiB disk** — pass `millicpu`, `memoryBytes`/`memory_bytes`, or `diskBytes`/`disk_bytes` explicitly to override.
+**CI mode (`--ci`):** progress events are printed as plain lines to stdout, and the final stdout line is the bare snapshot ID — easy to capture into a shell variable:
 
-```typescript
-// TypeScript
-const sandboxModel = await sdk.sandboxes.create({
-  snapshotAlias: "my-app@v1",
-});
-const sandbox = await sdk.sandboxes.start(sandboxModel.id);
+```bash
+SNAPSHOT_ID=$(together-sandbox snapshots create --ci --context ./my-app)
 ```
 
-```python
-# Python
-sandbox_model = await sdk.sandboxes.create(snapshot_alias="my-app@v1")
-sandbox = await sdk.sandboxes.start(sandbox_model.id)
-```
+Use the snapshot ID (or alias) to create sandboxes via the SDK — see the [TypeScript SDK](typescript-sdk.md) or [Python SDK](python-sdk.md) docs.
 
 ---
 
