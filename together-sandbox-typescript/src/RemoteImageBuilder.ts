@@ -156,7 +156,26 @@ export class RemoteImageBuilderClient {
       throw new Error(`No build_id in response: ${JSON.stringify(buildData)}`);
     }
 
-    return this._streamUntilDone(buildId);
+    // Handle Ctrl+C from the user: Node does not propagate SIGINT into
+    // pending async code, so without this listener the process would die
+    // and leave the build running server-side. The handler issues the
+    // DELETE and then exits with the conventional 130 status. We use
+    // `once` + `removeListener` so repeat invocations in the same process
+    // (e.g. tests, daemons) don't accumulate stale handlers.
+    const onSigint = async () => {
+      try {
+        await this.cancel(buildId);
+      } finally {
+        process.exit(130);
+      }
+    };
+    process.once("SIGINT", onSigint);
+
+    try {
+      return await this._streamUntilDone(buildId);
+    } finally {
+      process.removeListener("SIGINT", onSigint);
+    }
   }
 
   /**

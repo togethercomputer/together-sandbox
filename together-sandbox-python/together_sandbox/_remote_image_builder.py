@@ -104,7 +104,11 @@ class RemoteImageBuilderClient:
         try:
             return await self._stream_until_done(build_id)
         except asyncio.CancelledError:
-            await self.cancel(build_id)
+            # Handle Ctrl+C (and any other task cancellation) by asking the
+            # service to tear the build down server-side. Shield the cancel
+            # so a second Ctrl+C while it's in flight doesn't abort the
+            # DELETE itself and leave an orphaned build pod running.
+            await asyncio.shield(self.cancel(build_id))
             raise
 
     async def _stream_until_done(self, build_id: str) -> str:
