@@ -147,6 +147,8 @@ const sandboxModel = await sdk.sandboxes.create({
 
 **From a public Docker image:**
 
+The image is pulled and optimized by Together's remote image-builder service (including nydus conversion for fast cold-starts), then registered as a snapshot. No local Docker installation is required.
+
 ```typescript
 const result = await sdk.snapshots.create({
   image: "node:22",

@@ -36,11 +36,15 @@
     "test:e2e": "vitest run --config vitest.e2e.config.ts --reporter=verbose"
   },
   "dependencies": {
-    "@hey-api/client-fetch": "^0.13.1"
+    "@balena/dockerignore": "^1.0.2",
+    "@hey-api/client-fetch": "^0.13.1",
+    "eventsource": "^4.1.0",
+    "tar": "^6.2.1"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.84.4",
     "@types/node": "^22.15.30",
+    "@types/tar": "^6.1.13",
     "tsup": "^8.0.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.9"
