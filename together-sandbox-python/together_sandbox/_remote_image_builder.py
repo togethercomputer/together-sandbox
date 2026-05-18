@@ -8,7 +8,7 @@ import httpx
 import pathspec
 from httpx_sse import aconnect_sse
 
-from ._utils import _with_retry
+from ._utils import RETRYABLE_STATUS_CODES, _with_retry
 
 
 class RemoteImageBuilderClient:
@@ -125,8 +125,8 @@ class RemoteImageBuilderClient:
         }
         timeout = httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0)
 
-        max_attempts = 60
-        wait = 5.0
+        max_attempts = 5
+        wait = 1.0
 
         for attempt in range(1, max_attempts + 1):
             try:
@@ -168,7 +168,10 @@ class RemoteImageBuilderClient:
             except RuntimeError:
                 raise
             except httpx.HTTPStatusError as e:
-                if e.response.status_code == 404 and attempt < max_attempts:
+                status_code = e.response.status_code
+                if (
+                    status_code == 404 or status_code in RETRYABLE_STATUS_CODES
+                ) and attempt < max_attempts:
                     await asyncio.sleep(wait)
                     continue
                 raise

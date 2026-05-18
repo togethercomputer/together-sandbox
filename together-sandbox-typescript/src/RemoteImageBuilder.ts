@@ -4,7 +4,16 @@ import * as tar from "tar";
 import ignore from "@balena/dockerignore";
 import { EventSource } from "eventsource";
 
-import { withRetry, sleep } from "./utils.js";
+import { withRetry, sleep, RETRYABLE_STATUS_CODES } from "./utils.js";
+
+/**
+ * Status codes that should trigger a retry of the SSE log stream. Combines
+ * the shared retryable set with 404 (the build pod hasn't materialised yet).
+ */
+const STREAM_RETRYABLE_STATUS_CODES = new Set<number>([
+  ...RETRYABLE_STATUS_CODES,
+  404,
+]);
 
 /**
  * Minimal logger contract used by {@link RemoteImageBuilderClient} to surface
@@ -206,8 +215,8 @@ export class RemoteImageBuilderClient {
    */
   private async _streamUntilDone(buildId: string): Promise<string> {
     const url = `${this._apiUrl}/builds/${buildId}/logs`;
-    const maxAttempts = 60;
-    const wait = 5000;
+    const maxAttempts = 5;
+    const wait = 1000;
 
     let lastError: Error | undefined;
 
@@ -221,9 +230,14 @@ export class RemoteImageBuilderClient {
         });
       } catch (err) {
         const e = err instanceof Error ? err : new Error(String(err));
-        // 404 means the build pod hasn't materialised yet — keep polling.
-        const isNotFound = /\b404\b/.test(e.message);
-        if (!isNotFound && attempt >= maxAttempts) throw e;
+        // Parse the HTTP status from the `_consumeStream` error message
+        // (formatted as `SSE HTTP <code>...`) so we can branch on the
+        // shared retryable set plus 404 (build pod isn't ready yet).
+        const match = e.message.match(/^SSE HTTP (\d+)/);
+        const status = match ? Number(match[1]) : undefined;
+        const isRetryable =
+          status !== undefined && STREAM_RETRYABLE_STATUS_CODES.has(status);
+        if (!isRetryable || attempt >= maxAttempts) throw e;
         lastError = e;
         await sleep(wait);
         continue;
