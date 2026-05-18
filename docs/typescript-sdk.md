@@ -51,7 +51,7 @@ const sdk = new TogetherSandbox(config: TogetherSandboxConfig);
 | Property  | Type          | Required | Description                                                                     |
 | --------- | ------------- | -------- | ------------------------------------------------------------------------------- |
 | `apiKey`  | `string`      | Yes      | Together AI API key. Falls back to `TOGETHER_API_KEY` env var if not set.       |
-| `baseUrl` | `string`      | No       | Override the management API base URL. Defaults to `https://api.codesandbox.io`. |
+| `baseUrl` | `string`      | No       | Override the management API base URL. Defaults to `https://api.bartender.codesandbox.stream`. Also configurable via the `TOGETHER_BASE_URL` env var. |
 | `retry`   | `RetryConfig` | No       | Retry configuration for transient failures. See [Retry](#retry) below.          |
 
 ### `sdk.sandboxes`
@@ -91,7 +91,7 @@ const sandbox = await sdk.sandboxes.start("your-sandbox-id");
 
 // With optional start options:
 const sandbox = await sdk.sandboxes.start("your-sandbox-id", {
-  startOptions: { version_number: 3 },
+  versionNumber: 3,
 });
 ```
 
@@ -121,9 +121,9 @@ Snapshot creation namespace. Snapshots are images you can pass to `sdk.sandboxes
 
 Create a snapshot from either a Docker build context (built remotely by default) or an existing Docker image.
 
-**From a build context (remote build):**
+**From a build context:**
 
-Submit a Docker build context to Together's remote image-builder service. The service builds the image, pushes it to the internal registry, and the SDK then registers it as a snapshot. No local Docker installation is required.
+Build a Docker image from a local context, push it to the registry, and register it as a snapshot. Docker must be installed and running locally. (The Python SDK supports a remote image-builder service via `TOGETHER_LOCAL_BUILD=0`; the TypeScript SDK currently always builds locally.)
 
 ```typescript
 const result = await sdk.snapshots.create({
@@ -138,12 +138,6 @@ const sandboxModel = await sdk.sandboxes.create({
   snapshotId: result.snapshotId,
 });
 ```
-
-> **Local build opt-in.** Set `TOGETHER_LOCAL_BUILD=1` in the environment to build the image with your own Docker daemon and push it to the registry from your machine instead of using the remote image-builder. This requires Docker to be installed and running. Useful for debugging build issues locally or when working in restricted network environments.
->
-> ```bash
-> export TOGETHER_LOCAL_BUILD=1
-> ```
 
 **From a public Docker image:**
 
@@ -189,6 +183,54 @@ const sandboxModel = await sdk.sandboxes.create({
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------- |
 | `step`   | `string` | Current stage: `"prepare"`, `"build"`, `"auth"`, `"push"`, `"register"`, `"memory-snapshot"`, or `"alias"`. |
 | `output` | `string` | Human-readable progress message.                                                                            |
+
+#### `sdk.snapshots.getById(id): Promise<Snapshot>`
+
+Fetch snapshot metadata by ID.
+
+```typescript
+const snapshot = await sdk.snapshots.getById("snapshot-id");
+```
+
+#### `sdk.snapshots.getByAlias(alias): Promise<Snapshot>`
+
+Fetch snapshot metadata by alias.
+
+```typescript
+const snapshot = await sdk.snapshots.getByAlias("my-app@v1");
+```
+
+#### `sdk.snapshots.list(): Promise<Snapshot[]>`
+
+List all snapshots for the account.
+
+```typescript
+const snapshots = await sdk.snapshots.list();
+```
+
+#### `sdk.snapshots.alias(snapshotId, alias): Promise<void>`
+
+Assign (or update) an alias on an existing snapshot.
+
+```typescript
+await sdk.snapshots.alias("snapshot-id", "my-app@v2");
+```
+
+#### `sdk.snapshots.deleteById(id): Promise<void>`
+
+Delete a snapshot by ID.
+
+```typescript
+await sdk.snapshots.deleteById("snapshot-id");
+```
+
+#### `sdk.snapshots.deleteByAlias(alias): Promise<void>`
+
+Delete a snapshot by alias. A leading `@` is stripped automatically.
+
+```typescript
+await sdk.snapshots.deleteByAlias("my-app@v1");
+```
 
 ---
 
@@ -569,6 +611,7 @@ const sdk = new TogetherSandbox({
 
 ## Environment variables
 
-| Variable           | Description                         |
-| ------------------ | ----------------------------------- |
-| `TOGETHER_API_KEY` | Required. Your Together AI API key. |
+| Variable            | Description                                     |
+| ------------------- | ----------------------------------------------- |
+| `TOGETHER_API_KEY`  | Required. Your Together AI API key.             |
+| `TOGETHER_BASE_URL` | Optional. Override the management API base URL. |
