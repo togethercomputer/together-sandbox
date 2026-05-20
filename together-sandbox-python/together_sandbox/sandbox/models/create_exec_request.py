@@ -21,24 +21,27 @@ class CreateExecRequest:
     Attributes:
         command (str): Command to execute in the exec
         args (list[str]): Command line arguments
-        autorun (bool | Unset): Whether to automatically start the exec (defaults to true)
+        autostart (bool | Unset): Whether to automatically start the exec (defaults to true)
         interactive (bool | Unset): Whether to start interactive shell session or not (defaults to false)
         pty (bool | Unset): Whether to start pty shell session or not (defaults to false)
         cwd (str | Unset): Working directory for the command (defaults to workspace directory if not specified)
         env (CreateExecRequestEnv | Unset): Environment variables to set for the command (key-value pairs)
-        uid (int | Unset): User ID to run the command as (defaults to 1000 if not specified)
-        gid (int | Unset): Group ID to run the command as (defaults to 1000 if not specified)
+        user (str | Unset): User to run the command as, in "user[:group]" form. Each side may be a
+            numeric ID or a name (e.g. "1000", "1000:1000", ":1000", "node:node",
+            "node"). Names are resolved via /etc/passwd and /etc/group on the
+            server. Either side may be omitted. If unset, the server-wide default
+            from --default-exec-user (or PINT_DEFAULT_USER) is used, falling back
+            to the pint process's own uid/gid. Unresolvable names return 400.
     """
 
     command: str
     args: list[str]
-    autorun: bool | Unset = UNSET
+    autostart: bool | Unset = UNSET
     interactive: bool | Unset = UNSET
     pty: bool | Unset = UNSET
     cwd: str | Unset = UNSET
     env: CreateExecRequestEnv | Unset = UNSET
-    uid: int | Unset = UNSET
-    gid: int | Unset = UNSET
+    user: str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -46,7 +49,7 @@ class CreateExecRequest:
 
         args = self.args
 
-        autorun = self.autorun
+        autostart = self.autostart
 
         interactive = self.interactive
 
@@ -58,9 +61,7 @@ class CreateExecRequest:
         if not isinstance(self.env, Unset):
             env = self.env.to_dict()
 
-        uid = self.uid
-
-        gid = self.gid
+        user = self.user
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -70,8 +71,8 @@ class CreateExecRequest:
                 "args": args,
             }
         )
-        if autorun is not UNSET:
-            field_dict["autorun"] = autorun
+        if autostart is not UNSET:
+            field_dict["autostart"] = autostart
         if interactive is not UNSET:
             field_dict["interactive"] = interactive
         if pty is not UNSET:
@@ -80,10 +81,8 @@ class CreateExecRequest:
             field_dict["cwd"] = cwd
         if env is not UNSET:
             field_dict["env"] = env
-        if uid is not UNSET:
-            field_dict["uid"] = uid
-        if gid is not UNSET:
-            field_dict["gid"] = gid
+        if user is not UNSET:
+            field_dict["user"] = user
 
         return field_dict
 
@@ -96,7 +95,7 @@ class CreateExecRequest:
 
         args = cast(list[str], d.pop("args"))
 
-        autorun = d.pop("autorun", UNSET)
+        autostart = d.pop("autostart", UNSET)
 
         interactive = d.pop("interactive", UNSET)
 
@@ -111,20 +110,17 @@ class CreateExecRequest:
         else:
             env = CreateExecRequestEnv.from_dict(_env)
 
-        uid = d.pop("uid", UNSET)
-
-        gid = d.pop("gid", UNSET)
+        user = d.pop("user", UNSET)
 
         create_exec_request = cls(
             command=command,
             args=args,
-            autorun=autorun,
+            autostart=autostart,
             interactive=interactive,
             pty=pty,
             cwd=cwd,
             env=env,
-            uid=uid,
-            gid=gid,
+            user=user,
         )
 
         create_exec_request.additional_properties = d

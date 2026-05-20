@@ -239,17 +239,14 @@ export class Sandbox {
         );
         return result;
       },
-      update: async (
-        id: string,
-        body: Parameters<typeof sandboxApi.updateExec>[0]["body"],
-      ) => {
+      start: async (id: string) => {
         const result = await callApi(
-          "execs.update",
+          "execs.start",
           () =>
-            sandboxApi.updateExec({
+            sandboxApi.startExec({
               client,
               path: { id },
-              body,
+              body: {},
             }),
           this._retryConfig,
         );

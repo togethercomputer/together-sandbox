@@ -803,6 +803,123 @@
         }
       }
     },
+    "/api/v1/execs/{id}/start": {
+      "post": {
+        "summary": "Start exec",
+        "tags": ["execs"],
+        "description": "Starts a previously-created exec that is not currently running.",
+        "operationId": "startExec",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Exec identifier",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "description": "Optional start options (reserved for future use)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Exec started successfully, or was already running. The response body\nalways reflects the current exec state.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecItem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Exec ID is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Admin permission required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Exec not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict - Exec is not in a startable state. Only CREATED execs can be\nstarted; RUNNING execs return 200 idempotently. Any other state\n(EXITED, STOPPING, STOPPED) returns 409.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Failed to start exec",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/execs/{id}": {
       "get": {
         "summary": "Get exec by ID",
@@ -858,111 +975,6 @@
           },
           "404": {
             "description": "Exec not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "summary": "Update exec",
-        "tags": ["execs"],
-        "description": "Updates exec status (e.g., start a stopped exec).",
-        "operationId": "updateExec",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "description": "Exec identifier",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "description": "Exec update request",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateExecRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Exec updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExecItem"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request - Exec ID is required or invalid status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Exec not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict - Exec is already in the requested state",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error - Failed to update exec",
             "content": {
               "application/json": {
                 "schema": {
@@ -1062,7 +1074,7 @@
       "get": {
         "operationId": "getExecOutput",
         "summary": "Get exec output",
-        "description": "Retrieves buffered exec output as an array of ExecStdout objects",
+        "description": "Retrieves the plain text output from an exec's buffer",
         "tags": ["Execs"],
         "security": [
           {
@@ -2138,15 +2150,9 @@
             "type": "integer",
             "description": "Exit code of the process (only present when process has exited)"
           },
-          "uid": {
-            "type": "integer",
-            "format": "uint32",
-            "description": "User ID the command runs as"
-          },
-          "gid": {
-            "type": "integer",
-            "format": "uint32",
-            "description": "Group ID the command runs as"
+          "user": {
+            "type": "string",
+            "description": "User the command runs as, in \"uid[:gid]\" form. Omitted when no explicit\ncredentials are set on the exec.\n"
           }
         },
         "required": [
@@ -2187,7 +2193,7 @@
             },
             "description": "Command line arguments"
           },
-          "autorun": {
+          "autostart": {
             "type": "boolean",
             "description": "Whether to automatically start the exec (defaults to true)"
           },
@@ -2210,29 +2216,17 @@
             },
             "description": "Environment variables to set for the command (key-value pairs)"
           },
-          "uid": {
-            "type": "integer",
-            "format": "uint32",
-            "description": "User ID to run the command as (defaults to 1000 if not specified)"
-          },
-          "gid": {
-            "type": "integer",
-            "format": "uint32",
-            "description": "Group ID to run the command as (defaults to 1000 if not specified)"
+          "user": {
+            "type": "string",
+            "description": "User to run the command as, in \"user[:group]\" form. Each side may be a\nnumeric ID or a name (e.g. \"1000\", \"1000:1000\", \":1000\", \"node:node\",\n\"node\"). Names are resolved via /etc/passwd and /etc/group on the\nserver. Either side may be omitted. If unset, the server-wide default\nfrom --default-exec-user (or PINT_DEFAULT_USER) is used, falling back\nto the pint process's own uid/gid. Unresolvable names return 400.\n"
           }
         },
         "required": ["command", "args"]
       },
-      "UpdateExecRequest": {
+      "ExecStart": {
         "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": ["running"],
-            "description": "Status to set for the exec (currently only 'running' is supported)"
-          }
-        },
-        "required": ["status"]
+        "description": "Optional request body for starting an exec. Currently has no fields;\nreserved for future options such as overriding env or signal behaviour.\n",
+        "properties": {}
       },
       "ExecDeleteResponse": {
         "type": "object",

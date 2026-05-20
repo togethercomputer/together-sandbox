@@ -6,45 +6,32 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..models.update_exec_request_status import UpdateExecRequestStatus
-
-T = TypeVar("T", bound="UpdateExecRequest")
+T = TypeVar("T", bound="ExecStart")
 
 
 @_attrs_define
-class UpdateExecRequest:
-    """
-    Attributes:
-        status (UpdateExecRequestStatus): Status to set for the exec (currently only 'running' is supported)
+class ExecStart:
+    """Optional request body for starting an exec. Currently has no fields;
+    reserved for future options such as overriding env or signal behaviour.
+
     """
 
-    status: UpdateExecRequestStatus
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        status = self.status.value
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update(
-            {
-                "status": status,
-            }
-        )
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        status = UpdateExecRequestStatus(d.pop("status"))
+        exec_start = cls()
 
-        update_exec_request = cls(
-            status=status,
-        )
-
-        update_exec_request.additional_properties = d
-        return update_exec_request
+        exec_start.additional_properties = d
+        return exec_start
 
     @property
     def additional_keys(self) -> list[str]:

@@ -50,11 +50,11 @@ The main entry point for the SDK.
 sdk = TogetherSandbox(api_key=None, base_url="https://api.bartender.codesandbox.stream")
 ```
 
-| Parameter  | Type                  | Description                                                            |
-| ---------- | --------------------- | ---------------------------------------------------------------------- |
-| `api_key`  | `str \| None`         | Together AI API key. Falls back to the `TOGETHER_API_KEY` env var.     |
+| Parameter  | Type                  | Description                                                                                                                    |
+| ---------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `api_key`  | `str \| None`         | Together AI API key. Falls back to the `TOGETHER_API_KEY` env var.                                                             |
 | `base_url` | `str`                 | Management API base URL. Defaults to `https://api.bartender.codesandbox.stream`. Override via the `TOGETHER_BASE_URL` env var. |
-| `retry`    | `RetryConfig \| None` | Retry configuration for transient failures. See [Retry](#retry) below. |
+| `retry`    | `RetryConfig \| None` | Retry configuration for transient failures. See [Retry](#retry) below.                                                         |
 
 `TogetherSandbox` supports use as an async context manager:
 
@@ -375,7 +375,7 @@ List all active execs.
 execs = await sandbox.execs.list()
 ```
 
-#### `execs.create(command, args, *, autorun=None, interactive=None, pty=None, cwd=None, env=None, uid=None, gid=None) -> Exec`
+#### `execs.create(command, args, *, autostart=None, interactive=None, pty=None, cwd=None, env=None, user=None) -> Exec`
 
 Create a new exec (run a command).
 
@@ -388,17 +388,16 @@ exec_ = await sandbox.execs.create(
 )
 ```
 
-| Parameter     | Type                     | Required | Description                                                 |
-| ------------- | ------------------------ | -------- | ----------------------------------------------------------- |
-| `command`     | `str`                    | Yes      | Command to execute (e.g. `"npm"`).                          |
-| `args`        | `list[str]`              | Yes      | Command line arguments (e.g. `["install"]`).                |
-| `autorun`     | `bool \| None`           | No       | Whether to automatically start the exec (defaults to true). |
-| `interactive` | `bool \| None`           | No       | Whether to start an interactive shell session.              |
-| `pty`         | `bool \| None`           | No       | Whether to start a PTY shell session.                       |
-| `cwd`         | `str \| None`            | No       | Working directory for the command.                          |
-| `env`         | `dict[str, str] \| None` | No       | Environment variables to set, as a plain dict.              |
-| `uid`         | `int \| None`            | No       | User ID to run the command as (defaults to 1000).           |
-| `gid`         | `int \| None`            | No       | Group ID to run the command as (defaults to 1000).          |
+| Parameter     | Type                     | Required | Description                                                    |
+| ------------- | ------------------------ | -------- | -------------------------------------------------------------- |
+| `command`     | `str`                    | Yes      | Command to execute (e.g. `"npm"`).                             |
+| `args`        | `list[str]`              | Yes      | Command line arguments (e.g. `["install"]`).                   |
+| `autostart`   | `bool \| None`           | No       | Whether to automatically start the exec (defaults to true).    |
+| `interactive` | `bool \| None`           | No       | Whether to start an interactive shell session.                 |
+| `pty`         | `bool \| None`           | No       | Whether to start a PTY shell session.                          |
+| `cwd`         | `str \| None`            | No       | Working directory for the command.                             |
+| `env`         | `dict[str, str] \| None` | No       | Environment variables to set, as a plain dict.                 |
+| `user`        | `str \| None`            | No       | $USER:$GROUP ID to run the command as (defaults to 1000:1000). |
 
 #### `execs.get(id_) -> Exec`
 
@@ -408,12 +407,12 @@ Get an exec by ID.
 exec_ = await sandbox.execs.get("exec-id")
 ```
 
-#### `execs.resume(id_) -> Exec`
+#### `execs.start(id_) -> Exec`
 
-Resume a stopped exec (sets its status back to `running`).
+Start an exec configured with `autostart=False`. Will succeed if in `CREATED` or `RUNNING` state, or returns `409` error.
 
 ```python
-await sandbox.execs.resume("exec-id")
+exec_ = await sandbox.execs.start("exec-id")
 ```
 
 #### `execs.delete(id_) -> None`
@@ -615,7 +614,7 @@ Pass a `RetryConfig` to `TogetherSandbox(retry=...)` to customise this behaviour
 | `operation` | `str`         | The operation that failed, e.g. `'startSandbox'`, `'files.read'`.                            |
 | `attempt`   | `int`         | 1-based number of the attempt that just failed.                                              |
 | `error`     | `Exception`   | The [`HttpError`](#httperror) that was raised.                                               |
-| `status`    | `int \| None` | HTTP status code, or `0` for transport-level failures.
+| `status`    | `int \| None` | HTTP status code, or `0` for transport-level failures.                                       |
 | `delay`     | `float`       | **Seconds** to wait before the next attempt (default computed, override via `should_retry`). |
 
 ### Example
@@ -658,8 +657,8 @@ asyncio.run(main())
 
 ## Environment variables
 
-| Variable                | Description                                                                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `TOGETHER_API_KEY`      | Required. Your Together AI API key.                                                                                                        |
-| `TOGETHER_BASE_URL`     | Optional. Override the management API base URL.                                                                                            |
-| `TOGETHER_LOCAL_BUILD`  | Optional. Set to `1` to build context-based snapshots with your local Docker daemon instead of Together's remote image-builder. See above. |
+| Variable               | Description                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TOGETHER_API_KEY`     | Required. Your Together AI API key.                                                                                                        |
+| `TOGETHER_BASE_URL`    | Optional. Override the management API base URL.                                                                                            |
+| `TOGETHER_LOCAL_BUILD` | Optional. Set to `1` to build context-based snapshots with your local Docker daemon instead of Together's remote image-builder. See above. |

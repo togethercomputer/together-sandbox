@@ -7,25 +7,26 @@ import httpx
 from ...client import AuthenticatedClient, Client
 from ...models.error import Error
 from ...models.exec_item import ExecItem
-from ...models.update_exec_request import UpdateExecRequest
-from ...types import Response
+from ...models.exec_start import ExecStart
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     id: str,
     *,
-    body: UpdateExecRequest,
+    body: ExecStart | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
-        "method": "put",
-        "url": "/api/v1/execs/{id}".format(
+        "method": "post",
+        "url": "/api/v1/execs/{id}/start".format(
             id=quote(str(id), safe=""),
         ),
     }
 
-    _kwargs["json"] = body.to_dict()
+    if not isinstance(body, Unset):
+        _kwargs["json"] = body.to_dict()
 
     headers["Content-Type"] = "application/json"
 
@@ -50,6 +51,11 @@ def _parse_response(
         response_401 = Error.from_dict(response.json())
 
         return response_401
+
+    if response.status_code == 403:
+        response_403 = Error.from_dict(response.json())
+
+        return response_403
 
     if response.status_code == 404:
         response_404 = Error.from_dict(response.json())
@@ -86,15 +92,17 @@ def sync_detailed(
     id: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateExecRequest,
+    body: ExecStart | Unset = UNSET,
 ) -> Response[Error | ExecItem]:
-    """Update exec
+    """Start exec
 
-     Updates exec status (e.g., start a stopped exec).
+     Starts a previously-created exec that is not currently running.
 
     Args:
         id (str):
-        body (UpdateExecRequest):
+        body (ExecStart | Unset): Optional request body for starting an exec. Currently has no
+            fields;
+            reserved for future options such as overriding env or signal behaviour.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -120,15 +128,17 @@ def sync(
     id: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateExecRequest,
+    body: ExecStart | Unset = UNSET,
 ) -> Error | ExecItem | None:
-    """Update exec
+    """Start exec
 
-     Updates exec status (e.g., start a stopped exec).
+     Starts a previously-created exec that is not currently running.
 
     Args:
         id (str):
-        body (UpdateExecRequest):
+        body (ExecStart | Unset): Optional request body for starting an exec. Currently has no
+            fields;
+            reserved for future options such as overriding env or signal behaviour.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -149,15 +159,17 @@ async def asyncio_detailed(
     id: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateExecRequest,
+    body: ExecStart | Unset = UNSET,
 ) -> Response[Error | ExecItem]:
-    """Update exec
+    """Start exec
 
-     Updates exec status (e.g., start a stopped exec).
+     Starts a previously-created exec that is not currently running.
 
     Args:
         id (str):
-        body (UpdateExecRequest):
+        body (ExecStart | Unset): Optional request body for starting an exec. Currently has no
+            fields;
+            reserved for future options such as overriding env or signal behaviour.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -181,15 +193,17 @@ async def asyncio(
     id: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateExecRequest,
+    body: ExecStart | Unset = UNSET,
 ) -> Error | ExecItem | None:
-    """Update exec
+    """Start exec
 
-     Updates exec status (e.g., start a stopped exec).
+     Starts a previously-created exec that is not currently running.
 
     Args:
         id (str):
-        body (UpdateExecRequest):
+        body (ExecStart | Unset): Optional request body for starting an exec. Currently has no
+            fields;
+            reserved for future options such as overriding env or signal behaviour.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
