@@ -30,7 +30,7 @@ from .sandbox.api.execs.list_execs import asyncio_detailed as list_execs_api
 from .sandbox.api.execs.create_exec import asyncio_detailed as create_exec_api
 from .sandbox.api.execs.get_exec import asyncio_detailed as get_exec_api
 from .sandbox.api.execs.get_exec_output import asyncio_detailed as get_exec_output_api
-from .sandbox.api.execs.update_exec import asyncio_detailed as update_exec_api
+from .sandbox.api.execs.start_exec import asyncio_detailed as start_exec_api
 from .sandbox.api.execs.delete_exec import asyncio_detailed as delete_exec_api
 from .sandbox.api.execs.exec_exec_stdin import asyncio_detailed as exec_exec_stdin_api
 from .sandbox.api.ports.list_ports import asyncio_detailed as list_ports_api
@@ -53,8 +53,7 @@ from .sandbox.models.file_info import FileInfo
 from .sandbox.models.exec_stdin_type import ExecStdinType
 from .sandbox.models.exec_stdin import ExecStdin
 from .sandbox.models.exec_stdout import ExecStdout
-from .sandbox.models.update_exec_request import UpdateExecRequest
-from .sandbox.models.update_exec_request_status import UpdateExecRequestStatus
+from .sandbox.models.exec_start import ExecStart
 from .sandbox.types import UNSET, File, Unset
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
@@ -65,13 +64,6 @@ from ._utils import RetryConfig, _call_api
 
 
 class Files:
-    """
-    File operations facade that wraps the low-level files client.
-
-    Adds ``move_file``, ``copy_file``, and ``watch`` methods while
-    delegating existing methods to the underlying client.
-    """
-
     def __init__(
         self,
         sandbox_client: SandboxClient,
@@ -194,19 +186,6 @@ class Files:
 
 
 class Execs:
-    """
-    Exec operations facade with renamed SSE methods.
-
-    - ``get_exec_output`` → ``stream_output``
-    - ``exec_exec_stdin`` → split into ``send_stdin`` (data) and ``resize`` (cols, rows)
-    - ``stream_execs_list`` → ``stream_list``
-    - ``update`` → ``resume`` (only valid status today is ``running``)
-    - ``connect_to_exec_web_socket`` → removed
-
-    Exec status values (``ExecItem.status``): ``"running"``, ``"stopped"``, ``"finished"``.
-    Poll ``get()`` until status is ``"finished"`` or ``"stopped"`` to wait for completion.
-    """
-
     def __init__(
         self,
         sandbox_client: SandboxClient,
@@ -230,26 +209,24 @@ class Execs:
         command: str,
         args: list[str],
         *,
-        autorun: bool | None = None,
+        autostart: bool | None = None,
         interactive: bool | None = None,
         pty: bool | None = None,
         cwd: str | None = None,
         env: dict[str, str] | None = None,
-        uid: int | None = None,
-        gid: int | None = None,
+        user: str | None = None,
     ):
         """Create a new exec.
 
         Args:
             command: Command to execute (e.g. ``"npm"``).
             args: Command line arguments (e.g. ``["start"]``).
-            autorun: Whether to automatically start the exec (defaults to true).
+            autostart: Whether to automatically start the exec (defaults to true).
             interactive: Whether to start an interactive shell session.
             pty: Whether to start a PTY shell session.
             cwd: Working directory for the command.
             env: Environment variables as a plain dict (e.g. ``{"NODE_ENV": "production"}``).
-            uid: User ID to run the command as (defaults to 1000).
-            gid: Group ID to run the command as (defaults to 1000).
+            user: $USER:$GROUP to run the command as (defaults to 1000:1000).
         """
         env_obj: CreateExecRequestEnv | Unset = UNSET
         if env is not None:
@@ -260,13 +237,12 @@ class Execs:
         body = CreateExecRequest(
             command=command,
             args=args,
-            autorun=autorun if autorun is not None else UNSET,
+            autostart=autostart if autostart is not None else UNSET,
             interactive=interactive if interactive is not None else UNSET,
             pty=pty if pty is not None else UNSET,
             cwd=cwd if cwd is not None else UNSET,
             env=env_obj,
-            uid=uid if uid is not None else UNSET,
-            gid=gid if gid is not None else UNSET,
+            user=user if user is not None else UNSET,
         )
         return await _call_api(
             "execs.create",
@@ -283,14 +259,14 @@ class Execs:
             context=f"for id {id_!r}",
         )
 
-    async def resume(self, id_: str):
-        """Resume a stopped exec (sets its status to ``running``)."""
+    async def start(self, id_: str):
+        """Start a stopped exec (sets its status to ``running``)."""
         return await _call_api(
-            "execs.resume",
-            lambda: update_exec_api(
+            "execs.start",
+            lambda: start_exec_api(
                 id_,
                 client=self._client,
-                body=UpdateExecRequest(status=UpdateExecRequestStatus.RUNNING),
+                body=ExecStart(),
             ),
             self._retry,
             context=f"for id {id_!r}",
@@ -389,12 +365,6 @@ class Execs:
 
 
 class Ports:
-    """
-    Port operations facade with renamed SSE method.
-
-    - ``stream_ports_list`` → ``stream_list``
-    """
-
     def __init__(
         self,
         sandbox_client: SandboxClient,
@@ -425,8 +395,6 @@ class Ports:
 
 
 class Directories:
-    """Directory operations (list, create, delete)."""
-
     def __init__(
         self,
         sandbox_client: SandboxClient,
@@ -538,7 +506,7 @@ class Sandbox:
 
     @property
     def execs(self) -> Execs:
-        """Shell exec operations (create, get, resume, stream_output, send_stdin, resize, stream_list)."""
+        """Shell exec operations (create, get, start, stream_output, send_stdin, resize, stream_list)."""
         return Execs(self._sandbox_client, retry=self._retry)
 
     @property

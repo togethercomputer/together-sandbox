@@ -7,6 +7,7 @@ from .error import Error
 from .exec_delete_response import ExecDeleteResponse
 from .exec_item import ExecItem
 from .exec_list_response import ExecListResponse
+from .exec_start import ExecStart
 from .exec_stdin import ExecStdin
 from .exec_stdin_type import ExecStdinType
 from .exec_stdout import ExecStdout
@@ -33,8 +34,6 @@ from .task_list_response import TaskListResponse
 from .task_preview import TaskPreview
 from .task_restart import TaskRestart
 from .task_status import TaskStatus
-from .update_exec_request import UpdateExecRequest
-from .update_exec_request_status import UpdateExecRequestStatus
 from .watcher_event import WatcherEvent
 from .watcher_event_type import WatcherEventType
 
@@ -46,6 +45,7 @@ __all__ = (
     "ExecDeleteResponse",
     "ExecItem",
     "ExecListResponse",
+    "ExecStart",
     "ExecStdin",
     "ExecStdinType",
     "ExecStdout",
@@ -72,8 +72,6 @@ __all__ = (
     "TaskPreview",
     "TaskRestart",
     "TaskStatus",
-    "UpdateExecRequest",
-    "UpdateExecRequestStatus",
     "WatcherEvent",
     "WatcherEventType",
 )

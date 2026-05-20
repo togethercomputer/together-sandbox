@@ -36,7 +36,7 @@ class TestSandboxExecs:
     async def test_create_and_list_exec(self, sandbox: Sandbox):
         """Test creating an exec and listing it."""
         exec_item = await sandbox.execs.create(
-            command="echo", args=["hello"], autorun=False
+            command="echo", args=["hello"], autostart=False
         )
         exec_list = await sandbox.execs.list()
 
@@ -45,7 +45,7 @@ class TestSandboxExecs:
     async def test_delete_exec(self, sandbox: Sandbox):
         """Test deleting an exec."""
         exec_item = await sandbox.execs.create(
-            command="echo", args=["hello"], autorun=False
+            command="echo", args=["hello"], autostart=False
         )
         await sandbox.execs.delete(exec_item.id)
 
@@ -127,23 +127,23 @@ class TestSandboxExecs:
             timeout=10.0,
         )
 
-    async def test_exec_autorun_false(self, sandbox: Sandbox):
-        """Test that exec with autorun=False does not run immediately."""
+    async def test_exec_autostart_false(self, sandbox: Sandbox):
+        """Test that exec with autostart=False does not run immediately."""
         exec_item = await sandbox.execs.create(
-            command="sleep", args=["5"], autorun=False
+            command="sleep", args=["5"], autostart=False
         )
         item = await sandbox.execs.get(exec_item.id)
         assert item.status != "running"
 
-    async def test_resume_exec(self, sandbox: Sandbox):
-        """Test resuming a stopped exec (sets its status to running)."""
+    async def test_start_exec(self, sandbox: Sandbox):
+        """Test starting a created exec with autostart=False (sets its status to running)."""
         exec_item = await sandbox.execs.create(
-            command="sleep", args=["5"], autorun=False
+            command="sleep", args=["5"], autostart=False
         )
         item = await sandbox.execs.get(exec_item.id)
         assert item.status != "running"
 
-        await sandbox.execs.resume(exec_item.id)
+        await sandbox.execs.start(exec_item.id)
 
         await retry_until(
             fn=lambda: sandbox.execs.get(exec_item.id),

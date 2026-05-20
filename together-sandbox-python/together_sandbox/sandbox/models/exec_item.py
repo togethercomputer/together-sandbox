@@ -23,8 +23,8 @@ class ExecItem:
         interactive (bool): Whether the exec is interactive
         pty (bool): Whether the exec is using a pty
         exit_code (int): Exit code of the process (only present when process has exited)
-        uid (int | Unset): User ID the command runs as
-        gid (int | Unset): Group ID the command runs as
+        user (str | Unset): User the command runs as, in "uid[:gid]" form. Omitted when no explicit
+            credentials are set on the exec.
     """
 
     id: str
@@ -35,8 +35,7 @@ class ExecItem:
     interactive: bool
     pty: bool
     exit_code: int
-    uid: int | Unset = UNSET
-    gid: int | Unset = UNSET
+    user: str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -56,9 +55,7 @@ class ExecItem:
 
         exit_code = self.exit_code
 
-        uid = self.uid
-
-        gid = self.gid
+        user = self.user
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -74,10 +71,8 @@ class ExecItem:
                 "exitCode": exit_code,
             }
         )
-        if uid is not UNSET:
-            field_dict["uid"] = uid
-        if gid is not UNSET:
-            field_dict["gid"] = gid
+        if user is not UNSET:
+            field_dict["user"] = user
 
         return field_dict
 
@@ -100,9 +95,7 @@ class ExecItem:
 
         exit_code = d.pop("exitCode")
 
-        uid = d.pop("uid", UNSET)
-
-        gid = d.pop("gid", UNSET)
+        user = d.pop("user", UNSET)
 
         exec_item = cls(
             id=id,
@@ -113,8 +106,7 @@ class ExecItem:
             interactive=interactive,
             pty=pty,
             exit_code=exit_code,
-            uid=uid,
-            gid=gid,
+            user=user,
         )
 
         exec_item.additional_properties = d
