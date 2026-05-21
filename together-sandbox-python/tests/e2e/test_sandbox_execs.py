@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 
 import pytest
 
@@ -58,7 +57,7 @@ class TestSandboxExecs:
 
         await retry_until(
             fn=lambda: sandbox.execs.get_output(exec_item.id),
-            predicate=lambda r: any("hello" in item.output for item in r),
+            predicate=lambda r: "hello" in r["output"],
             timeout=10.0,
         )
 
@@ -68,7 +67,7 @@ class TestSandboxExecs:
 
         await retry_until(
             fn=lambda: sandbox.execs.get_output(exec_item.id),
-            predicate=lambda r: any(item.exit_code == 42 for item in r),
+            predicate=lambda r: r["exit_code"] == 42,
             timeout=10.0,
         )
 
@@ -76,13 +75,20 @@ class TestSandboxExecs:
         """Test distinguishing stdout vs stderr output types."""
         exec_item = await sandbox.execs.create(command="echo", args=["hello"])
 
-        await retry_until(
-            fn=lambda: sandbox.execs.get_output(exec_item.id),
-            predicate=lambda r: any(
-                "hello" in item.output and ExecStdoutType.STDOUT in item.type_
-                for item in r
-            ),
-            timeout=10.0,
+        async def collect_events() -> list[dict]:
+            events: list[dict] = []
+            async for event in sandbox.execs.stream_output(exec_item.id):
+                events.append(event)
+                if isinstance(event.get("exitCode"), int):
+                    break
+            return events
+
+        async with asyncio.timeout(10):
+            events = await collect_events()
+
+        assert any(
+            "hello" in event["output"] and event["type"] == ExecStdoutType.STDOUT.value
+            for event in events
         )
 
     async def test_exec_with_cwd(self, sandbox: Sandbox):
@@ -91,10 +97,9 @@ class TestSandboxExecs:
         exec_item = await sandbox.execs.create(
             command="pwd", args=[], cwd="/exec-cwd-test"
         )
-
         await retry_until(
             fn=lambda: sandbox.execs.get_output(exec_item.id),
-            predicate=lambda r: any("/exec-cwd-test" in item.output for item in r),
+            predicate=lambda r: "/exec-cwd-test" in r["output"],
             timeout=10.0,
         )
 
@@ -105,10 +110,9 @@ class TestSandboxExecs:
             args=["-c", "echo $MY_VAR"],
             env={"MY_VAR": "test_value"},
         )
-
         await retry_until(
             fn=lambda: sandbox.execs.get_output(exec_item.id),
-            predicate=lambda r: any("test_value" in item.output for item in r),
+            predicate=lambda r: "test_value" in r["output"],
             timeout=10.0,
         )
 
@@ -117,12 +121,10 @@ class TestSandboxExecs:
         exec_item = await sandbox.execs.create(
             command="echo", args=["one", "two", "three"]
         )
-
         await retry_until(
             fn=lambda: sandbox.execs.get_output(exec_item.id),
-            predicate=lambda r: any(
-                all(token in item.output for token in ["one", "two", "three"])
-                for item in r
+            predicate=lambda r: all(
+                token in r["output"] for token in ["one", "two", "three"]
             ),
             timeout=10.0,
         )
@@ -150,6 +152,15 @@ class TestSandboxExecs:
             predicate=lambda item: item.status == "RUNNING",
             timeout=10.0,
         )
+
+    async def test_exec(self, sandbox: Sandbox):
+        """Test the convenience exec() method that runs a command and collects output."""
+        result = await sandbox.execs.exec(
+            "sh", ["-c", "echo hello && echo oops >&2 && exit 3"]
+        )
+        assert result["exit_code"] == 3
+        assert "hello" in result["output"]
+        assert "oops" in result["output"]
 
     async def test_stream_output(self, sandbox: Sandbox):
         """Test streaming exec output via SSE."""
@@ -186,9 +197,8 @@ class TestSandboxExecs:
         await sandbox.execs.send_stdin(exec_item.id, "hello stdin\n")
         # Small delay to let the process respond
         await asyncio.sleep(0.5)
-
         await retry_until(
             fn=lambda: sandbox.execs.get_output(exec_item.id),
-            predicate=lambda r: any("hello stdin" in item.output for item in r),
+            predicate=lambda r: "hello stdin" in r["output"],
             timeout=10.0,
         )

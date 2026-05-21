@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, TypedDict
 from types import TracebackType
 
 # ── Management API client ─────────────────────────────────────────────────────
@@ -185,6 +185,16 @@ class Files:
 # ─── Execs facade ─────────────────────────────────────────────────────────────
 
 
+class ExecOutputResult(TypedDict):
+    """Result of polling an exec's output buffer.
+
+    ``exit_code`` is ``None`` if the process is still running when polled.
+    """
+
+    exit_code: int | None
+    output: str
+
+
 class Execs:
     def __init__(
         self,
@@ -259,6 +269,68 @@ class Execs:
             context=f"for id {id_!r}",
         )
 
+    async def exec(
+        self,
+        command: str,
+        args: list[str],
+        *,
+        pty: bool | None = None,
+        cwd: str | None = None,
+        env: dict[str, str] | None = None,
+        user: str | None = None,
+    ) -> dict[str, Any]:
+        """Run a command to completion and return its result.
+
+        Creates an exec with ``autostart=True`` and ``interactive=False``,
+        streams its output via SSE, and waits for the process to exit. Returns
+        a dict with the final exit code and the joined output stream.
+
+        Args:
+            command: Command to execute (e.g. ``"npm"``).
+            args: Command line arguments (e.g. ``["start"]``).
+            pty: Whether to start a PTY shell session.
+            cwd: Working directory for the command.
+            env: Environment variables as a plain dict (e.g. ``{"NODE_ENV": "production"}``).
+            user: ``$USER:$GROUP`` to run the command as (defaults to 1000:1000).
+
+        Returns:
+            A dict with keys ``exit_code`` (``int``) and ``output`` (``str``).
+            ``output`` is the concatenation of all stdout and stderr chunks in
+            arrival order — if you need per-chunk metadata (type, sequence,
+            timestamp), use ``stream_output()`` or ``get_output()`` instead.
+
+        Raises:
+            RuntimeError: If the stream ends without delivering an exit code
+                (e.g. the process was killed externally or the sandbox was
+                shut down mid-run).
+        """
+        exec_item = await self.create(
+            command=command,
+            args=args,
+            autostart=True,
+            interactive=False,
+            pty=pty,
+            cwd=cwd,
+            env=env,
+            user=user,
+        )
+
+        chunks: list[str] = []
+        exit_code: int | None = None
+        async for event in self.stream_output(exec_item.id):
+            chunks.append(event.get("output", ""))
+            if isinstance(event.get("exitCode"), int):
+                exit_code = event["exitCode"]
+                break
+
+        if exit_code is None:
+            raise RuntimeError(
+                f"exec({command!r}) stream ended without an exit code — "
+                "the process may have been killed externally or the sandbox shut down"
+            )
+
+        return {"exit_code": exit_code, "output": "".join(chunks)}
+
     async def start(self, id_: str):
         """Start a stopped exec (sets its status to ``running``)."""
         return await _call_api(
@@ -295,10 +367,28 @@ class Execs:
         )
 
     async def get_output(
-        self, id_: str, last_sequence: int | None = None
-    ) -> ExecStdout:
-        """Fetch exec output as plain text (one-shot poll)."""
-        return await _call_api(
+        self,
+        id_: str,
+        last_sequence: int | None = None,
+    ) -> ExecOutputResult:
+        """Fetch the exec output buffer (one-shot poll).
+
+        Returns the same ``{exit_code, output}`` shape as ``exec()`` — the
+        only difference is that ``exit_code`` may be ``None`` here because
+        the process may still be running when polled. Use ``stream_output()``
+        if you want individual events with per-chunk metadata.
+
+        Args:
+            id_: Exec ID.
+            last_sequence: If provided, only return events with a sequence
+                number greater than this (or before if negative).
+
+        Returns:
+            A dict with keys ``exit_code`` (``int | None``) and ``output``
+            (``str``). ``output`` is the concatenation of all stdout and
+            stderr chunks received so far, in arrival order.
+        """
+        events: list[ExecStdout] = await _call_api(
             "execs.getOutput",
             lambda: get_exec_output_api(
                 id_, client=self._client, last_sequence=last_sequence
@@ -306,6 +396,11 @@ class Execs:
             self._retry,
             context=f"for id {id_!r}",
         )
+        exit_code = next(
+            (e.exit_code for e in events if isinstance(e.exit_code, int)),
+            None,
+        )
+        return {"exit_code": exit_code, "output": "".join(e.output for e in events)}
 
     async def send_stdin(self, id_: str, data: str):
         """Send stdin data to an exec.

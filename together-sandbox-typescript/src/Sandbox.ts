@@ -198,7 +198,7 @@ export class Sandbox {
     };
   }
 
-  /** Shell exec operations (list, create, get, update, delete, streamOutput, sendStdin, streamList). */
+  /** Shell exec operations (list, create, get, start, delete, streamOutput, sendStdin, streamList). */
   get execs() {
     const client = this._sandboxClient;
     return {
@@ -271,8 +271,44 @@ export class Sandbox {
         });
         return result.stream;
       },
+      exec: async (
+        command: string,
+        args: string[],
+        opts?: Omit<
+          Parameters<typeof sandboxApi.createExec>[0]["body"],
+          "command" | "args" | "autostart" | "interactive"
+        >,
+      ) => {
+        const exec = await this.execs.create({
+          ...opts,
+          command,
+          args,
+          autostart: true,
+          interactive: false,
+        });
+
+        const chunks: string[] = [];
+        let exitCode: number | undefined;
+        const stream = await this.execs.streamOutput(exec.id);
+
+        for await (const event of stream) {
+          chunks.push(event.output);
+          if (typeof event.exitCode === "number") {
+            exitCode = event.exitCode;
+            break;
+          }
+        }
+
+        if (exitCode === undefined) {
+          throw new Error(
+            `exec(${command}) stream ended without an exit code — the process may have been killed externally or the sandbox shut down`,
+          );
+        }
+
+        return { exitCode, output: chunks.join("") };
+      },
       getOutput: async (id: string, lastSequence?: number) => {
-        const result = await callApi(
+        const events = await callApi(
           "execs.getOutput",
           () =>
             sandboxApi.getExecOutput({
@@ -282,7 +318,11 @@ export class Sandbox {
             }),
           this._retryConfig,
         );
-        return result;
+        const exitCode = events.find(
+          (e) => typeof e.exitCode === "number",
+        )?.exitCode;
+        const output = events.map((e) => e.output).join("");
+        return { exitCode, output };
       },
       sendStdin: async (
         id: string,

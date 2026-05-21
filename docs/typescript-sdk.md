@@ -373,12 +373,12 @@ const exec = await sandbox.execs.create({
 });
 ```
 
-#### `execs.start(id) -> Exec`
+#### `execs.start(id): Exec`
 
 Start an exec configured with `autostart=false`. Will succeed if in `CREATED` or `RUNNING` state, or returns `409` error.
 
-```python
-const exec = await sandbox.execs.start("exec-id")
+```typescript
+const exec = await sandbox.execs.start("exec-id");
 ```
 
 #### `execs.get(id): Promise<Exec>`
@@ -389,12 +389,27 @@ Get an exec by ID.
 const exec = await sandbox.execs.get("exec-id");
 ```
 
-#### `execs.update(id, body): Promise<Exec>`
+#### `execs.exec(command, args, opts?): Promise<{ exitCode: number; output: string }>`
 
-Update exec status.
+Run a command to completion and return its result. Creates an exec with `autostart: true` and `interactive: false`, streams its output via SSE, and waits for the process to exit. Resolves to an object with the final `exitCode` and the joined output.
+
+The third parameter `opts` accepts the same fields as `execs.create()` minus `command`, `args`, `autostart`, and `interactive` (e.g. `cwd`, `env`, `user`, `pty`).
+
+Returned object shape:
+
+- `exitCode` (`number`) — the process's exit code. Guaranteed to be present; if the stream ends without an exit code event the promise rejects instead.
+- `output` (`string`) — the concatenation of all stdout and stderr chunks in arrival order. Use `getOutput()` or `streamOutput()` if you need per-chunk metadata (type, sequence, timestamp).
+
+Throws if the stream ends without delivering an exit code (e.g. the process was killed externally or the sandbox was shut down mid-run).
 
 ```typescript
-await sandbox.execs.update("exec-id", { status: "stopped" });
+const result = await sandbox.execs.exec("sh", [
+  "-c",
+  "echo hello && echo oops >&2 && exit 3",
+]);
+
+console.log(result.exitCode); // 3
+console.log(result.output); // "hello\noops\n" — stdout and stderr interleaved by arrival order
 ```
 
 #### `execs.delete(id): Promise<void>`
@@ -413,12 +428,23 @@ Stream exec output via SSE. Optionally provide `lastSequence` to resume from a s
 const stream = await sandbox.execs.streamOutput("exec-id");
 ```
 
-#### `execs.getOutput(id, lastSequence?): Promise<ExecOutput>`
+#### `execs.getOutput(id, lastSequence?): Promise<{ exitCode?: number; output: ExecStdout[] }>`
 
-One-shot poll for exec output (non-streaming).
+One-shot poll for the exec output buffer (non-streaming). Returns the same `{ exitCode, output }` shape as `execs.exec()` — the only difference is that `exitCode` may be `undefined` here because the process may still be running when polled, and `output` is the per-event array rather than a joined string. Use `streamOutput()` if you want individual events as they arrive.
+
+Returned object shape:
+
+- `exitCode` (`number` or `undefined`) — the process's exit code, or `undefined` if the process hasn't exited yet.
+- `output` (`ExecStdout[]`) — output events received so far, in arrival order. Each event has `type`, `output`, `sequence`, and optionally `timestamp` and `exitCode`.
 
 ```typescript
-const output = await sandbox.execs.getOutput("exec-id");
+const result = await sandbox.execs.getOutput("exec-id");
+if (result.exitCode !== undefined) {
+  console.log(`Process exited with ${result.exitCode}`);
+}
+for (const event of result.output) {
+  console.log(event.output);
+}
 ```
 
 #### `execs.sendStdin(id, body): Promise<void>`
