@@ -19,7 +19,7 @@ pip install "together-sandbox @ git+https://github.com/togethercomputer/together
 
 ## Docs
 
-- [Sanboxes and Snapshots](./docs/sandboxes.md)
+- [Sandboxes and Snapshots](./docs/sandboxes.md)
 - [Harbor Integration Guide](https://github.com/codesandbox/harbor/tree/integrate-with-together-sandbox-sdk#guide)
 - [CLI](./docs/cli.md)
 - [TypeScript SDK](./docs/typescript-sdk.md)

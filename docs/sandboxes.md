@@ -6,7 +6,7 @@ This document explains the core concepts behind Together Sandbox: what sandboxes
 
 ## What is a sandbox?
 
-A sandbox is a virtual machine that runs on Together's infrastructure. You can start one, run code inside it (via shell commands, file operations, and port forwarding), then stop it. By default, sandboxes persist between runs and can be hibernated to continue from where it left off. Sandboxes can optionally be created as **ephemeral**, in which case they can not be hibernated and are automatically deleted when they stop.
+ A sandbox is a virtual machine that runs on Together's infrastructure. You can start one, run code inside it (via shell commands, file operations, and port forwarding), then stop it. By default, sandboxes persist between runs and can be hibernated to continue from where it left off. Sandboxes can optionally be created as **ephemeral**, in which case they cannot be hibernated and are automatically deleted when they stop.
 
 Every sandbox is backed by a **snapshot**.
 
@@ -138,7 +138,7 @@ const result = await sdk.snapshots.create({
   context: "./my-app", // path to build context
   dockerfile: "./my-app/Dockerfile.prod", // optional, defaults to context/Dockerfile
   alias: "my-app@v1", // optional alias
-  onProgress: (event) => console.log(event.step, event.status),
+  onProgress: (event) => console.log(event.step, event.output),
 });
 ```
 
