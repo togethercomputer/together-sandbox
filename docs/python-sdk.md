@@ -161,7 +161,7 @@ sandbox_model = await sdk.sandboxes.create(snapshot_id=result.snapshot_id)
 
 **From a public Docker image:**
 
-Register an existing public Docker image as a snapshot — no local build required.
+The image is pulled and optimized by Together's remote image-builder service (including nydus conversion for fast cold-starts), then registered as a snapshot. No local Docker installation is required.
 
 ```python
 from together_sandbox import CreateImageSnapshotParams

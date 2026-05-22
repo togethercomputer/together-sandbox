@@ -1,3 +1,6 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import * as api from "./api-clients/api/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { isLocalEnvironment } from "./configuration.js";
@@ -8,6 +11,7 @@ import {
   isDockerAvailable,
   pushDockerImage,
 } from "./docker.js";
+import { RemoteImageBuilderClient } from "./RemoteImageBuilder.js";
 import { randomUUID } from "crypto";
 import type { RetryConfig } from "./types.js";
 import {
@@ -44,6 +48,8 @@ export type CreateImageSnapshotParams = {
   image: string;
   alias?: string;
   onProgress?: (event: SnapshotProgress) => void;
+  /** @internal */
+  memorySnapshot?: boolean;
 };
 export type CreateSnapshotParams =
   | CreateContextSnapshotParams
@@ -84,6 +90,7 @@ export class SnapshotsNamespace {
   constructor(
     private readonly _apiClient: ApiClient,
     private readonly _baseUrl: string,
+    private readonly _apiKey: string,
     private readonly _retryConfig?: RetryConfig,
   ) {}
 
@@ -182,74 +189,287 @@ export class SnapshotsNamespace {
    * `shouldRetry: ({ operation }) => operation !== 'snapshots.create'`
    */
   async create(params: CreateSnapshotParams): Promise<CreateSnapshotResult> {
-    if ("context" in params) {
-      // Build from context
+    // Build from context — defaults to the remote image-builder service.
+    // Set `TOGETHER_LOCAL_BUILD=1` to fall back to the legacy local Docker
+    // build + push flow (`_buildAndRegister`), which mirrors the Python SDK.
+    let result: { image: string; architecture: "amd64" | "arm64" };
+    if ("context" in params && process.env.TOGETHER_LOCAL_BUILD === "1") {
       const dockerAvailable = await isDockerAvailable();
       if (!dockerAvailable) {
-        console.error(
-          "Docker is not available. Please install Docker to use beta build mode.",
+        throw new Error(
+          "Docker is not available. Please install Docker to use local build mode (TOGETHER_LOCAL_BUILD=1).",
         );
-        process.exit(1);
       }
-
-      return this._buildAndRegister(params);
+      result = await this._buildAndRegister(params);
+    } else if ("context" in params) {
+      result = await this._buildRemotely(params);
     } else {
-      // Create from image
+      result = await this._buildRemotelyFromImage(params);
+    }
+
+    params.onProgress?.({
+      step: "register",
+      output: "Registering snapshot...",
+    });
+    const snapshotData = await callApi(
+      "snapshots.create",
+      () =>
+        api.createSnapshot({
+          client: this._apiClient,
+          body: { image: result.image, architecture: result.architecture },
+        }),
+      this._retryConfig,
+    );
+
+    let snapshotId = snapshotData.id;
+
+    if (params.memorySnapshot) {
+      // Create a memory snapshot from a sandbox
       params.onProgress?.({
-        step: "register",
-        output: "Registering snapshot...",
+        step: "memory-snapshot",
+        output: "Creating sandbox...",
       });
 
-      const snapshotData = await callApi(
-        "snapshots.create",
+      const sandboxResult = await callApi(
+        "snapshots.createSandboxForMemorySnapshot",
         () =>
-          api.createSnapshot({
-            client: this._apiClient,
-            body: { image: params.image, architecture: "amd64" },
+          api.createSandbox({
+            body: {
+              snapshot_id: snapshotData.id,
+              ephemeral: true,
+              millicpu: DEFAULT_MILLICPU,
+              memory_bytes: DEFAULT_MEMORY_BYTES,
+              disk_bytes: DEFAULT_DISK_BYTES,
+            },
           }),
         this._retryConfig,
       );
 
-      // Create alias if needed
-      if (params.alias) {
-        const alias = params.alias;
+      params.onProgress?.({
+        step: "memory-snapshot",
+        output: "Starting sandbox...",
+      });
+      await callApi(
+        "snapshots.startSandboxForMemorySnapshot",
+        () =>
+          api.startSandbox({
+            client: this._apiClient,
+            path: { id: sandboxResult.id },
+          }),
+        this._retryConfig,
+      );
 
-        params.onProgress?.({
-          step: "alias",
-          output: "Creating alias...",
-        });
+      params.onProgress?.({
+        step: "memory-snapshot",
+        output: "Waiting for sandbox to initialize...",
+      });
+      await sleep(10000);
 
-        await callApi(
-          "snapshots.alias",
-          () =>
-            api.aliasSnapshot({
-              client: this._apiClient,
-              path: { snapshot_id: snapshotData.id },
-              body: { alias },
-            }),
-          this._retryConfig,
+      params.onProgress?.({
+        step: "memory-snapshot",
+        output: "Hibernating sandbox...",
+      });
+      const stopResult = await callApi(
+        "snapshots.stopSandboxForMemorySnapshot",
+        () =>
+          api.stopSandbox({
+            client: this._apiClient,
+            path: { id: sandboxResult.id },
+            body: { stop_type: "hibernate" },
+          }),
+        this._retryConfig,
+      );
+
+      if (stopResult.stop_reason !== "hibernated") {
+        throw new Error(
+          "Could not create memory snapshot, Sandbox was not hibernated",
         );
       }
+      params.onProgress?.({
+        step: "memory-snapshot",
+        output: "Retrieving snapshot...",
+      });
+      const versionResult = await callApi(
+        "snapshots.getSandboxVersionForMemorySnapshot",
+        () =>
+          api.getSandboxVersionByNumber({
+            path: {
+              sandbox_id: sandboxResult.id,
+              number: stopResult.current_version_number,
+            },
+          }),
+        this._retryConfig,
+      );
+      const snapshot = await callApi(
+        "snapshots.getMemorySnapshot",
+        () =>
+          api.getSnapshot({
+            client: this._apiClient,
 
-      return {
-        snapshotId: snapshotData.id,
-        alias: params.alias,
-      };
+            path: { id: versionResult.id },
+          }),
+        this._retryConfig,
+      );
+
+      snapshotId = snapshot.id;
     }
+
+    // Create alias if needed
+    if (params.alias) {
+      const alias = params.alias;
+
+      params.onProgress?.({
+        step: "alias",
+        output: "Creating alias...",
+      });
+
+      await callApi(
+        "snapshots.alias",
+        () =>
+          api.aliasSnapshot({
+            client: this._apiClient,
+            path: { snapshot_id: snapshotId },
+            body: { alias },
+          }),
+        this._retryConfig,
+      );
+    }
+
+    return {
+      snapshotId,
+      alias: params.alias,
+    };
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────
+  /**
+   * Build a Docker image from a public image reference via the remote
+   * image-builder service.
+   *
+   * Creates a temporary directory named after the image (so `_buildRemotely`
+   * derives a meaningful image name from `path.basename(contextDir)`) and
+   * writes a single-line Dockerfile of the form `FROM <image>` into it. The
+   * temp directory is removed on exit regardless of build outcome.
+   */
+  private async _buildRemotelyFromImage(
+    params: CreateImageSnapshotParams,
+  ): Promise<{ image: string; architecture: "amd64" | "arm64" }> {
+    // Derive a folder name from the image's last path component, stripped of
+    // any tag/digest. e.g. "ghcr.io/foo/bar:latest" -> "bar",
+    // "node:22" -> "node". The fallback to "image" guards against
+    // pathological inputs that strip to an empty string.
+    const lastSegment = params.image.split("/").pop() ?? "";
+    const imageNameSlug =
+      lastSegment
+        .split("@")[0]
+        .split(":")[0]
+        .toLowerCase()
+        .replace(/_/g, "-") || "image";
+
+    const tmpParent = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "together-sandbox-"),
+    );
+    const contextDir = path.join(tmpParent, imageNameSlug);
+    try {
+      await fs.promises.mkdir(contextDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(contextDir, "Dockerfile"),
+        `FROM ${params.image}\n`,
+      );
+
+      return await this._buildRemotely({
+        context: contextDir,
+        alias: params.alias,
+        onProgress: params.onProgress,
+        memorySnapshot: params.memorySnapshot,
+      });
+    } finally {
+      await fs.promises.rm(tmpParent, { recursive: true, force: true });
+    }
+  }
+  /**
+   * Build a Docker image using the remote image-builder service.
+   *
+   * Mirrors the Python SDK's `_build_image_remotely`: derives the
+   * image-builder URL from the configured base URL by replacing
+   * `api.bartender.` or `api.` with `builder.`, uses the SDK's API key as the
+   * auth token, and returns the image reference and architecture that should
+   * be passed to `snapshots.create`.
+   */
+  private async _buildRemotely(
+    params: CreateContextSnapshotParams,
+  ): Promise<{ image: string; architecture: "amd64" | "arm64" }> {
+    const ibApiUrl = this._baseUrl
+      .replace("api.bartender.", "builder.")
+      .replace("api.", "builder.");
+
+    const contextDir = path.resolve(params.context);
+    const dockerfilePath = params.dockerfile
+      ? path.resolve(params.dockerfile)
+      : path.join(contextDir, "Dockerfile");
+    const dockerfileRel = path.relative(contextDir, dockerfilePath);
+
+    const imageNameSlug = path
+      .basename(contextDir)
+      .toLowerCase()
+      .replace(/_/g, "-");
+    const imageTag = String(Math.floor(Date.now() / 1000));
+
+    // The server derives the namespace from the auth token; pass name:tag only.
+    const imageRef = `${imageNameSlug}:${imageTag}`;
+
+    const emit = (output: string) =>
+      params.onProgress?.({ step: "build", output: stripAnsiCodes(output) });
+
+    const ibClient = new RemoteImageBuilderClient({
+      apiUrl: ibApiUrl,
+      token: this._apiKey,
+      logger: {
+        debug: emit,
+        warning: emit,
+      },
+    });
+
+    params.onProgress?.({
+      step: "prepare",
+      output: "Starting remote build ...",
+    });
+    const imageRefStr = await ibClient.build({
+      contextDir,
+      imageName: imageRef,
+      dockerfile: dockerfileRel,
+      nydus: true,
+    });
+
+    const archEnv = process.env.TOGETHER_REMOTE_ARCHITECTURE;
+    let architecture: "amd64" | "arm64";
+    if (archEnv) {
+      if (archEnv !== "amd64" && archEnv !== "arm64") {
+        throw new Error(
+          `Invalid TOGETHER_REMOTE_ARCHITECTURE=${JSON.stringify(archEnv)}; ` +
+            `expected one of: ["amd64","arm64"]`,
+        );
+      }
+      architecture = archEnv;
+    } else {
+      architecture = "amd64";
+    }
+
+    return {
+      image: imageRefStr,
+      architecture,
+    };
+  }
 
   private async _buildAndRegister(
     params: CreateContextSnapshotParams,
-  ): Promise<CreateSnapshotResult> {
+  ): Promise<{ image: string; architecture: "amd64" | "arm64" }> {
     const architecture: "amd64" | "arm64" =
       process.arch === "arm64" && isLocalEnvironment(this._baseUrl)
         ? "arm64"
         : "amd64";
     const dockerfilePath = params.dockerfile;
     const context = params.context;
-    const apiClient = this._apiClient;
 
     const credential = await callApi(
       "snapshots.issueContainerRegistryCredential",
@@ -318,137 +538,9 @@ export class SnapshotsNamespace {
       },
     );
 
-    params.onProgress?.({
-      step: "register",
-      output: "Registering snapshot...",
-    });
-    const snapshotData = await callApi(
-      "snapshots.create",
-      () =>
-        api.createSnapshot({
-          client: apiClient,
-          body: { image: fullImageName, architecture },
-        }),
-      this._retryConfig,
-    );
-
-    let snapshotId = snapshotData.id;
-
-    if (params.memorySnapshot) {
-      // Create a memory snapshot from a sandbox
-      params.onProgress?.({
-        step: "memory-snapshot",
-        output: "Creating sandbox...",
-      });
-
-      const sandboxResult = await callApi(
-        "snapshots.createSandboxForMemorySnapshot",
-        () =>
-          api.createSandbox({
-            body: {
-              snapshot_id: snapshotData.id,
-              ephemeral: true,
-              millicpu: DEFAULT_MILLICPU,
-              memory_bytes: DEFAULT_MEMORY_BYTES,
-              disk_bytes: DEFAULT_DISK_BYTES,
-            },
-          }),
-        this._retryConfig,
-      );
-
-      params.onProgress?.({
-        step: "memory-snapshot",
-        output: "Starting sandbox...",
-      });
-      await callApi(
-        "snapshots.startSandboxForMemorySnapshot",
-        () =>
-          api.startSandbox({
-            client: apiClient,
-            path: { id: sandboxResult.id },
-          }),
-        this._retryConfig,
-      );
-
-      params.onProgress?.({
-        step: "memory-snapshot",
-        output: "Waiting for sandbox to initialize...",
-      });
-      await sleep(10000);
-
-      params.onProgress?.({
-        step: "memory-snapshot",
-        output: "Hibernating sandbox...",
-      });
-      const stopResult = await callApi(
-        "snapshots.stopSandboxForMemorySnapshot",
-        () =>
-          api.stopSandbox({
-            client: apiClient,
-            path: { id: sandboxResult.id },
-            body: { stop_type: "hibernate" },
-          }),
-        this._retryConfig,
-      );
-
-      if (stopResult.stop_reason !== "hibernated") {
-        throw new Error(
-          "Could not create memory snapshot, Sandbox was not hibernated",
-        );
-      }
-      params.onProgress?.({
-        step: "memory-snapshot",
-        output: "Retrieving snapshot...",
-      });
-      const versionResult = await callApi(
-        "snapshots.getSandboxVersionForMemorySnapshot",
-        () =>
-          api.getSandboxVersionByNumber({
-            path: {
-              sandbox_id: sandboxResult.id,
-              number: stopResult.current_version_number,
-            },
-          }),
-        this._retryConfig,
-      );
-      const snapshot = await callApi(
-        "snapshots.getMemorySnapshot",
-        () =>
-          api.getSnapshot({
-            client: apiClient,
-
-            path: { id: versionResult.id },
-          }),
-        this._retryConfig,
-      );
-
-      snapshotId = snapshot.id;
-    }
-
-    // Create alias if needed
-    if (params.alias) {
-      const alias = params.alias;
-
-      params.onProgress?.({
-        step: "alias",
-        output: "Creating alias...",
-      });
-
-      await callApi(
-        "snapshots.alias",
-        () =>
-          api.aliasSnapshot({
-            client: apiClient,
-            path: { snapshot_id: snapshotId },
-            body: { alias },
-          }),
-        this._retryConfig,
-      );
-    }
-
     return {
-      snapshotId,
-      alias: params.alias,
+      image: fullImageName,
+      architecture,
     };
   }
 }
