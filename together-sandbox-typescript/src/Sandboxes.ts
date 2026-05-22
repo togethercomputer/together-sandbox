@@ -11,6 +11,7 @@ import {
   type RetryConfig,
 } from "./types.js";
 import { camelCaseKeys, callApi } from "./utils.js";
+import { describeLifecycleFailure } from "./lifecycle.js";
 
 /**
  * Extract the agent connection details from the Sandbox model.
@@ -43,7 +44,7 @@ export class SandboxesNamespace {
    */
   async create(params: CreateSandboxParams): Promise<SandboxInfo> {
     const data = await callApi(
-      "createSandbox",
+      "api.createSandbox",
       () =>
         api.createSandbox({
           client: this._apiClient,
@@ -73,7 +74,7 @@ export class SandboxesNamespace {
         : undefined;
 
     await callApi(
-      "startSandbox",
+      "api.startSandbox",
       () =>
         api.startSandbox({
           client: this._apiClient,
@@ -84,7 +85,7 @@ export class SandboxesNamespace {
     );
 
     const waitResult = await callApi(
-      "waitForSandbox",
+      "api.waitForSandbox",
       () =>
         api.waitForSandbox({
           client: this._apiClient,
@@ -94,9 +95,7 @@ export class SandboxesNamespace {
     );
 
     if (waitResult.status !== "running") {
-      throw new Error(
-        `Sandbox did not reach its running state, it is ${waitResult.status}, please try again`,
-      );
+      throw new Error(describeLifecycleFailure(waitResult, "running"));
     }
 
     const finalData = camelCaseKeys(waitResult);
@@ -124,7 +123,7 @@ export class SandboxesNamespace {
    */
   async hibernate(sandboxId: string): Promise<void> {
     await callApi(
-      "stopSandbox",
+      "api.stopSandbox",
       () =>
         api.stopSandbox({
           client: this._apiClient,
@@ -134,7 +133,7 @@ export class SandboxesNamespace {
       this._retryConfig,
     );
     const waitResult = await callApi(
-      "waitForSandbox",
+      "api.waitForSandbox",
       () =>
         api.waitForSandbox({
           client: this._apiClient,
@@ -144,9 +143,7 @@ export class SandboxesNamespace {
     );
 
     if (waitResult.status !== "stopped") {
-      throw new Error(
-        `Sandbox did not reach its stopped state, it is ${waitResult.status}, please try again`,
-      );
+      throw new Error(describeLifecycleFailure(waitResult, "stopped"));
     }
   }
 
@@ -155,7 +152,7 @@ export class SandboxesNamespace {
    */
   async shutdown(sandboxId: string): Promise<void> {
     await callApi(
-      "stopSandbox",
+      "api.stopSandbox",
       () =>
         api.stopSandbox({
           client: this._apiClient,
@@ -165,7 +162,7 @@ export class SandboxesNamespace {
       this._retryConfig,
     );
     const waitResult = await callApi(
-      "waitForSandbox",
+      "api.waitForSandbox",
       () =>
         api.waitForSandbox({
           client: this._apiClient,
@@ -175,9 +172,7 @@ export class SandboxesNamespace {
     );
 
     if (waitResult.status !== "stopped") {
-      throw new Error(
-        `Sandbox did not reach its stopped state, it is ${waitResult.status}, please try again`,
-      );
+      throw new Error(describeLifecycleFailure(waitResult, "stopped"));
     }
   }
 }

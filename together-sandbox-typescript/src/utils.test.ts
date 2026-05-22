@@ -582,7 +582,7 @@ describe("callApi", () => {
       expect(err).toBeInstanceOf(HttpError);
       expect((err as HttpError).status).toBe(404);
       expect((err as HttpError).message).toBe(
-        "Failed to getSandbox: sandbox not found (code: NOT_FOUND)",
+        "Failed to getSandbox: sandbox not found (code: NOT_FOUND)\nHint: Sandbox does not exist. List active sandboxes with sdk.sandboxes.list().",
       );
     });
 
@@ -604,7 +604,7 @@ describe("callApi", () => {
       expect(err).toBeInstanceOf(HttpError);
       expect((err as HttpError).status).toBe(404);
       expect((err as HttpError).message).toBe(
-        "Failed to files.read: file not found (code: 404)",
+        "Failed to files.read: file not found (code: 404)\nHint: Resource not found. Verify the ID or alias and retry.",
       );
     });
 
@@ -664,7 +664,7 @@ describe("callApi", () => {
       ).catch((e) => e);
 
       expect((err as HttpError).message).toBe(
-        "Failed to files.read for sandbox 'abc123': not found (code: NOT_FOUND)",
+        "Failed to files.read for sandbox 'abc123': not found (code: NOT_FOUND)\nHint: Resource not found. Verify the ID or alias and retry.",
       );
     });
 
@@ -687,7 +687,7 @@ describe("callApi", () => {
       ).catch((e) => e);
 
       expect((err as HttpError).message).toBe(
-        "Failed to execs.create for sandbox 'abc123': exec failed (code: 500)",
+        "Failed to execs.create for sandbox 'abc123': exec failed (code: 500)\nHint: Together backend error. Retry; if it persists, report the issue with the full request body.",
       );
     });
 

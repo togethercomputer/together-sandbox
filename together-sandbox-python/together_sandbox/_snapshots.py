@@ -114,7 +114,7 @@ class SnapshotsNamespace:
     async def alias(self, snapshot_id: str, alias: str) -> None:
         """Create an alias for an existing snapshot"""
         await _call_api(
-            "snapshots.alias",
+            "api.alias_snapshot",
             lambda: alias_snapshot_api(
                 UUID(snapshot_id),
                 client=self._api_client,
@@ -154,7 +154,7 @@ class SnapshotsNamespace:
             _emit("register", "Registering snapshot...")
 
             snapshot_data = await _call_api(
-                "snapshots.create",
+                "api.create_snapshot",
                 lambda: create_snapshot_api(
                     client=self._api_client,
                     body=CreateSnapshotBody(
@@ -171,7 +171,7 @@ class SnapshotsNamespace:
                 alias = params.alias
                 _emit("alias", "Creating alias...")
                 await _call_api(
-                    "snapshots.alias",
+                    "api.alias_snapshot",
                     lambda: alias_snapshot_api(
                         snapshot_data.id,
                         client=self._api_client,
@@ -190,7 +190,7 @@ class SnapshotsNamespace:
 
             _emit("register", "Creating snapshot from image...")
             snapshot_data = await _call_api(
-                "snapshots.create",
+                "api.create_snapshot",
                 lambda: create_snapshot_api(
                     client=self._api_client,
                     body=CreateSnapshotBody(
@@ -207,7 +207,7 @@ class SnapshotsNamespace:
                 alias = params.alias
                 _emit("alias", "Creating alias...")
                 await _call_api(
-                    "snapshots.alias",
+                    "api.alias_snapshot",
                     lambda: alias_snapshot_api(
                         snapshot_data.id,
                         client=self._api_client,
@@ -239,7 +239,7 @@ class SnapshotsNamespace:
             >>> print(snapshot.byte_size)
         """
         return await _call_api(
-            "snapshots.getById",
+            "api.get_snapshot",
             lambda: get_snapshot_api(UUID(id), client=self._api_client),
             self._retry,
             context=f"for id {id!r}",
@@ -265,7 +265,7 @@ class SnapshotsNamespace:
             >>> print(snapshot.byte_size)
         """
         return await _call_api(
-            "snapshots.getByAlias",
+            "api.get_snapshot_by_alias",
             lambda: get_snapshot_by_alias_api(
                 alias,
                 client=self._api_client,
@@ -291,7 +291,7 @@ class SnapshotsNamespace:
             ...     print(snapshot.id)
         """
         return await _call_api(
-            "snapshots.list",
+            "api.list_snapshots",
             lambda: list_snapshots_api(client=self._api_client),
             self._retry,
         )
@@ -307,7 +307,7 @@ class SnapshotsNamespace:
             RuntimeError: If the API request fails
         """
         await _call_api(
-            "snapshots.deleteById",
+            "api.delete_snapshot",
             lambda: delete_snapshot_api(UUID(id), client=self._api_client),
             self._retry,
             context=f"for snapshot {id!r}",
@@ -327,7 +327,7 @@ class SnapshotsNamespace:
         clean_alias = alias.lstrip("@")
 
         await _call_api(
-            "snapshots.deleteByAlias",
+            "api.delete_snapshoht_by_alias",
             lambda: delete_snapshot_by_alias_api(
                 clean_alias,
                 client=self._api_client,
@@ -431,7 +431,7 @@ class SnapshotsNamespace:
         )
 
         credential: ContainerRegistryCredential = await _call_api(
-            "snapshots.issueContainerRegistryCredential",
+            "api.issue_container_registry_credential",
             lambda: issue_container_registry_credential_api(client=self._api_client),
             self._retry,
         )

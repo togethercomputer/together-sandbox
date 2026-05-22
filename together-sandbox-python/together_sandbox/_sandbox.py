@@ -61,6 +61,7 @@ from ._streaming import stream_sse_json
 
 # ── Utils ─────────────────────────────────────────────────────
 from ._utils import RetryConfig, _call_api
+from ._lifecycle import describe_lifecycle_failure
 
 
 class Files:
@@ -76,7 +77,7 @@ class Files:
     async def read(self, path: str) -> str:
         """Read file content at the specified path."""
         result = await _call_api(
-            "files.read",
+            "sandbox.read_file",
             lambda: read_file_api(path, client=self._client),
             self._retry,
             context=f"for path {path!r}",
@@ -102,7 +103,7 @@ class Files:
         # Create a File object with binary content
         file_obj = File(payload=content_bytes)
         result = await _call_api(
-            "files.create",
+            "sandbox.create_file",
             lambda: create_file_api(path, client=self._client, body=file_obj),
             self._retry,
             context=f"for path {path!r}",
@@ -112,7 +113,7 @@ class Files:
     async def delete(self, path: str) -> None:
         """Delete a file at the specified path."""
         await _call_api(
-            "files.delete",
+            "sandbox.delete_file",
             lambda: delete_file_api(path, client=self._client),
             self._retry,
             context=f"for path {path!r}",
@@ -121,7 +122,7 @@ class Files:
     async def move(self, from_path: str, to_path: str) -> None:
         """Move a file from one path to another."""
         await _call_api(
-            "files.move",
+            "sandbox.move_file",
             lambda: perform_file_action_api(
                 from_path,
                 client=self._client,
@@ -137,7 +138,7 @@ class Files:
     async def copy(self, from_path: str, to_path: str) -> None:
         """Copy a file from one path to another."""
         await _call_api(
-            "files.copy",
+            "sandbox.copy_file",
             lambda: perform_file_action_api(
                 from_path,
                 client=self._client,
@@ -153,7 +154,7 @@ class Files:
     async def stat(self, path: str) -> FileInfo:
         """Get file metadata at the specified path."""
         return await _call_api(
-            "files.stat",
+            "sandbox.get_file_stat",
             lambda: get_file_stat_api(path, client=self._client),
             self._retry,
             context=f"for path {path!r}",
@@ -208,7 +209,7 @@ class Execs:
     async def list(self):
         """List all active execs."""
         result = await _call_api(
-            "execs.list",
+            "sandbox.list_execs",
             lambda: list_execs_api(client=self._client),
             self._retry,
         )
@@ -252,7 +253,7 @@ class Execs:
             user=user if user is not None else UNSET,
         )
         return await _call_api(
-            "execs.create",
+            "sandbox.create_exec",
             lambda: create_exec_api(client=self._client, body=body),
             self._retry,
         )
@@ -260,7 +261,7 @@ class Execs:
     async def get(self, id_: str):
         """Get exec by ID."""
         return await _call_api(
-            "execs.get",
+            "sandbox.get_exec",
             lambda: get_exec_api(id_, client=self._client),
             self._retry,
             context=f"for id {id_!r}",
@@ -330,7 +331,7 @@ class Execs:
     async def start(self, id_: str):
         """Start a stopped exec (sets its status to ``running``)."""
         return await _call_api(
-            "execs.start",
+            "sandbox.start_exec",
             lambda: start_exec_api(
                 id_,
                 client=self._client,
@@ -343,7 +344,7 @@ class Execs:
     async def delete(self, id_: str) -> None:
         """Delete an exec."""
         await _call_api(
-            "execs.delete",
+            "sandbox.delete_exec",
             lambda: delete_exec_api(id_, client=self._client),
             self._retry,
             context=f"for id {id_!r}",
@@ -385,7 +386,7 @@ class Execs:
             stderr chunks received so far, in arrival order.
         """
         events: list[ExecStdout] = await _call_api(
-            "execs.getOutput",
+            "sandbox.get_exec_output",
             lambda: get_exec_output_api(
                 id_, client=self._client, last_sequence=last_sequence
             ),
@@ -406,7 +407,7 @@ class Execs:
             data: Raw stdin data to send (e.g. ``"ls -la\\n"``).
         """
         return await _call_api(
-            "execs.sendStdin",
+            "sandbox.exec_stdin",
             lambda: exec_exec_stdin_api(
                 id_,
                 client=self._client,
@@ -431,7 +432,7 @@ class Execs:
             agent's expected format and adjust here.
         """
         return await _call_api(
-            "execs.resize",
+            "sandbox.exec_stdin",
             lambda: exec_exec_stdin_api(
                 id_,
                 client=self._client,
@@ -468,7 +469,7 @@ class Ports:
     async def list(self):
         """List open ports."""
         result = await _call_api(
-            "ports.list",
+            "sandbox.list_ports",
             lambda: list_ports_api(client=self._client),
             self._retry,
         )
@@ -498,7 +499,7 @@ class Directories:
     async def list(self, path: str) -> list[FileInfo]:
         """List directory contents."""
         result = await _call_api(
-            "directories.list",
+            "sandbox.list_directory",
             lambda: list_directory_api(path, client=self._client),
             self._retry,
             context=f"for path {path!r}",
@@ -508,7 +509,7 @@ class Directories:
     async def create(self, path: str) -> None:
         """Create a directory."""
         await _call_api(
-            "directories.create",
+            "sandbox.create_directory",
             lambda: create_directory_api(path, client=self._client),
             self._retry,
             context=f"for path {path!r}",
@@ -517,7 +518,7 @@ class Directories:
     async def delete(self, path: str) -> None:
         """Delete a directory."""
         await _call_api(
-            "directories.delete",
+            "sandbox.delete_directory",
             lambda: delete_directory_api(path, client=self._client),
             self._retry,
             context=f"for path {path!r}",
@@ -610,7 +611,7 @@ class Sandbox:
     async def hibernate(self) -> None:
         """Suspend (hibernate) this VM."""
         await _call_api(
-            "sandboxes.hibernate",
+            "api.stop_sandbox",
             lambda: stop_sandbox_api(
                 self.id,
                 client=self._api_client,
@@ -620,20 +621,18 @@ class Sandbox:
             context=f"for sandbox {self.id!r}",
         )
         vm_info: SandboxModel = await _call_api(
-            "sandboxes.wait",
+            "api.wait_for_sandbox",
             lambda: wait_for_sandbox_api(self.id, client=self._api_client),
             self._retry,
             context=f"for sandbox {self.id!r}",
         )
         if vm_info.status != "stopped":
-            raise RuntimeError(
-                f"Failed to hibernate sandbox '{self.id}'. Its final status was {vm_info.status}."
-            )
+            raise RuntimeError(describe_lifecycle_failure(vm_info, "stopped"))
 
     async def shutdown(self) -> None:
         """Shut down this VM."""
         await _call_api(
-            "sandboxes.shutdown",
+            "api.stop_sandbox",
             lambda: stop_sandbox_api(
                 self.id,
                 client=self._api_client,
@@ -643,15 +642,13 @@ class Sandbox:
             context=f"for sandbox {self.id!r}",
         )
         vm_info: SandboxModel = await _call_api(
-            "sandboxes.wait",
+            "api.wait_for_sandbox",
             lambda: wait_for_sandbox_api(self.id, client=self._api_client),
             self._retry,
             context=f"for sandbox {self.id!r}",
         )
         if vm_info.status != "stopped":
-            raise RuntimeError(
-                f"Failed to stop sandbox '{self.id}'. Its final status was {vm_info.status}."
-            )
+            raise RuntimeError(describe_lifecycle_failure(vm_info, "stopped"))
 
     async def close(self) -> None:
         """Close the underlying sandbox client connection."""

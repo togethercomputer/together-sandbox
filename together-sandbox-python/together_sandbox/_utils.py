@@ -6,7 +6,7 @@ import math
 import random
 import re
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, TypeVar
+from typing import Any, Awaitable, Callable, Literal, TypeVar
 
 import httpx
 
@@ -246,6 +246,14 @@ async def _call_api(
     """
     suffix = f" {context}" if context else ""
 
+    # Classify the call target from the operation name. The convention is:
+    #   - ``sandbox.*`` → in-VM sandbox agent
+    #   - ``api.*``     → Together management API (Bartender)
+    # This drives the transport-failure hint without needing a per-call argument.
+    target: Literal["api", "sandbox"] = (
+        "sandbox" if operation.startswith("sandbox.") else "api"
+    )
+
     async def _attempt() -> Any:
         # Wrap transport-level failures (httpx.*) into HttpError(status=0) so
         # all failures surface as a single type. Original exception preserved
@@ -253,18 +261,31 @@ async def _call_api(
         try:
             response = await fn()
         except _NETWORK_ERRORS as exc:
+            # Distinguish timeout from connect for an actionable hint.
+            is_timeout = isinstance(exc, httpx.TimeoutException)
             raise HttpError(
                 f"{operation}{suffix}: {type(exc).__name__}: {exc}",
                 0,
+                body=str(exc),
+                hint=_hint_for(0, operation, target, is_timeout=is_timeout),
             ) from exc
 
         if isinstance(response.parsed, (ApiError, SandboxError)):
             # Documented API error model returned
             status = response.status_code.value
+            parsed = response.parsed
+            details: list[Any] | None = None
+            errors_attr = getattr(parsed, "errors", None)
+            if isinstance(errors_attr, list):
+                details = errors_attr
             raise HttpError(
                 f"Failed to {operation}{suffix}: "
-                f"{response.parsed.message} (code: {response.parsed.code})",
+                f"{parsed.message} (code: {parsed.code})",
                 status,
+                code=str(parsed.code),
+                details=details,
+                body=parsed,
+                hint=_hint_for(status, operation, target),
             )
 
         if response.parsed is None:
@@ -272,10 +293,24 @@ async def _call_api(
             if 200 <= status < 300:
                 # 2xx with no body (e.g. 204 No Content) — documented success
                 return None
-            # Undocumented non-2xx status — no model available
+            # Undocumented non-2xx status — no model available. Preserve the
+            # raw response content so consumers can inspect what came back.
+            raw_body: Any = None
+            content = getattr(response, "content", None)
+            if content is not None:
+                try:
+                    raw_body = (
+                        content.decode("utf-8", errors="replace")
+                        if isinstance(content, (bytes, bytearray))
+                        else content
+                    )
+                except Exception:
+                    raw_body = content
             raise HttpError(
                 f"{operation} returned no response{suffix} (HTTP {status})",
                 status,
+                body=raw_body,
+                hint=_hint_for(status, operation, target),
             )
 
         # Success
@@ -296,6 +331,86 @@ async def _call_api(
         retry_config,
         is_retryable=_is_retryable,
     )
+
+
+# ─── Actionable hint lookup ───────────────────────────────────────────────────
+
+
+def _hint_for(
+    status: int,
+    operation: str,
+    target: Literal["api", "sandbox"],
+    *,
+    is_timeout: bool = False,
+) -> str | None:
+    """Build an actionable recovery hint from the failure context.
+
+    Returns ``None`` when no hint applies — the caller's message stands on
+    its own. Auto-appended to the :class:`HttpError` message via the class
+    constructor and exposed as ``err.hint`` for programmatic branching.
+
+    The hint differentiates between management-API (``api.*``) and in-VM
+    sandbox-agent (``sandbox.*``) targets for transport failures, and gives
+    resource-specific suggestions for 404s.
+
+    Mirrors :func:`hintFor` in the TypeScript SDK (``src/utils.ts``).
+    """
+    # Transport-level failure
+    if status == 0:
+        if target == "sandbox":
+            if is_timeout:
+                return (
+                    "Sandbox did not respond in time. The VM may be "
+                    "unresponsive — call sdk.sandboxes.get(id) to check status."
+                )
+            return (
+                "Could not reach the sandbox agent. The VM may have stopped — "
+                "call sdk.sandboxes.get(id) to check status."
+            )
+        if is_timeout:
+            return (
+                "Request to the Together management API timed out. The "
+                "service may be slow or temporarily unreachable."
+            )
+        return (
+            "Could not reach the Together management API. Check your network "
+            "connection or TOGETHER_BASE_URL."
+        )
+
+    if status == 401:
+        return "Authentication failed. Check your TOGETHER_API_KEY."
+    if status == 403:
+        return (
+            "Authenticated but not authorised for this resource. Verify the "
+            "project_id and API key scope."
+        )
+
+    if status == 404:
+        op_lower = operation.lower()
+        if "snapshot" in op_lower:
+            return (
+                "Snapshot does not exist. List available snapshots with "
+                "sdk.snapshots.list()."
+            )
+        if target == "api" and "sandbox" in op_lower:
+            return (
+                "Sandbox does not exist. List active sandboxes with "
+                "sdk.sandboxes.list()."
+            )
+        return "Resource not found. Verify the ID or alias and retry."
+
+    if status == 429:
+        return (
+            "Rate limited. Back off and retry; see the Retry-After header "
+            "for guidance."
+        )
+    if status >= 500:
+        return (
+            "Together backend error. Retry; if it persists, report the issue "
+            "with the full request body."
+        )
+
+    return None
 
 
 def _resolve_connection(sandbox: SandboxModel) -> tuple[str, str]:
