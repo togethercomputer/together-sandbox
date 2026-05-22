@@ -375,7 +375,7 @@ List all active execs.
 execs = await sandbox.execs.list()
 ```
 
-#### `execs.create(command, args, *, autostart=None, interactive=None, pty=None, cwd=None, env=None, user=None) -> Exec`
+#### `execs.create(command, args, *, autostart=None, pty=None, cwd=None, env=None, user=None) -> Exec`
 
 Create a new exec (run a command).
 
@@ -388,16 +388,15 @@ exec_ = await sandbox.execs.create(
 )
 ```
 
-| Parameter     | Type                     | Required | Description                                                    |
-| ------------- | ------------------------ | -------- | -------------------------------------------------------------- |
-| `command`     | `str`                    | Yes      | Command to execute (e.g. `"npm"`).                             |
-| `args`        | `list[str]`              | Yes      | Command line arguments (e.g. `["install"]`).                   |
-| `autostart`   | `bool \| None`           | No       | Whether to automatically start the exec (defaults to true).    |
-| `interactive` | `bool \| None`           | No       | Whether to start an interactive shell session.                 |
-| `pty`         | `bool \| None`           | No       | Whether to start a PTY shell session.                          |
-| `cwd`         | `str \| None`            | No       | Working directory for the command.                             |
-| `env`         | `dict[str, str] \| None` | No       | Environment variables to set, as a plain dict.                 |
-| `user`        | `str \| None`            | No       | $USER:$GROUP ID to run the command as (defaults to 1000:1000). |
+| Parameter   | Type                     | Required | Description                                                    |
+| ----------- | ------------------------ | -------- | -------------------------------------------------------------- |
+| `command`   | `str`                    | Yes      | Command to execute (e.g. `"npm"`).                             |
+| `args`      | `list[str]`              | Yes      | Command line arguments (e.g. `["install"]`).                   |
+| `autostart` | `bool \| None`           | No       | Whether to automatically start the exec (defaults to true).    |
+| `pty`       | `bool \| None`           | No       | Whether to start a PTY shell session.                          |
+| `cwd`       | `str \| None`            | No       | Working directory for the command.                             |
+| `env`       | `dict[str, str] \| None` | No       | Environment variables to set, as a plain dict.                 |
+| `user`      | `str \| None`            | No       | $USER:$GROUP ID to run the command as (defaults to 1000:1000). |
 
 #### `execs.get(id_) -> Exec`
 
@@ -413,6 +412,25 @@ Start an exec configured with `autostart=False`. Will succeed if in `CREATED` or
 
 ```python
 exec_ = await sandbox.execs.start("exec-id")
+```
+
+#### `execs.exec(command, args, *, pty=None, cwd=None, env=None, user=None) -> dict`
+
+Run a command to completion and return its result. Creates an exec with `autostart=True`, streams its output via SSE, and waits for the process to exit. Returns a dict with the final `exit_code` and the joined output.
+
+Returned dict shape:
+
+- `exit_code` (`int`) — the process's exit code. Guaranteed to be present; if the stream ends without an exit code event the call raises `RuntimeError` instead.
+- `output` (`str`) — the concatenation of all stdout and stderr chunks in arrival order. Use `get_output()` or `stream_output()` if you need per-chunk metadata (type, sequence, timestamp).
+
+Raises `RuntimeError` if the stream ends without delivering an exit code (e.g. the process was killed externally or the sandbox was shut down mid-run).
+
+```python
+result = await sandbox.execs.exec("sh", ["-c", "echo hello && echo oops >&2 && exit 3"])
+
+assert result["exit_code"] == 3
+assert "hello" in result["output"]
+assert "oops" in result["output"]
 ```
 
 #### `execs.delete(id_) -> None`
@@ -432,12 +450,19 @@ async for chunk in sandbox.execs.stream_output("exec-id"):
     print(chunk)
 ```
 
-#### `execs.get_output(id_, last_sequence=None) -> str`
+#### `execs.get_output(id_, last_sequence=None) -> ExecOutputResult`
 
-One-shot poll for exec output (non-streaming).
+One-shot poll for the exec output buffer (non-streaming). Returns the same `{exit_code, output}` shape as `execs.exec()` — the only difference is that `exit_code` may be `None` here because the process may still be running when polled. Use `stream_output()` if you want individual events with per-chunk metadata.
+
+Returned dict shape (a `TypedDict` named `ExecOutputResult`):
+
+- `exit_code` (`int` or `None`) — the process's exit code, or `None` if the process hasn't exited yet.
+- `output` (`str`) — the concatenation of all stdout and stderr chunks received so far, in arrival order.
 
 ```python
-output = await sandbox.execs.get_output("exec-id")
+result = await sandbox.execs.get_output("exec-id")
+if result["exit_code"] is not None:
+    print(f"Process exited with {result['exit_code']}: {result['output']}")
 ```
 
 #### `execs.send_stdin(id_, data: str) -> None`

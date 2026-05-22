@@ -36,6 +36,7 @@ from ._snapshots import (
 from ._sandbox import Sandbox
 from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
 from together_sandbox.sandbox.models.exec_stdout_type import ExecStdoutType
+from together_sandbox.sandbox.models.exec_stdout import ExecStdout
 from ._utils import RetryConfig, RetryContext
 from .errors import HttpError
 
@@ -52,6 +53,7 @@ __all__ = [
     "Snapshot",
     "CreateExecRequest",
     "ExecStdoutType",
+    "ExecStdout",
     "RetryConfig",
     "RetryContext",
     "HttpError",

@@ -13,6 +13,10 @@ export {
   type Config as SandboxApiConfig,
 } from "./api-clients/sandbox/client/index.js";
 
+// Re-export commonly used generated model types so consumers don't need
+// to reach into the `api-clients/` namespace
+export type { ExecStdout } from "./api-clients/sandbox/index.js";
+
 // Unified facade — recommended entry point
 export { TogetherSandbox } from "./TogetherSandbox.js";
 export type {

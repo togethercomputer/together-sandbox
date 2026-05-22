@@ -22,7 +22,6 @@ class CreateExecRequest:
         command (str): Command to execute in the exec
         args (list[str]): Command line arguments
         autostart (bool | Unset): Whether to automatically start the exec (defaults to true)
-        interactive (bool | Unset): Whether to start interactive shell session or not (defaults to false)
         pty (bool | Unset): Whether to start pty shell session or not (defaults to false)
         cwd (str | Unset): Working directory for the command (defaults to workspace directory if not specified)
         env (CreateExecRequestEnv | Unset): Environment variables to set for the command (key-value pairs)
@@ -37,7 +36,6 @@ class CreateExecRequest:
     command: str
     args: list[str]
     autostart: bool | Unset = UNSET
-    interactive: bool | Unset = UNSET
     pty: bool | Unset = UNSET
     cwd: str | Unset = UNSET
     env: CreateExecRequestEnv | Unset = UNSET
@@ -50,8 +48,6 @@ class CreateExecRequest:
         args = self.args
 
         autostart = self.autostart
-
-        interactive = self.interactive
 
         pty = self.pty
 
@@ -73,8 +69,6 @@ class CreateExecRequest:
         )
         if autostart is not UNSET:
             field_dict["autostart"] = autostart
-        if interactive is not UNSET:
-            field_dict["interactive"] = interactive
         if pty is not UNSET:
             field_dict["pty"] = pty
         if cwd is not UNSET:
@@ -97,8 +91,6 @@ class CreateExecRequest:
 
         autostart = d.pop("autostart", UNSET)
 
-        interactive = d.pop("interactive", UNSET)
-
         pty = d.pop("pty", UNSET)
 
         cwd = d.pop("cwd", UNSET)
@@ -116,7 +108,6 @@ class CreateExecRequest:
             command=command,
             args=args,
             autostart=autostart,
-            interactive=interactive,
             pty=pty,
             cwd=cwd,
             env=env,
