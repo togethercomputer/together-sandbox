@@ -375,7 +375,7 @@ List all active execs.
 execs = await sandbox.execs.list()
 ```
 
-#### `execs.create(command, args, *, autostart=None, interactive=None, pty=None, cwd=None, env=None, user=None) -> Exec`
+#### `execs.create(command, args, *, autostart=None, pty=None, cwd=None, env=None, user=None) -> Exec`
 
 Create a new exec (run a command).
 
@@ -388,16 +388,15 @@ exec_ = await sandbox.execs.create(
 )
 ```
 
-| Parameter     | Type                     | Required | Description                                                    |
-| ------------- | ------------------------ | -------- | -------------------------------------------------------------- |
-| `command`     | `str`                    | Yes      | Command to execute (e.g. `"npm"`).                             |
-| `args`        | `list[str]`              | Yes      | Command line arguments (e.g. `["install"]`).                   |
-| `autostart`   | `bool \| None`           | No       | Whether to automatically start the exec (defaults to true).    |
-| `interactive` | `bool \| None`           | No       | Whether to start an interactive shell session.                 |
-| `pty`         | `bool \| None`           | No       | Whether to start a PTY shell session.                          |
-| `cwd`         | `str \| None`            | No       | Working directory for the command.                             |
-| `env`         | `dict[str, str] \| None` | No       | Environment variables to set, as a plain dict.                 |
-| `user`        | `str \| None`            | No       | $USER:$GROUP ID to run the command as (defaults to 1000:1000). |
+| Parameter   | Type                     | Required | Description                                                    |
+| ----------- | ------------------------ | -------- | -------------------------------------------------------------- |
+| `command`   | `str`                    | Yes      | Command to execute (e.g. `"npm"`).                             |
+| `args`      | `list[str]`              | Yes      | Command line arguments (e.g. `["install"]`).                   |
+| `autostart` | `bool \| None`           | No       | Whether to automatically start the exec (defaults to true).    |
+| `pty`       | `bool \| None`           | No       | Whether to start a PTY shell session.                          |
+| `cwd`       | `str \| None`            | No       | Working directory for the command.                             |
+| `env`       | `dict[str, str] \| None` | No       | Environment variables to set, as a plain dict.                 |
+| `user`      | `str \| None`            | No       | $USER:$GROUP ID to run the command as (defaults to 1000:1000). |
 
 #### `execs.get(id_) -> Exec`
 
@@ -417,7 +416,7 @@ exec_ = await sandbox.execs.start("exec-id")
 
 #### `execs.exec(command, args, *, pty=None, cwd=None, env=None, user=None) -> dict`
 
-Run a command to completion and return its result. Creates an exec with `autostart=True` and `interactive=False`, streams its output via SSE, and waits for the process to exit. Returns a dict with the final `exit_code` and the joined output.
+Run a command to completion and return its result. Creates an exec with `autostart=True`, streams its output via SSE, and waits for the process to exit. Returns a dict with the final `exit_code` and the joined output.
 
 Returned dict shape:
 

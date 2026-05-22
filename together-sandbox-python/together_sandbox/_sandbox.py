@@ -220,7 +220,6 @@ class Execs:
         args: list[str],
         *,
         autostart: bool | None = None,
-        interactive: bool | None = None,
         pty: bool | None = None,
         cwd: str | None = None,
         env: dict[str, str] | None = None,
@@ -232,7 +231,6 @@ class Execs:
             command: Command to execute (e.g. ``"npm"``).
             args: Command line arguments (e.g. ``["start"]``).
             autostart: Whether to automatically start the exec (defaults to true).
-            interactive: Whether to start an interactive shell session.
             pty: Whether to start a PTY shell session.
             cwd: Working directory for the command.
             env: Environment variables as a plain dict (e.g. ``{"NODE_ENV": "production"}``).
@@ -248,7 +246,6 @@ class Execs:
             command=command,
             args=args,
             autostart=autostart if autostart is not None else UNSET,
-            interactive=interactive if interactive is not None else UNSET,
             pty=pty if pty is not None else UNSET,
             cwd=cwd if cwd is not None else UNSET,
             env=env_obj,
@@ -281,7 +278,7 @@ class Execs:
     ) -> dict[str, Any]:
         """Run a command to completion and return its result.
 
-        Creates an exec with ``autostart=True`` and ``interactive=False``,
+        Creates an exec with ``autostart=True``,
         streams its output via SSE, and waits for the process to exit. Returns
         a dict with the final exit code and the joined output stream.
 
@@ -308,7 +305,6 @@ class Execs:
             command=command,
             args=args,
             autostart=True,
-            interactive=False,
             pty=pty,
             cwd=cwd,
             env=env,
@@ -421,7 +417,7 @@ class Execs:
         )
 
     async def resize(self, id_: str, cols: int, rows: int):
-        """Resize the PTY for an interactive exec.
+        """Resize the PTY for an exec.
 
         Args:
             id_: Exec ID.

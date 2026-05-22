@@ -391,9 +391,9 @@ const exec = await sandbox.execs.get("exec-id");
 
 #### `execs.exec(command, args, opts?): Promise<{ exitCode: number; output: string }>`
 
-Run a command to completion and return its result. Creates an exec with `autostart: true` and `interactive: false`, streams its output via SSE, and waits for the process to exit. Resolves to an object with the final `exitCode` and the joined output.
+Run a command to completion and return its result. Creates an exec with `autostart: true`, streams its output via SSE, and waits for the process to exit. Resolves to an object with the final `exitCode` and the joined output.
 
-The third parameter `opts` accepts the same fields as `execs.create()` minus `command`, `args`, `autostart`, and `interactive` (e.g. `cwd`, `env`, `user`, `pty`).
+The third parameter `opts` accepts the same fields as `execs.create()` minus `command`, `args` and `autostart` (e.g. `cwd`, `env`, `user`, `pty`).
 
 Returned object shape:
 

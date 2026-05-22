@@ -192,8 +192,8 @@ class TestSandboxExecs:
         assert len(events) > 0
 
     async def test_send_stdin(self, sandbox: Sandbox):
-        """Test sending stdin to an interactive exec."""
-        exec_item = await sandbox.execs.create(command="cat", args=[], interactive=True)
+        """Test sending stdin to an exec."""
+        exec_item = await sandbox.execs.create(command="cat", args=[])
         await sandbox.execs.send_stdin(exec_item.id, "hello stdin\n")
         # Small delay to let the process respond
         await asyncio.sleep(0.5)

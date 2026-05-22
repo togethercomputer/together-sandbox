@@ -276,7 +276,7 @@ export class Sandbox {
         args: string[],
         opts?: Omit<
           Parameters<typeof sandboxApi.createExec>[0]["body"],
-          "command" | "args" | "autostart" | "interactive"
+          "command" | "args" | "autostart"
         >,
       ) => {
         const exec = await this.execs.create({
@@ -284,7 +284,6 @@ export class Sandbox {
           command,
           args,
           autostart: true,
-          interactive: false,
         });
 
         const chunks: string[] = [];

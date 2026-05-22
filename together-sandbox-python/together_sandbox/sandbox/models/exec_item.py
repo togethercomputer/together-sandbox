@@ -20,7 +20,6 @@ class ExecItem:
         args (list[str]): Command line arguments
         status (str): Exec status (e.g., running, stopped, finished)
         pid (int): Process ID of the exec
-        interactive (bool): Whether the exec is interactive
         pty (bool): Whether the exec is using a pty
         exit_code (int): Exit code of the process (only present when process has exited)
         user (str | Unset): User the command runs as, in "uid[:gid]" form. Omitted when no explicit
@@ -32,7 +31,6 @@ class ExecItem:
     args: list[str]
     status: str
     pid: int
-    interactive: bool
     pty: bool
     exit_code: int
     user: str | Unset = UNSET
@@ -49,8 +47,6 @@ class ExecItem:
 
         pid = self.pid
 
-        interactive = self.interactive
-
         pty = self.pty
 
         exit_code = self.exit_code
@@ -66,7 +62,6 @@ class ExecItem:
                 "args": args,
                 "status": status,
                 "pid": pid,
-                "interactive": interactive,
                 "pty": pty,
                 "exitCode": exit_code,
             }
@@ -89,8 +84,6 @@ class ExecItem:
 
         pid = d.pop("pid")
 
-        interactive = d.pop("interactive")
-
         pty = d.pop("pty")
 
         exit_code = d.pop("exitCode")
@@ -103,7 +96,6 @@ class ExecItem:
             args=args,
             status=status,
             pid=pid,
-            interactive=interactive,
             pty=pty,
             exit_code=exit_code,
             user=user,
