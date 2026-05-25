@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.9.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.8.0...together-sandbox-v1.9.0) (2026-05-22)
+
+
+### Features
+
+* add exec methods to run commands in a more accessible way ([2c4bcee](https://github.com/togethercomputer/together-sandbox/commit/2c4bcee7cdfb56081d26e2db0ffcbe1b8ee479da))
+* add exec methods to run commands in a more accessible way ([5b0537f](https://github.com/togethercomputer/together-sandbox/commit/5b0537faa7fd9450e59352cc3eadc71817031cc8))
+* Build image snapshots in remote builder ([ccd4606](https://github.com/togethercomputer/together-sandbox/commit/ccd46066897b5b6cd7e36f4d710dd2b66a77e2b3))
+* Handle ctrl+c job deletion ([86c77ce](https://github.com/togethercomputer/together-sandbox/commit/86c77ce18a87d49191aeab5f8d71ecb4470ea908))
+* remote image builder for the TypeScript SDK with SIGINT cancellation and unified retry policy ([50a3fb9](https://github.com/togethercomputer/together-sandbox/commit/50a3fb928cdb23002243b5deecef8501730b093d))
+* use same retry status codes for remote build and reduce retry time and tries ([43efb68](https://github.com/togethercomputer/together-sandbox/commit/43efb681b9dc95176ff844ada1ce262196c0d090))
+
+
+### Bug Fixes
+
+* adjust to new autostart, start endpoint and user+group ID option ([4a26cf0](https://github.com/togethercomputer/together-sandbox/commit/4a26cf06814fb444e3ff330953690b5acffea371))
+* adjust to new autostart, start endpoint and user+group ID option ([29f339a](https://github.com/togethercomputer/together-sandbox/commit/29f339ad831e9754b8abcf5edf2580eec160e57e))
+
 ## [1.8.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.7.5...together-sandbox-v1.8.0) (2026-05-12)
 
 
