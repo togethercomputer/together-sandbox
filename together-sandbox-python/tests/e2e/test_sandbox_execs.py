@@ -48,7 +48,7 @@ class TestSandboxExecs:
         )
         await sandbox.execs.delete(exec_item.id)
 
-        with pytest.raises(RuntimeError, match="Failed to execs.get"):
+        with pytest.raises(RuntimeError, match="Failed to sandbox.get_exec"):
             await sandbox.execs.get(exec_item.id)
 
     async def test_get_output(self, sandbox: Sandbox):
