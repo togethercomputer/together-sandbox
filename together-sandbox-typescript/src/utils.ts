@@ -127,6 +127,14 @@ export async function callApi<T>(
 ): Promise<T> {
   const suffix = context ? ` ${context}` : "";
 
+  // Classify the call target from the operation name. The convention is:
+  //   - `sandbox.*` → in-VM sandbox agent
+  //   - `api.*`     → Together management API (Bartender)
+  // This drives the transport-failure hint without needing a per-call argument.
+  const target: "api" | "sandbox" = operation.startsWith("sandbox.")
+    ? "sandbox"
+    : "api";
+
   return withRetry<T>(
     operation,
     async () => {
@@ -136,8 +144,20 @@ export async function callApi<T>(
       try {
         result = await fn();
       } catch (err) {
-        const cause = err instanceof Error ? err.message : String(err);
-        throw new HttpError(`${operation}${suffix}: ${cause}`, 0);
+        const causeMessage = err instanceof Error ? err.message : String(err);
+        // Detect timeout vs connect from the fetch error's `cause` (Node/undici).
+        // Falls back to "connect" when we can't tell — strictly better than
+        // today's hint-less failure.
+        const errCause = (err as { cause?: { code?: string } }).cause;
+        const isTimeout =
+          (err instanceof Error && err.name === "AbortError") ||
+          errCause?.code === "ETIMEDOUT" ||
+          errCause?.code === "UND_ERR_CONNECT_TIMEOUT";
+        throw new HttpError(`${operation}${suffix}: ${causeMessage}`, 0, {
+          body: err,
+          hint: hintFor(0, operation, target, { isTimeout }),
+          cause: err,
+        });
       }
 
       if (result.error !== undefined) {
@@ -151,21 +171,37 @@ export async function callApi<T>(
           throw new HttpError(
             `Failed to ${operation}${suffix}: ${err.message} (code: ${err.code})${tail}`,
             status,
+            {
+              code: err.code,
+              details: err.errors,
+              body: err,
+              hint: hintFor(status, operation, target),
+            },
           );
         }
         if (isSandboxErrorShape(err)) {
           throw new HttpError(
             `Failed to ${operation}${suffix}: ${err.message} (code: ${err.code})`,
             status,
+            {
+              code: String(err.code),
+              body: err,
+              hint: hintFor(status, operation, target),
+            },
           );
         }
         // Fallback: preserve the original message but surface `.status` via a
         // typed `HttpError` so `isRetryable` and user `shouldRetry` callbacks
-        // can branch on the HTTP status code.
+        // can branch on the HTTP status code. Stash the raw body so nothing
+        // is lost when the response shape is undocumented.
+        const fallbackHint = hintFor(status, operation, target);
         if (err instanceof Error) {
-          throw new HttpError(err.message, status);
+          throw new HttpError(err.message, status, {
+            body: err,
+            hint: fallbackHint,
+            cause: err,
+          });
         }
-
         // Unknown error payload — `String(err)` on a plain object would
         // produce the useless `"[object Object]"`, hiding the actual server
         // response. JSON-serialise the body instead so the real cause is
@@ -180,6 +216,10 @@ export async function callApi<T>(
         throw new HttpError(
           `Failed to ${operation}${suffix}: HTTP ${status} ${dump}`,
           status,
+          {
+            body: err,
+            hint: fallbackHint,
+          },
         );
       }
 
@@ -198,6 +238,68 @@ export async function callApi<T>(
       },
     },
   );
+}
+
+// ─── Actionable hint lookup ───────────────────────────────────────────────────
+
+/**
+ * Build an actionable recovery hint from the failure context.
+ *
+ * Returns `undefined` when no hint applies — the caller's message stands on
+ * its own. Auto-appended to the {@link HttpError} message via
+ * {@link HttpError}'s constructor and exposed as `err.hint` for programmatic
+ * branching.
+ *
+ * The hint differentiates between management-API (`api.*`) and in-VM
+ * sandbox-agent (`sandbox.*`) targets for transport failures, and gives
+ * resource-specific suggestions for 404s.
+ *
+ * Mirrors `together_sandbox._utils._hint_for` (Python).
+ */
+function hintFor(
+  status: number,
+  operation: string,
+  target: "api" | "sandbox",
+  opts: { isTimeout?: boolean } = {},
+): string | undefined {
+  // Transport-level failure
+  if (status === 0) {
+    if (target === "sandbox") {
+      return opts.isTimeout
+        ? "Sandbox did not respond in time. The VM may be unresponsive — call sdk.sandboxes.get(id) to check status."
+        : "Could not reach the sandbox agent. The VM may have stopped — call sdk.sandboxes.get(id) to check status.";
+    }
+    return opts.isTimeout
+      ? "Request to the Together management API timed out. The service may be slow or temporarily unreachable."
+      : "Could not reach the Together management API. Check your network connection or TOGETHER_BASE_URL.";
+  }
+
+  if (status === 401) {
+    return "Authentication failed. Check your TOGETHER_API_KEY.";
+  }
+  if (status === 403) {
+    return "Authenticated but not authorised for this resource. Verify the project_id and API key scope.";
+  }
+
+  if (status === 404) {
+    const opLower = operation.toLowerCase();
+    if (opLower.includes("snapshot")) {
+      return "Snapshot does not exist. List available snapshots with sdk.snapshots.list().";
+    }
+    if (target === "api" && opLower.includes("sandbox")) {
+      return "Sandbox does not exist. List active sandboxes with sdk.sandboxes.list().";
+    }
+    return "Resource not found. Verify the ID or alias and retry.";
+  }
+
+  if (status === 429) {
+    return "Rate limited. Back off and retry; see the Retry-After header for guidance.";
+  }
+  if (status >= 500) {
+    return "Together backend error. Retry; if it persists, report the issue with the full request body.";
+  }
+
+  return undefined;
 }
 
 // ─── Snake to Camel Case ──────────────────────────────────────────────────────

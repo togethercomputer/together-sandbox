@@ -9,6 +9,7 @@ import type {
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { TogetherSandbox } from "./TogetherSandbox.js";
 import { callApi } from "./utils.js";
+import { describeLifecycleFailure } from "./lifecycle.js";
 
 /**
  * Options for watching a directory.
@@ -65,7 +66,7 @@ export class Sandbox {
     return {
       read: async (path: string) => {
         const result = await callApi(
-          "files.read",
+          "sandbox.files.read",
           () =>
             sandboxApi.readFile({
               client,
@@ -82,7 +83,7 @@ export class Sandbox {
             : content;
 
         const result = await callApi(
-          "files.create",
+          "sandbox.files.create",
           () =>
             sandboxApi.createFile({
               client,
@@ -95,7 +96,7 @@ export class Sandbox {
       },
       delete: async (path: string) => {
         await callApi(
-          "files.delete",
+          "sandbox.files.delete",
           () =>
             sandboxApi.deleteFile({
               client,
@@ -106,7 +107,7 @@ export class Sandbox {
       },
       move: async (from: string, to: string) => {
         await callApi(
-          "files.move",
+          "sandbox.files.move",
           () =>
             sandboxApi.performFileAction({
               client,
@@ -118,7 +119,7 @@ export class Sandbox {
       },
       copy: async (from: string, to: string) => {
         await callApi(
-          "files.copy",
+          "sandbox.files.copy",
           () =>
             sandboxApi.performFileAction({
               client,
@@ -130,7 +131,7 @@ export class Sandbox {
       },
       stat: async (path: string) => {
         const result = await callApi(
-          "files.stat",
+          "sandbox.files.stat",
           () =>
             sandboxApi.getFileStat({
               client,
@@ -163,7 +164,7 @@ export class Sandbox {
     return {
       list: async (path: string) => {
         const result = await callApi(
-          "directories.list",
+          "sandbox.directories.list",
           () =>
             sandboxApi.listDirectory({
               client,
@@ -175,7 +176,7 @@ export class Sandbox {
       },
       create: async (path: string) => {
         await callApi(
-          "directories.create",
+          "sandbox.directories.create",
           () =>
             sandboxApi.createDirectory({
               client,
@@ -186,7 +187,7 @@ export class Sandbox {
       },
       delete: async (path: string) => {
         await callApi(
-          "directories.delete",
+          "sandbox.directories.delete",
           () =>
             sandboxApi.deleteDirectory({
               client,
@@ -204,7 +205,7 @@ export class Sandbox {
     return {
       list: async () => {
         const result = await callApi(
-          "execs.list",
+          "sandbox.execs.list",
           () =>
             sandboxApi.listExecs({
               client,
@@ -217,7 +218,7 @@ export class Sandbox {
         body: Parameters<typeof sandboxApi.createExec>[0]["body"],
       ) => {
         const result = await callApi(
-          "execs.create",
+          "sandbox.execs.create",
           () =>
             sandboxApi.createExec({
               client,
@@ -229,7 +230,7 @@ export class Sandbox {
       },
       get: async (id: string) => {
         const result = await callApi(
-          "execs.get",
+          "sandbox.execs.get",
           () =>
             sandboxApi.getExec({
               client,
@@ -241,7 +242,7 @@ export class Sandbox {
       },
       start: async (id: string) => {
         const result = await callApi(
-          "execs.start",
+          "sandbox.execs.start",
           () =>
             sandboxApi.startExec({
               client,
@@ -254,7 +255,7 @@ export class Sandbox {
       },
       delete: async (id: string) => {
         await callApi(
-          "execs.delete",
+          "sandbox.execs.delete",
           () =>
             sandboxApi.deleteExec({
               client,
@@ -308,7 +309,7 @@ export class Sandbox {
       },
       getOutput: async (id: string, lastSequence?: number) => {
         const events = await callApi(
-          "execs.getOutput",
+          "sandbox.execs.getOutput",
           () =>
             sandboxApi.getExecOutput({
               client,
@@ -328,7 +329,7 @@ export class Sandbox {
         body: Parameters<typeof sandboxApi.execExecStdin>[0]["body"],
       ) => {
         const result = await callApi(
-          "execs.sendStdin",
+          "sandbox.execs.sendStdin",
           () =>
             sandboxApi.execExecStdin({
               client,
@@ -354,7 +355,7 @@ export class Sandbox {
     return {
       list: async () => {
         const result = await callApi(
-          "ports.list",
+          "sandbox.ports.list",
           () =>
             sandboxApi.listPorts({
               client,
@@ -377,7 +378,7 @@ export class Sandbox {
   /** Hibernate (suspend) this VM. */
   async hibernate(): Promise<void> {
     await callApi(
-      "stopSandbox",
+      "api.stopSandbox",
       () =>
         api.stopSandbox({
           client: this._apiClient,
@@ -388,7 +389,7 @@ export class Sandbox {
     );
 
     const waitResult = await callApi(
-      "waitForSandbox",
+      "api.waitForSandbox",
       () =>
         api.waitForSandbox({
           client: this._apiClient,
@@ -398,16 +399,14 @@ export class Sandbox {
     );
 
     if (waitResult.status !== "stopped") {
-      throw new Error(
-        `Sandbox did not reach its stopped state, it is ${waitResult.status}, please try again`,
-      );
+      throw new Error(describeLifecycleFailure(waitResult, "stopped"));
     }
   }
 
   /** Shut down this VM. */
   async shutdown(): Promise<void> {
     await callApi(
-      "stopSandbox",
+      "api.stopSandbox",
       () =>
         api.stopSandbox({
           client: this._apiClient,
@@ -417,7 +416,7 @@ export class Sandbox {
       this._retryConfig,
     );
     const waitResult = await callApi(
-      "waitForSandbox",
+      "api.waitForSandbox",
       () =>
         api.waitForSandbox({
           client: this._apiClient,
@@ -427,9 +426,7 @@ export class Sandbox {
     );
 
     if (waitResult.status !== "stopped") {
-      throw new Error(
-        `Sandbox did not reach its stopped state, it is ${waitResult.status}, please try again`,
-      );
+      throw new Error(describeLifecycleFailure(waitResult, "stopped"));
     }
   }
 

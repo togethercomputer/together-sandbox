@@ -20,6 +20,7 @@ from .api.types import UNSET
 
 # ── Helpers ─────────────────────────────────────────────────────
 from ._utils import RetryConfig, _call_api, _resolve_connection
+from ._lifecycle import describe_lifecycle_failure
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -67,23 +68,21 @@ class SandboxesNamespace:
         )
 
         await _call_api(
-            "sandboxes.start",
+            "api.start_sandbox",
             lambda: start_sandbox_api(sandbox_id, client=self._api_client, body=body),
             self._retry,
             context=f"for sandbox {sandbox_id!r}",
         )
 
         vm_info: SandboxModel = await _call_api(
-            "sandboxes.wait",
+            "api.wait_for_sandbox",
             lambda: wait_for_sandbox_api(sandbox_id, client=self._api_client),
             self._retry,
             context=f"for sandbox {sandbox_id!r}",
         )
 
         if vm_info.status != "running":
-            raise RuntimeError(
-                f"Failed to start sandbox '{sandbox_id}'. Its final status was {vm_info.status}."
-            )
+            raise RuntimeError(describe_lifecycle_failure(vm_info, "running"))
 
         url, token = _resolve_connection(vm_info)
 
@@ -128,7 +127,7 @@ class SandboxesNamespace:
             disk_bytes=disk_bytes,
         )
         return await _call_api(
-            "sandboxes.create",
+            "api.create_sandbox",
             lambda: create_sandbox_api(client=self._api_client, body=body),
             self._retry,
         )
@@ -136,7 +135,7 @@ class SandboxesNamespace:
     async def hibernate(self, sandbox_id: str) -> None:
         """Hibernate (suspend) a VM by sandbox ID."""
         await _call_api(
-            "sandboxes.hibernate",
+            "api.stop_sandbox",
             lambda: stop_sandbox_api(
                 sandbox_id,
                 client=self._api_client,
@@ -147,21 +146,19 @@ class SandboxesNamespace:
         )
 
         vm_info: SandboxModel = await _call_api(
-            "sandboxes.wait",
+            "api.wait_for_sandbox",
             lambda: wait_for_sandbox_api(sandbox_id, client=self._api_client),
             self._retry,
             context=f"for sandbox {sandbox_id!r}",
         )
 
         if vm_info.status != "stopped":
-            raise RuntimeError(
-                f"Failed to hibernate sandbox '{sandbox_id}'. Its final status was {vm_info.status}."
-            )
+            raise RuntimeError(describe_lifecycle_failure(vm_info, "stopped"))
 
     async def shutdown(self, sandbox_id: str) -> None:
         """Shut down a VM by sandbox ID."""
         await _call_api(
-            "sandboxes.shutdown",
+            "api.stop_sandbox",
             lambda: stop_sandbox_api(
                 sandbox_id,
                 client=self._api_client,
@@ -172,13 +169,11 @@ class SandboxesNamespace:
         )
 
         vm_info: SandboxModel = await _call_api(
-            "sandboxes.wait",
+            "api.wait_for_sandbox",
             lambda: wait_for_sandbox_api(sandbox_id, client=self._api_client),
             self._retry,
             context=f"for sandbox {sandbox_id!r}",
         )
 
         if vm_info.status != "stopped":
-            raise RuntimeError(
-                f"Failed to stop sandbox '{sandbox_id}'. Its final status was {vm_info.status}."
-            )
+            raise RuntimeError(describe_lifecycle_failure(vm_info, "stopped"))

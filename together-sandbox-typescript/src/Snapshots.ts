@@ -5,6 +5,7 @@ import * as api from "./api-clients/api/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { isLocalEnvironment } from "./configuration.js";
 import { callApi, sleep, withRetry } from "./utils.js";
+import { describeLifecycleFailure } from "./lifecycle.js";
 import {
   buildDockerImage,
   dockerLogin,
@@ -98,7 +99,7 @@ export class SnapshotsNamespace {
 
   async getById(id: string): Promise<Snapshot> {
     const result = await callApi(
-      "snapshots.getById",
+      "api.snapshots.getById",
       () =>
         api.getSnapshot({
           client: this._apiClient,
@@ -112,7 +113,7 @@ export class SnapshotsNamespace {
 
   async getByAlias(alias: string): Promise<Snapshot> {
     const result = await callApi(
-      "snapshots.getByAlias",
+      "api.snapshots.getByAlias",
       () =>
         api.getSnapshotByAlias({
           client: this._apiClient,
@@ -126,7 +127,7 @@ export class SnapshotsNamespace {
 
   async list(): Promise<Snapshot[]> {
     const result = await callApi(
-      "snapshots.list",
+      "api.snapshots.list",
       () =>
         api.listSnapshots({
           client: this._apiClient,
@@ -139,7 +140,7 @@ export class SnapshotsNamespace {
 
   async alias(snapshotId: string, alias: string): Promise<void> {
     await callApi(
-      "snapshots.alias",
+      "api.snapshots.alias",
       () =>
         api.aliasSnapshot({
           client: this._apiClient,
@@ -152,7 +153,7 @@ export class SnapshotsNamespace {
 
   async deleteById(id: string): Promise<void> {
     await callApi(
-      "snapshots.deleteById",
+      "api.snapshots.deleteById",
       () =>
         api.deleteSnapshot({
           client: this._apiClient,
@@ -167,7 +168,7 @@ export class SnapshotsNamespace {
     const cleanAlias = alias.startsWith("@") ? alias.slice(1) : alias;
 
     await callApi(
-      "snapshots.deleteByAlias",
+      "api.snapshots.deleteByAlias",
       () =>
         api.deleteSnapshotByAlias({
           client: this._apiClient,
@@ -212,7 +213,7 @@ export class SnapshotsNamespace {
       output: "Registering snapshot...",
     });
     const snapshotData = await callApi(
-      "snapshots.create",
+      "api.snapshots.create",
       () =>
         api.createSnapshot({
           client: this._apiClient,
@@ -231,7 +232,7 @@ export class SnapshotsNamespace {
       });
 
       const sandboxResult = await callApi(
-        "snapshots.createSandboxForMemorySnapshot",
+        "api.snapshots.createSandboxForMemorySnapshot",
         () =>
           api.createSandbox({
             body: {
@@ -250,7 +251,7 @@ export class SnapshotsNamespace {
         output: "Starting sandbox...",
       });
       await callApi(
-        "snapshots.startSandboxForMemorySnapshot",
+        "api.snapshots.startSandboxForMemorySnapshot",
         () =>
           api.startSandbox({
             client: this._apiClient,
@@ -270,7 +271,7 @@ export class SnapshotsNamespace {
         output: "Hibernating sandbox...",
       });
       const stopResult = await callApi(
-        "snapshots.stopSandboxForMemorySnapshot",
+        "api.snapshots.stopSandboxForMemorySnapshot",
         () =>
           api.stopSandbox({
             client: this._apiClient,
@@ -280,9 +281,19 @@ export class SnapshotsNamespace {
         this._retryConfig,
       );
 
+      // First check the general lifecycle — the sandbox should be stopped at
+      // this point. Surfaces stop_reason / recovery_status hints when the VM
+      // ended up in an unexpected state (crashed, evicted, still starting…).
+      if (stopResult.status !== "stopped") {
+        throw new Error(describeLifecycleFailure(stopResult, "stopped"));
+      }
+      // Then the hibernate-specific guard: the VM stopped, but for the wrong
+      // reason (e.g. crashed during the wait window before hibernation completed).
       if (stopResult.stop_reason !== "hibernated") {
         throw new Error(
-          "Could not create memory snapshot, Sandbox was not hibernated",
+          `Could not create memory snapshot — sandbox '${stopResult.id}' stopped with reason '${stopResult.stop_reason ?? "<unknown>"}' instead of being hibernated.\n` +
+            `Hint: this can happen if the VM crashed during the initialization window. ` +
+            `Try increasing memory_bytes or simplifying the snapshot's startup.`,
         );
       }
       params.onProgress?.({
@@ -290,7 +301,7 @@ export class SnapshotsNamespace {
         output: "Retrieving snapshot...",
       });
       const versionResult = await callApi(
-        "snapshots.getSandboxVersionForMemorySnapshot",
+        "api.snapshots.getSandboxVersionForMemorySnapshot",
         () =>
           api.getSandboxVersionByNumber({
             path: {
@@ -301,11 +312,10 @@ export class SnapshotsNamespace {
         this._retryConfig,
       );
       const snapshot = await callApi(
-        "snapshots.getMemorySnapshot",
+        "api.snapshots.getMemorySnapshot",
         () =>
           api.getSnapshot({
             client: this._apiClient,
-
             path: { id: versionResult.id },
           }),
         this._retryConfig,
@@ -324,7 +334,7 @@ export class SnapshotsNamespace {
       });
 
       await callApi(
-        "snapshots.alias",
+        "api.snapshots.alias",
         () =>
           api.aliasSnapshot({
             client: this._apiClient,
@@ -472,7 +482,7 @@ export class SnapshotsNamespace {
     const context = params.context;
 
     const credential = await callApi(
-      "snapshots.issueContainerRegistryCredential",
+      "api.snapshots.issueContainerRegistryCredential",
       () =>
         api.issueContainerRegistryCredential({
           client: this._apiClient,
