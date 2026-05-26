@@ -84,6 +84,7 @@ class CreateImageSnapshotParams:
     image: str
     alias: str | None = None
     on_progress: Callable[[SnapshotProgress], None] | None = None
+    memory_snapshot: bool | None = None
 
 
 CreateSnapshotParams = CreateContextSnapshotParams | CreateImageSnapshotParams
@@ -135,6 +136,11 @@ class SnapshotsNamespace:
 
                 RetryConfig(should_retry=lambda ctx: ctx.operation != "snapshots.create")
         """
+
+        def _emit(step: str, output: str) -> None:
+            if params.on_progress:
+                params.on_progress(SnapshotProgress(step=step, output=output))
+
         if isinstance(params, CreateContextSnapshotParams):
             # Context-based snapshot — requires Docker
             if not await is_docker_available():
@@ -142,81 +148,43 @@ class SnapshotsNamespace:
                     "Docker is not available. Please install Docker to use snapshot builds."
                 )
 
-            def _emit(step: str, output: str) -> None:
-                if params.on_progress:
-                    params.on_progress(SnapshotProgress(step=step, output=output))
-
             if os.getenv("TOGETHER_LOCAL_BUILD") == "1":
                 result = await self._build_and_register(params)
             else:
                 result = await self._build_image_remotely(params)
-
-            _emit("register", "Registering snapshot...")
-
-            snapshot_data = await _call_api(
-                "api.create_snapshot",
-                lambda: create_snapshot_api(
-                    client=self._api_client,
-                    body=CreateSnapshotBody(
-                        image=result["image"],
-                        architecture=result["architecture"],
-                    ),
-                ),
-                self._retry,
-            )
-
-            snapshot_id = str(snapshot_data.id)
-
-            if params.alias:
-                alias = params.alias
-                _emit("alias", "Creating alias...")
-                await _call_api(
-                    "api.alias_snapshot",
-                    lambda: alias_snapshot_api(
-                        snapshot_data.id,
-                        client=self._api_client,
-                        body=AliasSnapshotBody(alias=alias),
-                    ),
-                    self._retry,
-                )
-
-            return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)
-
         else:
-            # Image-based snapshot — no Docker required
-            def _emit(step: str, output: str) -> None:
-                if params.on_progress:
-                    params.on_progress(SnapshotProgress(step=step, output=output))
+            result = await self._build_image_remotely_from_image(params)
 
-            _emit("register", "Creating snapshot from image...")
-            snapshot_data = await _call_api(
-                "api.create_snapshot",
-                lambda: create_snapshot_api(
+        _emit("register", "Registering snapshot...")
+
+        snapshot_data = await _call_api(
+            "api.create_snapshot",
+            lambda: create_snapshot_api(
+                client=self._api_client,
+                body=CreateSnapshotBody(
+                    image=result["image"],
+                    architecture=result["architecture"],
+                ),
+            ),
+            self._retry,
+        )
+
+        snapshot_id = str(snapshot_data.id)
+
+        if params.alias:
+            alias = params.alias
+            _emit("alias", "Creating alias...")
+            await _call_api(
+                "api.alias_snapshot",
+                lambda: alias_snapshot_api(
+                    snapshot_data.id,
                     client=self._api_client,
-                    body=CreateSnapshotBody(
-                        image=params.image,
-                        architecture=CreateSnapshotBodyArchitecture.AMD64,
-                    ),
+                    body=AliasSnapshotBody(alias=alias),
                 ),
                 self._retry,
             )
 
-            snapshot_id = str(snapshot_data.id)
-
-            if params.alias:
-                alias = params.alias
-                _emit("alias", "Creating alias...")
-                await _call_api(
-                    "api.alias_snapshot",
-                    lambda: alias_snapshot_api(
-                        snapshot_data.id,
-                        client=self._api_client,
-                        body=AliasSnapshotBody(alias=alias),
-                    ),
-                    self._retry,
-                )
-
-            return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)
+        return CreateSnapshotResult(snapshot_id=snapshot_id, alias=params.alias)
 
     async def get_by_id(self, id: str) -> Snapshot:
         """
@@ -337,6 +305,43 @@ class SnapshotsNamespace:
         )
 
     # ─── Private helpers ──────────────────────────────────────────────────────
+
+    async def _build_image_remotely_from_image(
+        self, params: CreateImageSnapshotParams
+    ) -> dict[str, str | CreateSnapshotBodyArchitecture]:
+        """
+        Build a Docker image from a public image reference via the remote
+        image-builder service.
+
+        Creates a temporary directory named after the image (so
+        ``_build_image_remotely`` derives a meaningful image name from
+        ``context_dir.name``) and writes a single-line Dockerfile of the form
+        ``FROM <image>`` into it. The temp directory is removed on exit
+        regardless of build outcome.
+        """
+        import tempfile
+        from pathlib import Path
+
+        # Derive a folder name from the image's last path component, stripped
+        # of any tag/digest. e.g. "ghcr.io/foo/bar:latest" -> "bar",
+        # "node:22" -> "node". The fallback to "image" guards against
+        # pathological inputs that strip to an empty string.
+        image_name_part = params.image.split("/")[-1].split(":")[0].split("@")[0]
+        image_name_slug = image_name_part.lower().replace("_", "-") or "image"
+
+        with tempfile.TemporaryDirectory(prefix="together-sandbox-") as parent:
+            context_dir = Path(parent) / image_name_slug
+            context_dir.mkdir(parents=True, exist_ok=True)
+            (context_dir / "Dockerfile").write_text(f"FROM {params.image}\n")
+
+            return await self._build_image_remotely(
+                CreateContextSnapshotParams(
+                    context=str(context_dir),
+                    alias=params.alias,
+                    memory_snapshot=params.memory_snapshot,
+                    on_progress=params.on_progress,
+                )
+            )
 
     async def _build_image_remotely(
         self,

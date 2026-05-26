@@ -202,10 +202,25 @@ export async function callApi<T>(
             cause: err,
           });
         }
-        throw new HttpError(`${operation}${suffix}: ${String(err)}`, status, {
-          body: err,
-          hint: fallbackHint,
-        });
+        // Unknown error payload — `String(err)` on a plain object would
+        // produce the useless `"[object Object]"`, hiding the actual server
+        // response. JSON-serialise the body instead so the real cause is
+        // visible in logs. Falls back to `String(err)` for values that
+        // cannot be stringified (e.g. cyclic references, BigInt).
+        let dump: string;
+        try {
+          dump = JSON.stringify(err);
+        } catch {
+          dump = String(err);
+        }
+        throw new HttpError(
+          `Failed to ${operation}${suffix}: HTTP ${status} ${dump}`,
+          status,
+          {
+            body: err,
+            hint: fallbackHint,
+          },
+        );
       }
 
       return result.data as T;

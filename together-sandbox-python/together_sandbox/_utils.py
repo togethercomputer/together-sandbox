@@ -293,8 +293,12 @@ async def _call_api(
             if 200 <= status < 300:
                 # 2xx with no body (e.g. 204 No Content) — documented success
                 return None
-            # Undocumented non-2xx status — no model available. Preserve the
-            # raw response content so consumers can inspect what came back.
+            # Undocumented non-2xx status — no model matched the body. Preserve
+            # the raw response content so consumers can inspect what came back
+            # via ``body=``, and build a human-readable ``dump`` for the error
+            # message. Decode defensively: the server may return non-UTF-8
+            # bytes on misconfigured endpoints. Fall back to "<empty body>"
+            # so the message is never just a bare "HTTP 500 ".
             raw_body: Any = None
             content = getattr(response, "content", None)
             if content is not None:
@@ -306,8 +310,13 @@ async def _call_api(
                     )
                 except Exception:
                     raw_body = content
+            dump = (
+                raw_body.strip()
+                if isinstance(raw_body, str) and raw_body.strip()
+                else "<empty body>"
+            )
             raise HttpError(
-                f"{operation} returned no response{suffix} (HTTP {status})",
+                f"Failed to {operation}{suffix}: HTTP {status} {dump}",
                 status,
                 body=raw_body,
                 hint=_hint_for(status, operation, target),
