@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.10.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.9.0...together-sandbox-v1.10.0) (2026-05-26)
+
+
+### Features
+
+* enhanced error handling and descriptions ([b52322a](https://github.com/togethercomputer/together-sandbox/commit/b52322a0dd2669bdeac09b2f6069c38ca11e9aea))
+
+
+### Bug Fixes
+
+* fix ci testing ([eaef2c1](https://github.com/togethercomputer/together-sandbox/commit/eaef2c18f0ade5c8ac2510b1cd1e81479de9b31a))
+* fix ci testing ([5f24986](https://github.com/togethercomputer/together-sandbox/commit/5f24986cd69a17de7d85f10a1cd2e46a992977a4))
+* **snapshots:** correct delete_snapshot_by_alias op name typo ([2a3b64c](https://github.com/togethercomputer/together-sandbox/commit/2a3b64c9b3b8361397a4beff7cb87e9b068d8848))
+
 ## [1.9.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-v1.8.0...together-sandbox-v1.9.0) (2026-05-22)
 
 
