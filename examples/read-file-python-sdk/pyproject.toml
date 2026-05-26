@@ -1,0 +1,11 @@
+[project]
+name = "together-sandbox-sdk"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "together-sandbox",
+]
+
+[tool.uv.sources]
+together-sandbox = { git = "https://github.com/togethercomputer/together-sandbox.git", subdirectory = "together-sandbox-python", rev = "together-sandbox-v1.10.0" }
