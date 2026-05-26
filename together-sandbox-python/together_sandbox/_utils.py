@@ -272,9 +272,14 @@ async def _call_api(
             if 200 <= status < 300:
                 # 2xx with no body (e.g. 204 No Content) — documented success
                 return None
-            # Undocumented non-2xx status — no model available
+            # Undocumented non-2xx status — no model matched the body.
+            # Surface the raw response body so the real cause is visible
+            # instead of a generic "no response" message. Decode defensively:
+            # the server may return non-UTF-8 bytes on misconfigured endpoints.
+            raw = response.content.decode("utf-8", errors="replace").strip()
+            dump = raw if raw else "<empty body>"
             raise HttpError(
-                f"{operation} returned no response{suffix} (HTTP {status})",
+                f"Failed to {operation}{suffix}: HTTP {status} {dump}",
                 status,
             )
 
