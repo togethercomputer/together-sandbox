@@ -327,7 +327,7 @@ class SnapshotsNamespace:
         clean_alias = alias.lstrip("@")
 
         await _call_api(
-            "api.delete_snapshoht_by_alias",
+            "api.delete_snapshot_by_alias",
             lambda: delete_snapshot_by_alias_api(
                 clean_alias,
                 client=self._api_client,
