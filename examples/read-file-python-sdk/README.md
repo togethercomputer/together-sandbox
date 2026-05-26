@@ -24,7 +24,7 @@ start_sandbox.py      # Main script
 uv sync
 
 # Required
-export TOGETHER_API_KEY="your-key-here"
+export TOGETHER_API_KEY="your-key-here"  # Together AI or CodeSandbox API key
 
 # Optional — override the snapshot alias (default: test-snapshot-alias-v1)
 export TOGETHER_SNAPSHOT_ALIAS="my-custom-alias"
