@@ -7,7 +7,7 @@
  *
  * @example
  * ```typescript
- * import { TogetherSandbox } from "@together-sandbox/sdk";
+ * import { TogetherSandbox } from "together-sandbox";
  *
  * const sdk = new TogetherSandbox({ apiKey: process.env.TOGETHER_API_KEY! });
  * const sandbox = await sdk.sandboxes.start("my-sandbox-id");
@@ -39,7 +39,7 @@ import type { TogetherSandboxConfig } from "./types.js";
  *
  * @example
  * ```typescript
- * import { TogetherSandbox } from "@together-sandbox/sdk";
+ * import { TogetherSandbox } from "together-sandbox";
  *
  * const sdk = new TogetherSandbox({ apiKey: process.env.TOGETHER_API_KEY! });
  * const sandbox = await sdk.sandboxes.start("your-sandbox-id");

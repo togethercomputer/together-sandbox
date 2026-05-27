@@ -146,7 +146,7 @@ jobs:
       - name: Pack TypeScript SDK
         run: |
           npm pack --workspace=together-sandbox-typescript
-          mv together-sandbox-sdk-*.tgz together-sandbox-sdk.tgz
+          mv together-sandbox-*.tgz together-sandbox.tgz
 
       - name: Build CLI binaries
         working-directory: together-sandbox-cli
@@ -160,5 +160,5 @@ jobs:
 
       - name: Verify all artifacts exist
         run: |
-          ls -lh together-sandbox-sdk.tgz
+          ls -lh together-sandbox.tgz
           ls -lh together-sandbox-cli/dist/

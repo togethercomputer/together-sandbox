@@ -4,7 +4,7 @@
 
 ```
 together-sandbox/
-├── together-sandbox-typescript/   # @together-sandbox/sdk (npm)
+├── together-sandbox-typescript/   # together-sandbox (npm)
 ├── together-sandbox-python/       # together-sandbox (PyPI)
 ├── together-sandbox-cli/          # @together-sandbox/cli (npm, binary)
 ├── generate.sh                    # Re-generate all SDK clients from specs

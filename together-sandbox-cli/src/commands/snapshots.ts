@@ -1,7 +1,7 @@
 import type * as yargs from "yargs";
 import * as path from "path";
-import { TogetherSandbox } from "@together-sandbox/sdk";
-import type { CreateSnapshotParams } from "@together-sandbox/sdk";
+import { TogetherSandbox } from "together-sandbox";
+import type { CreateSnapshotParams } from "together-sandbox";
 import ora from "ora";
 
 export type CreateArgs = {

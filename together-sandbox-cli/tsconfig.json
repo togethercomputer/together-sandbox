@@ -11,7 +11,7 @@
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
-      "@together-sandbox/sdk": ["../together-sandbox-typescript/src/index.ts"]
+      "together-sandbox": ["../together-sandbox-typescript/src/index.ts"]
     }
   },
   "include": ["src", "../together-sandbox-typescript/src/docker.ts"],

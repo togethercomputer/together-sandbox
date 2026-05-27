@@ -11,10 +11,10 @@ All three components can be installed directly from GitHub without npm or PyPI p
 curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
 
 # TypeScript SDK
-npm install https://github.com/togethercomputer/together-sandbox/releases/latest/download/together-sandbox-sdk.tgz
+npm install together-sandbox
 
 # Python SDK
-pip install "together-sandbox @ git+https://github.com/togethercomputer/together-sandbox.git#subdirectory=together-sandbox-python"
+pip install together-sandbox
 ```
 
 ## Docs
@@ -55,10 +55,11 @@ Releases are fully automated via **release-please** — no manual tagging or ver
 
 3. **Merge the Release PR** → release-please creates the GitHub Release and tag automatically.
 
-4. **The `build-and-upload` job triggers** and:
-   - Regenerates SDK clients (`bash generate.sh`)
-   - Builds and packs the TypeScript SDK → `together-sandbox-sdk.tgz`
-   - Compiles CLI binaries for all 5 platforms (darwin arm64/x64, linux x64/arm64, windows x64)
-   - Uploads all artifacts to the GitHub Release
+4. **Three publish jobs fan out in parallel**, all gated on the release-please tag:
+   - **`build-and-upload`** — compiles CLI binaries for all 5 platforms (darwin arm64/x64, linux x64/arm64, windows x64) and attaches them to the GitHub Release.
+   - **`publish-npm`** — regenerates SDK clients, builds the TypeScript SDK, and runs `npm publish` to publish [`together-sandbox`](https://www.npmjs.com/package/together-sandbox) to npm using OIDC trusted publishing (no token).
+   - **`publish-pypi`** — regenerates SDK clients, runs `python -m build`, and publishes [`together-sandbox`](https://pypi.org/project/together-sandbox/) to PyPI using OIDC trusted publishing (no token).
+
+   Both publish jobs run inside protected GitHub Environments (`npm` and `pypi`) so deploys are restricted to `main`.
 
 The only human action required is keeping commits conventional and merging the Release PR when ready to ship.
