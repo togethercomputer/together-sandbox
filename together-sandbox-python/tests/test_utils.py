@@ -36,10 +36,22 @@ class TestResolveConnection:
         assert url == "https://agent.example.com"
         assert token == "agent-tok"
 
-    def test_raises_if_agent_url_missing(self):
-        sandbox = _make_sandbox_model(agent_url=None)
+    def test_raises_if_agent_token_missing(self):
+        sandbox = _make_sandbox_model(agent_token=None)
         with pytest.raises(RuntimeError, match="no agent connection details"):
             _resolve_connection(sandbox)
+
+
+# ─── RetryConfig docstring integrity ──────────────────────────────────────────
+
+
+class TestRetryConfigDocstring:
+    def test_docstring_does_not_contain_stray_return_result(self):
+        """RetryConfig.__doc__ must not contain the accidental 'return result' fragment."""
+        from together_sandbox._utils import RetryConfig
+
+        assert RetryConfig.__doc__ is not None
+        assert "return result" not in RetryConfig.__doc__
 
     def test_raises_if_agent_token_missing(self):
         sandbox = _make_sandbox_model(agent_token=None)
