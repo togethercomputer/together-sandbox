@@ -80,7 +80,6 @@ class RetryConfig:
                 on_retry=lambda ctx: print(f"Retrying {ctx.operation} (attempt {ctx.attempt})"),
             ),
         )
-    return result
     """
 
     max_attempts: int = 3
