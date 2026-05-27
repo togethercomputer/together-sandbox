@@ -6,7 +6,7 @@ This document explains the core concepts behind Together Sandbox: what sandboxes
 
 ## What is a sandbox?
 
- A sandbox is a virtual machine that runs on Together's infrastructure. You can start one, run code inside it (via shell commands, file operations, and port forwarding), then stop it. By default, sandboxes persist between runs and can be hibernated to continue from where it left off. Sandboxes can optionally be created as **ephemeral**, in which case they cannot be hibernated and are automatically deleted when they stop.
+A sandbox is a virtual machine that runs on Together's infrastructure. You can start one, run code inside it (via shell commands, file operations, and port forwarding), then stop it. By default, sandboxes persist between runs and can be hibernated to continue from where it left off. Sandboxes can optionally be created as **ephemeral**, in which case they cannot be hibernated and are automatically deleted when they stop.
 
 Every sandbox is backed by a **snapshot**.
 
@@ -16,7 +16,7 @@ Every sandbox is backed by a **snapshot**.
 
 A snapshot is a compressed, immutable disk image stored in Together's registry. It defines the filesystem (and optionally the in-memory state) that a sandbox starts from.
 
-Snapshots are created from Docker images — either by building from a Dockerfile or by referencing an existing image. Once registered, a snapshot can be used to start any number of sandboxes.
+Snapshots are created from Docker images — either by building from a Dockerfile or by referencing an existing image. Once registered, a snapshot can be used to start any number of sandboxes. They are also automatically generated when you stop a sandbox.
 
 Snapshots can be addressed by:
 
@@ -60,6 +60,8 @@ A sandbox moves through the following states:
 
 `starting` and `stopping` are transient states — the SDK's `start()`, `hibernate()`, and `shutdown()` methods all block until the sandbox reaches a terminal state (`running` or `stopped`).
 
+**Note!** A `starting` sandbox can move to `stopping => stopped`. This happens when the sandbox was unable to start.
+
 ### Stop reasons
 
 When a sandbox reaches the `stopped` state, the `stop_reason` field records why:
@@ -72,8 +74,6 @@ When a sandbox reaches the `stopped` state, the `stop_reason` field records why:
 | `crashed`      | The VM process exited unexpectedly                        |
 | `oom_killed`   | The sandbox ran out of memory                             |
 | `evicted`      | Removed by the cluster scheduler (e.g. resource pressure) |
-| `node_lost`    | The underlying node became unreachable                    |
-| `cluster_lost` | The entire cluster became unreachable                     |
 
 ---
 
@@ -91,7 +91,7 @@ Hibernation suspends the VM and **preserves its full memory state** as a new sna
 
 Use hibernation when you want to pause a sandbox and come back to it later with its state intact.
 
-> **Note:** Hibernation is not supported on ephemeral sandboxes. Calling `hibernate()` on an ephemeral sandbox returns an error. Use `shutdown()` instead.
+> **Note:** Hibernation is not supported on ephemeral sandboxes as they do not preserve state when stopped. Calling `hibernate()` on an ephemeral sandbox returns an error. Use `shutdown()` instead.
 
 ### Shutdown
 
@@ -119,15 +119,22 @@ GET /sandboxes/{sandbox_id}/versions/{number}
 → { id, sandbox_id, number, snapshot_id, created_at }
 ```
 
-The `snapshot_id` from a version can then be used to create a new sandbox from that exact point in time — useful for branching or rollback.
+The `snapshot_id` from a version can then be used to create a new sandbox from that exact point in time — useful for branching or rollback. Or a version number can be used to start an existing sandbox on a specific version.
+
+You can also get the current version from a sandbox:
+
+```
+GET /sandboxes/{sandbox_id}/versions/current
+→ { id, sandbox_id, number, snapshot_id, created_at }
+```
 
 ---
 
 ## Snapshots in depth
 
-### Creating a snapshot
+### Creating an initial snapshot
 
-Snapshots are always created from a Docker image. There are two paths:
+Initial snapshots are created from a Docker image. There are two paths:
 
 **From a Dockerfile (build context):**
 
@@ -180,6 +187,8 @@ Memory snapshots are created by:
 
 Pass `memorySnapshot: true` (TypeScript) or `memory_snapshot=True` (Python) to `snapshots.create()` to trigger this flow automatically.
 
+**Note!** If a resume is not possible, the sandbox falls back to a cold start.
+
 ### Snapshot properties
 
 | Field                      | Type      | Description                                             |
@@ -197,7 +206,7 @@ Pass `memorySnapshot: true` (TypeScript) or `memory_snapshot=True` (Python) to `
 
 ## Snapshot aliases
 
-Aliases give snapshots human-readable names. An alias looks like `tag` or `namespace@tag` (e.g. `my-app@v1`, `latest`, `production@2024-01`).
+Aliases give snapshots human-readable names. An alias can be any string, like `tag` or `namespace@tag` (e.g. `my-app@v1`, `latest`, `production@2024-01`).
 
 Aliases are mutable — you can point an alias at a different snapshot at any time, which makes them useful for rolling deploys or "latest" pointers.
 
@@ -258,7 +267,9 @@ const sandbox = await sdk.sandboxes.create({
 
 ## Recovery
 
-If a sandbox crashes or is lost due to infrastructure issues, the platform may attempt automatic recovery. The sandbox model exposes three fields tracking this:
+If a sandbox crashes or is lost due to infrastructure issues, the platform may attempt automatic recovery. It will ensure the files of the sandbox are persisted and a new version and snapshot are created.
+
+The sandbox model exposes three fields tracking this:
 
 | Field                  | Description                                            |
 | ---------------------- | ------------------------------------------------------ |
