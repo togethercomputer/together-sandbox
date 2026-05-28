@@ -2,6 +2,12 @@
 together-sandbox-typescript/src/api-clients
 together-sandbox-cli/src/api-clients
 
+# Generated SDK docs
+together-sandbox-typescript/docs
+together-sandbox-typescript/LLMS.md
+together-sandbox-python/docs
+together-sandbox-python/LLMS.md
+
 # Node
 node_modules/
 npm-debug.log*

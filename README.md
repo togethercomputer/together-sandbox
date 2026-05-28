@@ -4,8 +4,6 @@ Tools for working with Together AI sandboxes: a CLI, a TypeScript SDK, and a Pyt
 
 ## Quick Start
 
-All three components can be installed directly from GitHub without npm or PyPI publication:
-
 ```bash
 # CLI
 curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
@@ -17,13 +15,42 @@ npm install together-sandbox
 pip install together-sandbox
 ```
 
-## Docs
+## Documentation
+
+The canonical docs live in [`docs/`](./docs/) and are the single source of truth:
 
 - [Sandboxes and Snapshots](./docs/sandboxes.md)
 - [Harbor Integration Guide](https://github.com/codesandbox/harbor/tree/integrate-with-together-sandbox-sdk#guide)
 - [CLI](./docs/cli.md)
 - [TypeScript SDK](./docs/typescript-sdk.md)
 - [Python SDK](./docs/python-sdk.md)
+
+### Bundled per-SDK docs
+
+Each published SDK ships a copy of the docs it needs (its own SDK reference,
+the CLI reference, and the sandboxes/snapshots concepts) plus a top-level
+`LLMS.md` guide. They land inside the npm tarball and the Python wheel so
+agents and tools that introspect installed packages can discover them without
+hitting the network:
+
+| Package                  | After install, docs live at                      |
+| ------------------------ | ------------------------------------------------ |
+| `together-sandbox` (npm) | `node_modules/together-sandbox/{LLMS.md,docs/}`  |
+| `together-sandbox` (pip) | `site-packages/together_sandbox/{LLMS.md,docs/}` |
+
+[`bundle-docs.sh`](./bundle-docs.sh) copies the relevant subset of `docs/`
+into each SDK package and renders `LLMS.md` from
+[`LLMS-template.md`](./LLMS-template.md) with per-package substitutions. It
+runs automatically in the publish workflows and in the PR build dry-run. To
+preview locally:
+
+```bash
+bash bundle-docs.sh
+```
+
+Generated outputs (`together-sandbox-*/docs/` and `together-sandbox-*/LLMS.md`)
+are git-ignored. Edit the source in [`docs/`](./docs/) and
+[`LLMS-template.md`](./LLMS-template.md) — never the generated copies.
 
 ## Development
 
@@ -57,8 +84,8 @@ Releases are fully automated via **release-please** — no manual tagging or ver
 
 4. **Three publish jobs fan out in parallel**, all gated on the release-please tag:
    - **`build-and-upload`** — compiles CLI binaries for all 5 platforms (darwin arm64/x64, linux x64/arm64, windows x64) and attaches them to the GitHub Release.
-   - **`publish-npm`** — regenerates SDK clients, builds the TypeScript SDK, and runs `npm publish` to publish [`together-sandbox`](https://www.npmjs.com/package/together-sandbox) to npm using OIDC trusted publishing (no token).
-   - **`publish-pypi`** — regenerates SDK clients, runs `python -m build`, and publishes [`together-sandbox`](https://pypi.org/project/together-sandbox/) to PyPI using OIDC trusted publishing (no token).
+   - **`publish-npm`** — regenerates SDK clients, bundles the per-SDK docs (`bundle-docs.sh`), builds the TypeScript SDK, and runs `npm publish` to publish [`together-sandbox`](https://www.npmjs.com/package/together-sandbox) to npm using OIDC trusted publishing (no token).
+   - **`publish-pypi`** — regenerates SDK clients, bundles the per-SDK docs (`bundle-docs.sh`), runs `python -m build`, and publishes [`together-sandbox`](https://pypi.org/project/together-sandbox/) to PyPI using OIDC trusted publishing (no token).
 
    Both publish jobs run inside protected GitHub Environments (`npm` and `pypi`) so deploys are restricted to `main`.
 

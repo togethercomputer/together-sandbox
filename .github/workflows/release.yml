@@ -128,6 +128,9 @@ jobs:
       - name: Generate SDKs
         run: bash generate.sh
 
+      - name: Bundle SDK docs
+        run: bash bundle-docs.sh
+
       - name: Build TypeScript SDK
         run: npm run build
         working-directory: together-sandbox-typescript
@@ -163,6 +166,9 @@ jobs:
 
       - name: Generate SDKs
         run: bash generate.sh
+
+      - name: Bundle SDK docs
+        run: bash bundle-docs.sh
 
       - name: Build Python distributions
         run: python -m build
