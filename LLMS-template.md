@@ -1,6 +1,6 @@
 <!--
   This file is the source template for the per-package LLMS.md.
-  It is rendered by bundle-docs.sh into:
+  It is rendered by generate.sh into:
     - together-sandbox-typescript/LLMS.md
     - together-sandbox-python/LLMS.md
   with the following tokens substituted per package:

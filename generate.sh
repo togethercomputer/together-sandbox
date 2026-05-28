@@ -14,6 +14,10 @@
 #      Data_ class and lose the field information.
 #   2. Regenerates the TypeScript SDK (together-sandbox-typescript).
 #   3. Regenerates the Python SDK (together-sandbox-python).
+#   4. Bundles per-SDK docs (LLMS.md + docs/) into each SDK package. This is a
+#      build prerequisite, not just a publish step: the Python wheel's
+#      force-include validates the doc paths exist on every wheel build,
+#      including the one `pip install .[dev]` performs.
 set -e
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -88,6 +92,70 @@ npm run generate
 echo "Generating Python SDK..."
 cd "$REPO_ROOT/together-sandbox-python"
 bash generate.sh
+
+# ─── Step 4: Bundle per-SDK docs ──────────────────────────────────────────────
+#
+# Copies /docs/*.md into each SDK package (renamed to sdk.md / cli.md /
+# sandboxes.md) and renders LLMS.md from LLMS-template.md with per-package
+# substitutions. Folded into generate.sh because the Python wheel's
+# [tool.hatch.build.targets.wheel.force-include] requires these files to
+# exist on disk before any wheel build — including the one triggered by
+# `pip install .[dev]` — will succeed.
+
+echo "Bundling per-SDK docs..."
+
+SRC_DOCS="$REPO_ROOT/docs"
+TEMPLATE="$REPO_ROOT/LLMS-template.md"
+
+if [[ ! -d "$SRC_DOCS" ]]; then
+  echo "error: source docs directory not found: $SRC_DOCS" >&2
+  exit 1
+fi
+
+if [[ ! -f "$TEMPLATE" ]]; then
+  echo "error: LLMS template not found: $TEMPLATE" >&2
+  exit 1
+fi
+
+bundle_docs() {
+  local package_dir="$1"  # e.g. together-sandbox-typescript
+  local sdk_doc="$2"      # e.g. typescript-sdk.md
+  local language="$3"     # e.g. TypeScript
+  local install_cmd="$4"  # e.g. npm install together-sandbox
+
+  local target_dir="$REPO_ROOT/$package_dir"
+  local docs_target="$target_dir/docs"
+
+  if [[ ! -d "$target_dir" ]]; then
+    echo "error: package directory not found: $target_dir" >&2
+    exit 1
+  fi
+
+  echo "  → $package_dir"
+
+  # Clean previous output so deletions in /docs propagate
+  rm -rf "$docs_target"
+  mkdir -p "$docs_target"
+
+  cp "$SRC_DOCS/$sdk_doc"     "$docs_target/sdk.md"
+  cp "$SRC_DOCS/cli.md"       "$docs_target/cli.md"
+  cp "$SRC_DOCS/sandboxes.md" "$docs_target/sandboxes.md"
+
+  # Render LLMS.md from the shared template:
+  #   - strip the leading <!-- ... --> editor note
+  #   - substitute {{LANGUAGE}} and {{INSTALL_COMMAND}}
+  #   - drop any leading blank lines left by the comment removal
+  sed \
+    -e '/^<!--$/,/^-->$/d' \
+    -e "s|{{LANGUAGE}}|$language|g" \
+    -e "s|{{INSTALL_COMMAND}}|$install_cmd|g" \
+    "$TEMPLATE" \
+    | sed '/./,$!d' \
+    > "$target_dir/LLMS.md"
+}
+
+bundle_docs "together-sandbox-typescript" "typescript-sdk.md" "TypeScript" "npm install together-sandbox"
+bundle_docs "together-sandbox-python"     "python-sdk.md"     "Python"     "pip install together-sandbox"
 
 echo ""
 echo "All SDKs generated successfully."
