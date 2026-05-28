@@ -1,5 +1,5 @@
 {
-  "name": "together-sandbox",
+  "name": "together-sandbox-workspace",
   "version": "1.10.0",
   "private": true,
   "workspaces": [

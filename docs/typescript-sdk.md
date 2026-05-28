@@ -1,9 +1,9 @@
-# TypeScript SDK — `@together-sandbox/sdk`
+# TypeScript SDK — `together-sandbox`
 
 ## Installation
 
 ```bash
-npm install @together-sandbox/sdk
+npm install together-sandbox
 ```
 
 Requires Node.js 18+.
@@ -25,7 +25,7 @@ Or pass it directly when constructing the client (see below).
 ## Quick start
 
 ```typescript
-import { TogetherSandbox } from "@together-sandbox/sdk";
+import { TogetherSandbox } from "together-sandbox";
 
 const sdk = new TogetherSandbox({ apiKey: process.env.TOGETHER_API_KEY! });
 const sandbox = await sdk.sandboxes.start("your-sandbox-id");
@@ -559,7 +559,7 @@ error-handling shape. The original `TypeError` from `fetch` is preserved in the
 formatted message but isn't exposed as a separate field.
 
 ```typescript
-import { HttpError } from "@together-sandbox/sdk";
+import { HttpError } from "together-sandbox";
 
 try {
   await sdk.sandboxes.start("...");
@@ -614,7 +614,7 @@ import {
   TogetherSandbox,
   type RetryConfig,
   type RetryContext,
-} from "@together-sandbox/sdk";
+} from "together-sandbox";
 
 const sdk = new TogetherSandbox({
   apiKey: process.env.TOGETHER_API_KEY!,

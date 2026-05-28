@@ -1,6 +1,6 @@
 # TypeScript SDK — Developer Guide
 
-Package: `@together-sandbox/sdk`
+Package: `together-sandbox`
 
 ## File layout
 

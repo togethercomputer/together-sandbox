@@ -47,10 +47,10 @@ const buildOptions = {
     js: `#!/usr/bin/env node\nimport { createRequire as __createRequire } from "module";\nconst require = __createRequire(import.meta.url);`,
   },
   external: externalModules,
-  // Resolve @together-sandbox/sdk to the SDK TypeScript source directly,
+  // Resolve together-sandbox to the SDK TypeScript source directly,
   // so it gets inlined into the bundle rather than installed as an npm package.
   alias: {
-    "@together-sandbox/sdk": path.resolve(
+    "together-sandbox": path.resolve(
       __dirname,
       "../together-sandbox-typescript/src/index.ts",
     ),
