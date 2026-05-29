@@ -162,3 +162,6 @@ jobs:
         run: |
           ls -lh together-sandbox.tgz
           ls -lh together-sandbox-cli/dist/
+          # Confirm bundled docs landed inside the npm tarball
+          tar -tzf together-sandbox.tgz | grep -E 'package/(docs/|LLMS\.md)' \
+            || { echo "::error::bundled docs missing from npm tarball"; exit 1; }

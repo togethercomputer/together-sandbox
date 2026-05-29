@@ -1,4 +1,4 @@
-# CLI — `@together-sandbox/cli`
+# CLI — `together-sandbox-cli`
 
 The `together-sandbox` CLI lets you create snapshots from Dockerfiles or existing Docker images and publish them for use with Together Sandbox.
 
@@ -50,13 +50,13 @@ together-sandbox snapshots create [options]
 
 #### Options
 
-| Option                | Type      | Description                                                                                                  |
-| --------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
-| `--context <dir>`     | `string`  | Path to the Docker build context directory. Mutually exclusive with `--image`.                               |
-| `--dockerfile <file>` | `string`  | Path to a Dockerfile (only with `--context`). Defaults to `Dockerfile` inside `--context`.                   |
-| `--image <ref>`       | `string`  | Docker image reference. Mutually exclusive with `--context`.                                                 |
-| `--alias <alias>`     | `string`  | Alias for the snapshot (`tag` or `namespace@tag`).                                                           |
-| `--ci`                | `boolean` | CI mode: plain stdout with no spinner. On success, only the snapshot ID is written to stdout. Default: off.  |
+| Option                | Type      | Description                                                                                                 |
+| --------------------- | --------- | ----------------------------------------------------------------------------------------------------------- |
+| `--context <dir>`     | `string`  | Path to the Docker build context directory. Mutually exclusive with `--image`.                              |
+| `--dockerfile <file>` | `string`  | Path to a Dockerfile (only with `--context`). Defaults to `Dockerfile` inside `--context`.                  |
+| `--image <ref>`       | `string`  | Docker image reference. Mutually exclusive with `--context`.                                                |
+| `--alias <alias>`     | `string`  | Alias for the snapshot (`tag` or `namespace@tag`).                                                          |
+| `--ci`                | `boolean` | CI mode: plain stdout with no spinner. On success, only the snapshot ID is written to stdout. Default: off. |
 
 > **Build mode.** By default, `--context` submits the build to Together's remote image-builder service — no local Docker is required for the build itself. Set `TOGETHER_LOCAL_BUILD=1` to fall back to building locally with your own Docker daemon and pushing to the registry from your machine:
 >

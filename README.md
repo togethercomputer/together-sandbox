@@ -4,8 +4,6 @@ Tools for working with Together AI sandboxes: a CLI, a TypeScript SDK, and a Pyt
 
 ## Quick Start
 
-All three components can be installed directly from GitHub without npm or PyPI publication:
-
 ```bash
 # CLI
 curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
@@ -17,13 +15,36 @@ npm install together-sandbox
 pip install together-sandbox
 ```
 
-## Docs
+## Documentation
+
+The canonical docs live in [`docs/`](./docs/) and are the single source of truth:
 
 - [Sandboxes and Snapshots](./docs/sandboxes.md)
 - [Harbor Integration Guide](https://github.com/codesandbox/harbor/tree/integrate-with-together-sandbox-sdk#guide)
 - [CLI](./docs/cli.md)
 - [TypeScript SDK](./docs/typescript-sdk.md)
 - [Python SDK](./docs/python-sdk.md)
+
+### Bundled per-SDK docs
+
+Each published SDK ships a copy of the docs it needs (its own SDK reference,
+the CLI reference, and the sandboxes/snapshots concepts) plus a top-level
+`LLMS.md` guide. They land inside the npm tarball and the Python wheel so
+agents and tools that introspect installed packages can discover them without
+hitting the network:
+
+| Package                  | After install, docs live at                      |
+| ------------------------ | ------------------------------------------------ |
+| `together-sandbox` (npm) | `node_modules/together-sandbox/{LLMS.md,docs/}`  |
+| `together-sandbox` (pip) | `site-packages/together_sandbox/{LLMS.md,docs/}` |
+
+[`generate.sh`](./generate.sh) copies the relevant subset of `docs/`
+into each SDK package and renders `LLMS.md` from
+[`LLMS-template.md`](./LLMS-template.md) with per-package substitutions.
+
+Generated outputs (`together-sandbox-*/docs/` and `together-sandbox-*/LLMS.md`)
+are git-ignored. Edit the source in [`docs/`](./docs/) and
+[`LLMS-template.md`](./LLMS-template.md) — never the generated copies.
 
 ## Development
 

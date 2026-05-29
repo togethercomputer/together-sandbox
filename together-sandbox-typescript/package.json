@@ -36,7 +36,9 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "docs",
+    "README.md",
+    "LLMS.md"
   ],
   "sideEffects": false,
   "scripts": {
