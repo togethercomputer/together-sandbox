@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.12.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v1.11.0...together-sandbox-workspace-v1.12.0) (2026-05-29)
+
+
+### Features
+
+* include docs in SDKs ([4ff7b45](https://github.com/togethercomputer/together-sandbox/commit/4ff7b45529b2f378feb11248c0672a48cf2c4238))
+* include docs in SDKs ([b2752e0](https://github.com/togethercomputer/together-sandbox/commit/b2752e0d78d85d7ad2184778ca160e30a69d4f67))
+
+
+### Bug Fixes
+
+* fix api generation for the CLI publish ([795757b](https://github.com/togethercomputer/together-sandbox/commit/795757b23cf01c600fb3ccb6ef47bb6f12400add))
+* fix api generation for the CLI publish ([93fe985](https://github.com/togethercomputer/together-sandbox/commit/93fe98523b74e24cd194503aaf9272929a7fa1b0))
+
 ## [1.11.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v1.10.0...together-sandbox-workspace-v1.11.0) (2026-05-28)
 
 
