@@ -36,11 +36,15 @@ class TestResolveConnection:
         assert url == "https://agent.example.com"
         assert token == "agent-tok"
 
+    def test_raises_if_agent_url_missing(self):
+        sandbox = _make_sandbox_model(agent_url=None)
+        with pytest.raises(RuntimeError, match="no agent connection details"):
+            _resolve_connection(sandbox)
+
     def test_raises_if_agent_token_missing(self):
         sandbox = _make_sandbox_model(agent_token=None)
         with pytest.raises(RuntimeError, match="no agent connection details"):
             _resolve_connection(sandbox)
-
 
 # ─── RetryConfig docstring integrity ──────────────────────────────────────────
 
