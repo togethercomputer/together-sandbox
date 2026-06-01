@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from urllib.parse import urlparse
 
-DEFAULT_BASE_URL = "https://api.bartender.codesandbox.stream"
+DEFAULT_BASE_URL = "https://api.bartender.codesandbox.io"
 
 
 def get_inferred_base_url() -> str:

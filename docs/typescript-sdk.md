@@ -48,11 +48,11 @@ const sdk = new TogetherSandbox(config: TogetherSandboxConfig);
 
 ### `TogetherSandboxConfig`
 
-| Property  | Type          | Required | Description                                                                                                                                          |
-| --------- | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apiKey`  | `string`      | Yes      | Together AI API key. Falls back to `TOGETHER_API_KEY` env var if not set.                                                                            |
-| `baseUrl` | `string`      | No       | Override the management API base URL. Defaults to `https://api.bartender.codesandbox.stream`. Also configurable via the `TOGETHER_BASE_URL` env var. |
-| `retry`   | `RetryConfig` | No       | Retry configuration for transient failures. See [Retry](#retry) below.                                                                               |
+| Property  | Type          | Required | Description                                                                                                                                      |
+| --------- | ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apiKey`  | `string`      | Yes      | Together AI API key. Falls back to `TOGETHER_API_KEY` env var if not set.                                                                        |
+| `baseUrl` | `string`      | No       | Override the management API base URL. Defaults to `https://api.bartender.codesandbox.io`. Also configurable via the `TOGETHER_BASE_URL` env var. |
+| `retry`   | `RetryConfig` | No       | Retry configuration for transient failures. See [Retry](#retry) below.                                                                           |
 
 ### `sdk.sandboxes`
 

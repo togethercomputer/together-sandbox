@@ -676,7 +676,7 @@ class Sandbox:
         sandbox_id: str,
         *,
         api_key: str | None = None,
-        base_url: str = "https://api.codesandbox.io",
+        base_url: str | None = None,
         version_number: int | None = None,
     ) -> "Sandbox":
         """
@@ -693,11 +693,7 @@ class Sandbox:
 
     @classmethod
     async def hibernate(
-        cls,
-        sandbox_id: str,
-        *,
-        api_key: str | None = None,
-        base_url: str = "https://api.codesandbox.io",
+        cls, sandbox_id: str, *, api_key: str | None = None, base_url: str | None = None
     ) -> None:
         """Hibernate a sandbox by ID without a running Sandbox instance."""
         from ._together_sandbox import TogetherSandbox
@@ -707,11 +703,7 @@ class Sandbox:
 
     @classmethod
     async def shutdown(
-        cls,
-        sandbox_id: str,
-        *,
-        api_key: str | None = None,
-        base_url: str = "https://api.codesandbox.io",
+        cls, sandbox_id: str, *, api_key: str | None = None, base_url: str | None = None
     ) -> None:
         """Shut down a sandbox by ID without a running Sandbox instance."""
         from ._together_sandbox import TogetherSandbox

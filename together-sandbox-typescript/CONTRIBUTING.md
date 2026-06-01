@@ -48,7 +48,7 @@ TOGETHER_API_KEY=your-api-key npm run test:e2e
 
 ## Environment variables
 
-| Variable            | Description                                                                             |
-| ------------------- | --------------------------------------------------------------------------------------- |
-| `TOGETHER_API_KEY`  | Required. Your Together AI API key.                                                     |
-| `TOGETHER_BASE_URL` | Optional. Override the management API base URL (default: `https://api.codesandbox.io`). |
+| Variable            | Description                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| `TOGETHER_API_KEY`  | Required. Your Together AI API key.                                                               |
+| `TOGETHER_BASE_URL` | Optional. Override the management API base URL (default: `https://api.bartender.codesandbox.io`). |

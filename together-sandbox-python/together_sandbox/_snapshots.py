@@ -351,7 +351,7 @@ class SnapshotsNamespace:
         Build a Docker image using the remote image-builder service.
 
         Derives the image-builder URL from the configured base URL by replacing
-        "api.bartender." or "api." with "builder.". Uses the SDK's API key as
+        "api.bartender." with "builder.". Uses the SDK's API key as
         the auth token. Returns a dict with ``image`` and ``architecture`` keys,
         compatible with ``create_snapshot``.
 
@@ -361,9 +361,7 @@ class SnapshotsNamespace:
         from pathlib import Path
 
         csb_base_url = get_inferred_base_url()
-        ib_api_url = csb_base_url.replace("api.bartender.", "builder.").replace(
-            "api.", "builder."
-        )
+        ib_api_url = csb_base_url.replace("api.bartender.", "builder.")
 
         context_dir = Path(os.path.realpath(params.context))
         dockerfile_path = (

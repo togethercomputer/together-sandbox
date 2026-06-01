@@ -7,7 +7,7 @@ export function getInferredBaseUrl() {
     return process.env.TOGETHER_BASE_URL;
   }
 
-  return "https://api.bartender.codesandbox.stream";
+  return "https://api.bartender.codesandbox.io";
 }
 
 export function isLocalEnvironment(apiBaseUrl: string): boolean {
