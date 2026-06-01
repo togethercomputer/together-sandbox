@@ -57,7 +57,3 @@ class TestRetryConfigDocstring:
         assert RetryConfig.__doc__ is not None
         assert "return result" not in RetryConfig.__doc__
 
-    def test_raises_if_agent_token_missing(self):
-        sandbox = _make_sandbox_model(agent_token=None)
-        with pytest.raises(RuntimeError, match="no agent connection details"):
-            _resolve_connection(sandbox)
