@@ -53,7 +53,7 @@ export TOGETHER_API_KEY="your-api-key-here"
 
 # Optional
 export TOGETHER_SNAPSHOT_ID="snapshot-id"  # If you want to test with a specific snapshot
-export TOGETHER_BASE_URL="https://api.codesandbox.io"  # Override default base URL
+export TOGETHER_BASE_URL="https://api.bartender.codesandbox.io"  # Override default base URL
 ```
 
 ## Running Tests

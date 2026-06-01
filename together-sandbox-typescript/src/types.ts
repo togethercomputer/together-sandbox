@@ -21,7 +21,7 @@ export type CamelCasedProperties<T extends object> = {
 export interface TogetherSandboxConfig {
   /** Together AI API key. */
   apiKey?: string;
-  /** Base URL for the management API. Defaults to `https://api.codesandbox.io`. */
+  /** Base URL for the management API. Defaults to `https://api.bartender.codesandbox.io`. */
   baseUrl?: string;
   /** Retry configuration */
   retry?: RetryConfig;

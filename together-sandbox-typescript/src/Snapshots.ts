@@ -402,16 +402,14 @@ export class SnapshotsNamespace {
    *
    * Mirrors the Python SDK's `_build_image_remotely`: derives the
    * image-builder URL from the configured base URL by replacing
-   * `api.bartender.` or `api.` with `builder.`, uses the SDK's API key as the
+   * `api.bartender.` with `builder.`, uses the SDK's API key as the
    * auth token, and returns the image reference and architecture that should
    * be passed to `snapshots.create`.
    */
   private async _buildRemotely(
     params: CreateContextSnapshotParams,
   ): Promise<{ image: string; architecture: "amd64" | "arm64" }> {
-    const ibApiUrl = this._baseUrl
-      .replace("api.bartender.", "builder.")
-      .replace("api.", "builder.");
+    const ibApiUrl = this._baseUrl.replace("api.bartender.", "builder.");
 
     const contextDir = path.resolve(params.context);
     const dockerfilePath = params.dockerfile
