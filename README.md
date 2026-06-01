@@ -15,6 +15,19 @@ npm install together-sandbox
 pip install together-sandbox
 ```
 
+## Get an API key
+
+All three packages authenticate via the `TOGETHER_API_KEY` environment variable.
+
+1. Sign in (or sign up) at [together.ai](https://together.ai).
+2. Open your project's [API keys page](https://api.together.ai/settings/projects/~current/api-keys).
+3. Click **Create key**, give it a name, and copy the value.
+4. Export it in your shell (or add it to your `.env`):
+
+   ```bash
+   export TOGETHER_API_KEY="your-key-here"
+   ```
+
 ## Documentation
 
 The canonical docs live in [`docs/`](./docs/) and are the single source of truth:
