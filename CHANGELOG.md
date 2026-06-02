@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.0.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v1.12.0...together-sandbox-workspace-v2.0.0) (2026-06-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **CSB-1514:** default management API base URL changed from https://api.bartender.codesandbox.stream to https://api.bartender.codesandbox.io. Set TOGETHER_BASE_URL or pass base_url/baseUrl explicitly to override.
+
+### Features
+
+* **CSB-1514:** default SDK base URL to api.bartender.codesandbox.io ([0b47efb](https://github.com/togethercomputer/together-sandbox/commit/0b47efb385846f7e1c190c30831d7f4f96449ac7))
+
+
+### Bug Fixes
+
+* do not throw on non failing retries ([d06e41f](https://github.com/togethercomputer/together-sandbox/commit/d06e41fa8a4901e13ee2d24d6fd560633831258a))
+* do not throw on non failing retries ([311e11c](https://github.com/togethercomputer/together-sandbox/commit/311e11c6a7408330d99657d4b2f4417bc81ae4b9))
+* fix e2e tests prep ([94dbf58](https://github.com/togethercomputer/together-sandbox/commit/94dbf587e698b39642abee45a10be944d9eae035))
+* fix e2e tests prep ([6400072](https://github.com/togethercomputer/together-sandbox/commit/640007217be1e08e75b4a602257ea80ce9846a3a))
+* handle valid exceptions for continued wait for the build ([3b52af1](https://github.com/togethercomputer/together-sandbox/commit/3b52af123b21d649391d65aa521a5eff4efef926))
+* **python:** remove stray `return result` fragment from RetryConfig docstring ([49019cc](https://github.com/togethercomputer/together-sandbox/commit/49019cc63152a06fa0909ba8bb038fc2cb301585))
+* remove duplicate ([f7353ee](https://github.com/togethercomputer/together-sandbox/commit/f7353eea4440b958f255b355e7e294ab32cdd6e6))
+
 ## [1.12.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v1.11.0...together-sandbox-workspace-v1.12.0) (2026-05-29)
 
 
