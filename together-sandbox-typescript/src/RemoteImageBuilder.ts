@@ -218,9 +218,8 @@ export class RemoteImageBuilderClient {
     const maxAttempts = 5;
     const wait = 1000;
 
-    let lastError: Error | undefined;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let attempt = 1;
+    while (true) {
       let sawDone = false;
       let fatalError: Error | undefined;
 
@@ -238,7 +237,7 @@ export class RemoteImageBuilderClient {
         const isRetryable =
           status !== undefined && STREAM_RETRYABLE_STATUS_CODES.has(status);
         if (!isRetryable || attempt >= maxAttempts) throw e;
-        lastError = e;
+        attempt++;
         await sleep(wait);
         continue;
       }
@@ -259,16 +258,10 @@ export class RemoteImageBuilderClient {
         return imageRef;
       }
 
-      // Stream closed without `done` — retry.
-      if (attempt >= maxAttempts) break;
+      // The stream closed, but we are not done, so we just reset retry attempts and continue. It can take a long time with big builds
+      attempt = 1;
       await sleep(wait);
     }
-
-    throw new Error(
-      `Build ${buildId} log stream ended without completion ` +
-        `after ${maxAttempts} attempts` +
-        (lastError ? ` (last error: ${lastError.message})` : ""),
-    );
   }
 
   /**

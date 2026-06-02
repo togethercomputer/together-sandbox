@@ -128,7 +128,8 @@ class RemoteImageBuilderClient:
         max_attempts = 5
         wait = 1.0
 
-        for attempt in range(1, max_attempts + 1):
+        attempt = 1
+        while True:
             try:
                 async with httpx.AsyncClient(timeout=timeout) as client:
                     async with aconnect_sse(
@@ -172,24 +173,35 @@ class RemoteImageBuilderClient:
                 if (
                     status_code == 404 or status_code in RETRYABLE_STATUS_CODES
                 ) and attempt < max_attempts:
+                    attempt += 1
                     await asyncio.sleep(wait)
                     continue
                 raise
+            except (
+                httpx.RemoteProtocolError,
+                httpx.ReadError,
+                httpx.ReadTimeout,
+                httpx.WriteError,
+                httpx.ConnectError,
+            ):
+                # Stream dropped mid-build (idle timeout, load-balancer
+                # recycle, etc.). The build is still running server-side, so
+                # reset the retry counter, wait, and reconnect to keep
+                # tailing logs without exhausting max_attempts.
+                attempt = 1
+                await asyncio.sleep(wait)
+                continue
             except Exception:
                 if attempt >= max_attempts:
                     raise
+                attempt += 1
                 await asyncio.sleep(wait)
                 continue
 
-            # Stream closed without done — retry
-            if attempt >= max_attempts:
-                break
+            # The stream closed, but we are not done, so we just reset retry attempts and continue.
+            # It can take a long time with big builds
+            attempt = 1
             await asyncio.sleep(wait)
-
-        raise RuntimeError(
-            f"Build {build_id} log stream ended without completion "
-            f"after {max_attempts} attempts"
-        )
 
     async def cancel(self, build_id: str) -> None:
         """Cancel a running build by deleting its job."""
