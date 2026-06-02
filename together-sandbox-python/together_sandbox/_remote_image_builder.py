@@ -177,6 +177,20 @@ class RemoteImageBuilderClient:
                     await asyncio.sleep(wait)
                     continue
                 raise
+            except (
+                httpx.RemoteProtocolError,
+                httpx.ReadError,
+                httpx.ReadTimeout,
+                httpx.WriteError,
+                httpx.ConnectError,
+            ):
+                # Stream dropped mid-build (idle timeout, load-balancer
+                # recycle, etc.). The build is still running server-side, so
+                # reset the retry counter, wait, and reconnect to keep
+                # tailing logs without exhausting max_attempts.
+                attempt = 1
+                await asyncio.sleep(wait)
+                continue
             except Exception:
                 if attempt >= max_attempts:
                     raise
