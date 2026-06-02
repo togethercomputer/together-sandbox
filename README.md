@@ -34,6 +34,7 @@ The canonical docs live in [`docs/`](./docs/) and are the single source of truth
 
 - [Sandboxes and Snapshots](./docs/sandboxes.md)
 - [Harbor Integration Guide](https://github.com/codesandbox/harbor/tree/integrate-with-together-sandbox-sdk#guide)
+- [Tinker + Harbor recipe](https://github.com/togethercomputer/tinker-cookbook/tree/harbor-together/tinker_cookbook/recipes/harbor_rl)
 - [CLI](./docs/cli.md)
 - [TypeScript SDK](./docs/typescript-sdk.md)
 - [Python SDK](./docs/python-sdk.md)
