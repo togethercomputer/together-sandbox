@@ -61,11 +61,7 @@ class SandboxesNamespace:
         Returns:
             A ready-to-use :class:`Sandbox` with all sub-namespaces.
         """
-        body = (
-            UNSET
-            if version_number is None
-            else StartSandboxBody(version_number=version_number)
-        )
+        body = UNSET if version_number is None else StartSandboxBody(version_number=version_number)
 
         await _call_api(
             "api.start_sandbox",

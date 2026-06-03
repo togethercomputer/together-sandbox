@@ -5,11 +5,7 @@ import {
 } from "./api-clients/sandbox/client/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { Sandbox, type StartOptions } from "./Sandbox.js";
-import {
-  type SandboxInfo,
-  type CreateSandboxParams,
-  type RetryConfig,
-} from "./types.js";
+import { type SandboxInfo, type CreateSandboxParams, type RetryConfig } from "./types.js";
 import { camelCaseKeys, callApi } from "./utils.js";
 import { describeLifecycleFailure } from "./lifecycle.js";
 
@@ -69,9 +65,7 @@ export class SandboxesNamespace {
    */
   async start(sandboxId: string, options?: StartOptions): Promise<Sandbox> {
     const body =
-      options?.versionNumber !== undefined
-        ? { version_number: options.versionNumber }
-        : undefined;
+      options?.versionNumber !== undefined ? { version_number: options.versionNumber } : undefined;
 
     await callApi(
       "api.startSandbox",
@@ -110,12 +104,7 @@ export class SandboxesNamespace {
     // Add error interceptor to handle non-retryable errors
     sandboxClient.interceptors.error.use((error) => error);
 
-    return new Sandbox(
-      finalData,
-      sandboxClient,
-      this._apiClient,
-      this._retryConfig,
-    );
+    return new Sandbox(finalData, sandboxClient, this._apiClient, this._retryConfig);
   }
 
   /**

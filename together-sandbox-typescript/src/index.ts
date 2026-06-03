@@ -19,11 +19,7 @@ export type { ExecStdout } from "./api-clients/sandbox/index.js";
 
 // Unified facade — recommended entry point
 export { TogetherSandbox } from "./TogetherSandbox.js";
-export type {
-  TogetherSandboxConfig,
-  RetryConfig,
-  RetryContext,
-} from "./types.js";
+export type { TogetherSandboxConfig, RetryConfig, RetryContext } from "./types.js";
 
 // Public camelCase types and facade classes
 export type { SandboxInfo, CreateSandboxParams } from "./types.js";

@@ -55,14 +55,11 @@ export async function withRetry<T>(
       lastError =
         err instanceof Error
           ? err
-          : new Error(
-              `${operation}${context ? ` ${context}` : ""}: ${String(err)}`,
-            );
+          : new Error(`${operation}${context ? ` ${context}` : ""}: ${String(err)}`);
 
       if (attempt >= maxAttempts) break;
 
-      const defaultDelay =
-        BASE_DELAY * Math.pow(2, attempt - 1) + Math.random() * JITTER;
+      const defaultDelay = BASE_DELAY * Math.pow(2, attempt - 1) + Math.random() * JITTER;
 
       // Surface `.status` to the RetryContext when the thrown error carries
       // one (e.g. `HttpError`) so user `shouldRetry` callbacks can branch on
@@ -98,9 +95,7 @@ export async function withRetry<T>(
   }
 
   if (lastError instanceof Error) throw lastError;
-  throw new Error(
-    `${operation}${context ? ` ${context}` : ""}: ${String(lastError)}`,
-  );
+  throw new Error(`${operation}${context ? ` ${context}` : ""}: ${String(lastError)}`);
 }
 
 /**
@@ -131,9 +126,7 @@ export async function callApi<T>(
   //   - `sandbox.*` → in-VM sandbox agent
   //   - `api.*`     → Together management API (Bartender)
   // This drives the transport-failure hint without needing a per-call argument.
-  const target: "api" | "sandbox" = operation.startsWith("sandbox.")
-    ? "sandbox"
-    : "api";
+  const target: "api" | "sandbox" = operation.startsWith("sandbox.") ? "sandbox" : "api";
 
   return withRetry<T>(
     operation,
@@ -166,8 +159,7 @@ export async function callApi<T>(
         if (isApiErrorShape(err)) {
           // Append field-level details only when present — keeps the common
           // empty-errors case clean (no trailing `\n[]`).
-          const tail =
-            err.errors.length > 0 ? `\n${JSON.stringify(err.errors)}` : "";
+          const tail = err.errors.length > 0 ? `\n${JSON.stringify(err.errors)}` : "";
           throw new HttpError(
             `Failed to ${operation}${suffix}: ${err.message} (code: ${err.code})${tail}`,
             status,
@@ -213,14 +205,10 @@ export async function callApi<T>(
         } catch {
           dump = String(err);
         }
-        throw new HttpError(
-          `Failed to ${operation}${suffix}: HTTP ${status} ${dump}`,
-          status,
-          {
-            body: err,
-            hint: fallbackHint,
-          },
-        );
+        throw new HttpError(`Failed to ${operation}${suffix}: HTTP ${status} ${dump}`, status, {
+          body: err,
+          hint: fallbackHint,
+        });
       }
 
       return result.data as T;
@@ -307,10 +295,9 @@ function hintFor(
 /**
  * Converts snake_case property names to camelCase.
  */
-type SnakeToCamelCase<S extends string> =
-  S extends `${infer Head}_${infer Tail}`
-    ? `${Head}${Capitalize<SnakeToCamelCase<Tail>>}`
-    : S;
+type SnakeToCamelCase<S extends string> = S extends `${infer Head}_${infer Tail}`
+  ? `${Head}${Capitalize<SnakeToCamelCase<Tail>>}`
+  : S;
 
 /**
  * Converts all top-level property keys from snake_case to camelCase.
@@ -323,9 +310,7 @@ export type CamelCasedProperties<T extends object> = {
 /**
  * Runtime mapper that converts snake_case object keys to camelCase.
  */
-export function camelCaseKeys<T extends Record<string, unknown>>(
-  obj: T,
-): CamelCasedProperties<T> {
+export function camelCaseKeys<T extends Record<string, unknown>>(obj: T): CamelCasedProperties<T> {
   return Object.fromEntries(
     Object.entries(obj).map(([key, value]) => [
       key.replace(/_+([a-z])/g, (match, char, offset: number) =>

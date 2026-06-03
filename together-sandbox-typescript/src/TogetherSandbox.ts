@@ -61,9 +61,7 @@ export class TogetherSandbox {
     const apiKey = config?.apiKey ?? getInferredApiKey();
 
     if (!apiKey) {
-      throw new Error(
-        "apiKey must be provided or TOGETHER_API_KEY env var must be set",
-      );
+      throw new Error("apiKey must be provided or TOGETHER_API_KEY env var must be set");
     }
 
     const baseUrl = config?.baseUrl ?? getInferredBaseUrl();
@@ -75,11 +73,6 @@ export class TogetherSandbox {
     );
 
     this.sandboxes = new SandboxesNamespace(apiClient, config?.retry);
-    this.snapshots = new SnapshotsNamespace(
-      apiClient,
-      baseUrl,
-      apiKey,
-      config?.retry,
-    );
+    this.snapshots = new SnapshotsNamespace(apiClient, baseUrl, apiKey, config?.retry);
   }
 }

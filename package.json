@@ -5,5 +5,8 @@
   "workspaces": [
     "together-sandbox-typescript",
     "together-sandbox-cli"
-  ]
+  ],
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
 }

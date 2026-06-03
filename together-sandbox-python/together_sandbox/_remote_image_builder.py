@@ -132,16 +132,12 @@ class RemoteImageBuilderClient:
         while True:
             try:
                 async with httpx.AsyncClient(timeout=timeout) as client:
-                    async with aconnect_sse(
-                        client, "GET", url, headers=headers
-                    ) as event_source:
+                    async with aconnect_sse(client, "GET", url, headers=headers) as event_source:
                         saw_done = False
                         async for sse_event in event_source.aiter_sse():
                             data = sse_event.data
                             # JSON control events contain "done" or "error" keys
-                            if data.startswith("{") and (
-                                '"done"' in data or '"error"' in data
-                            ):
+                            if data.startswith("{") and ('"done"' in data or '"error"' in data):
                                 try:
                                     obj = json.loads(data)
                                     if obj.get("done"):
@@ -208,9 +204,7 @@ class RemoteImageBuilderClient:
         headers = {"Authorization": f"Bearer {self._token}"}
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                await client.delete(
-                    f"{self._api_url}/builds/{build_id}", headers=headers
-                )
+                await client.delete(f"{self._api_url}/builds/{build_id}", headers=headers)
         except Exception as e:
             if self._logger:
                 self._logger.warning(f"Failed to cancel build {build_id}: {e}")
@@ -221,9 +215,7 @@ class RemoteImageBuilderClient:
 
         async def _do():
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(
-                    f"{self._api_url}/builds/{build_id}", headers=headers
-                )
+                response = await client.get(f"{self._api_url}/builds/{build_id}", headers=headers)
                 response.raise_for_status()
                 return response.json()
 

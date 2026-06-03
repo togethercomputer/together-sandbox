@@ -12,10 +12,7 @@ export type CreateArgs = {
   ci?: boolean;
 };
 
-export const createCommand: yargs.CommandModule<
-  Record<string, never>,
-  CreateArgs
-> = {
+export const createCommand: yargs.CommandModule<Record<string, never>, CreateArgs> = {
   command: "create",
   describe: "Create a snapshot from a build context or Docker image.",
   builder: (yargs) =>
@@ -42,12 +39,10 @@ export const createCommand: yargs.CommandModule<
         describe: "CI mode: plain stdout, no spinner",
       })
       .check((argv) => {
-        if (!argv.context && !argv.image)
-          throw new Error("Provide either --context or --image.");
+        if (!argv.context && !argv.image) throw new Error("Provide either --context or --image.");
         if (argv.context && argv.image)
           throw new Error("--context and --image are mutually exclusive.");
-        if (argv.dockerfile && !argv.context)
-          throw new Error("--dockerfile requires --context.");
+        if (argv.dockerfile && !argv.context) throw new Error("--dockerfile requires --context.");
         return true;
       }) as yargs.Argv<CreateArgs>,
 
@@ -71,9 +66,7 @@ export const createCommand: yargs.CommandModule<
 
       if (argv.context) {
         const resolvedContext = path.resolve(argv.context);
-        const resolvedDockerfile = argv.dockerfile
-          ? path.resolve(argv.dockerfile)
-          : undefined;
+        const resolvedDockerfile = argv.dockerfile ? path.resolve(argv.dockerfile) : undefined;
         params = {
           context: resolvedContext,
           dockerfile: resolvedDockerfile,
@@ -111,9 +104,7 @@ export const createCommand: yargs.CommandModule<
       }
 
       console.error(
-        error instanceof Error
-          ? error.message
-          : `Unknown error: ${JSON.stringify(error)}`,
+        error instanceof Error ? error.message : `Unknown error: ${JSON.stringify(error)}`,
       );
       process.exit(1);
     }

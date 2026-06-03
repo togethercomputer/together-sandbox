@@ -1,11 +1,7 @@
 import * as api from "./api-clients/api/index.js";
 import * as sandboxApi from "./api-clients/sandbox/index.js";
 import { type Client as SandboxApiClient } from "./api-clients/sandbox/client/index.js";
-import type {
-  RetryConfig,
-  SandboxInfo,
-  TogetherSandboxConfig,
-} from "./types.js";
+import type { RetryConfig, SandboxInfo, TogetherSandboxConfig } from "./types.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { TogetherSandbox } from "./TogetherSandbox.js";
 import { callApi } from "./utils.js";
@@ -214,9 +210,7 @@ export class Sandbox {
         );
         return result.execs;
       },
-      create: async (
-        body: Parameters<typeof sandboxApi.createExec>[0]["body"],
-      ) => {
+      create: async (body: Parameters<typeof sandboxApi.createExec>[0]["body"]) => {
         const result = await callApi(
           "sandbox.execs.create",
           () =>
@@ -318,9 +312,7 @@ export class Sandbox {
             }),
           this._retryConfig,
         );
-        const exitCode = events.find(
-          (e) => typeof e.exitCode === "number",
-        )?.exitCode;
+        const exitCode = events.find((e) => typeof e.exitCode === "number")?.exitCode;
         const output = events.map((e) => e.output).join("");
         return { exitCode, output };
       },
@@ -461,10 +453,7 @@ export class Sandbox {
    * });
    * ```
    */
-  static async hibernate(
-    sandboxId: string,
-    config: TogetherSandboxConfig,
-  ): Promise<void> {
+  static async hibernate(sandboxId: string, config: TogetherSandboxConfig): Promise<void> {
     const sdk = new TogetherSandbox(config);
     await sdk.sandboxes.hibernate(sandboxId);
   }
@@ -479,10 +468,7 @@ export class Sandbox {
    * });
    * ```
    */
-  static async shutdown(
-    sandboxId: string,
-    config: TogetherSandboxConfig,
-  ): Promise<void> {
+  static async shutdown(sandboxId: string, config: TogetherSandboxConfig): Promise<void> {
     const sdk = new TogetherSandbox(config);
     await sdk.sandboxes.shutdown(sandboxId);
   }

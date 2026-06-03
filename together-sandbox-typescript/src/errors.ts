@@ -99,9 +99,7 @@ export function isApiErrorShape(
  * Used by `callApi` to detect in-VM sandbox error payloads when formatting
  * the {@link HttpError} message.
  */
-export function isSandboxErrorShape(
-  e: unknown,
-): e is { code: number; message: string } {
+export function isSandboxErrorShape(e: unknown): e is { code: number; message: string } {
   return (
     typeof e === "object" &&
     e !== null &&

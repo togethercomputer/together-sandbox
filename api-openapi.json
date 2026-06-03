@@ -66,13 +66,7 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "created",
-              "starting",
-              "running",
-              "stopping",
-              "stopped"
-            ]
+            "enum": ["created", "starting", "running", "stopping", "stopped"]
           },
           "ephemeral": {
             "type": "boolean"
@@ -119,60 +113,31 @@
             "format": "date-time"
           },
           "start_requested_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "start_type": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "resume",
-              "cold_start",
-              null
-            ]
+            "type": ["string", "null"],
+            "enum": ["resume", "cold_start", null]
           },
           "started_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "stop_requested_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "requested_stop_type": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "shutdown",
-              "hibernate",
-              null
-            ]
+            "type": ["string", "null"],
+            "enum": ["shutdown", "hibernate", null]
           },
           "stopped_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "stop_reason": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "enum": [
               "start_failed",
               "shutdown",
@@ -186,37 +151,19 @@
             ]
           },
           "specs_updated_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "recovery_status": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "pending",
-              "recovered",
-              "canceled",
-              "unrecoverable",
-              null
-            ]
+            "type": ["string", "null"],
+            "enum": ["pending", "recovered", "canceled", "unrecoverable", null]
           },
           "recovery_started_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "recovery_finished_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "updated_at": {
@@ -263,10 +210,7 @@
             "format": "date-time"
           },
           "optimized_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "updated_at": {
@@ -277,13 +221,7 @@
       },
       "SandboxVersion": {
         "type": "object",
-        "required": [
-          "id",
-          "sandbox_id",
-          "number",
-          "snapshot_id",
-          "created_at"
-        ],
+        "required": ["id", "sandbox_id", "number", "snapshot_id", "created_at"],
         "properties": {
           "id": {
             "type": "string",
@@ -308,13 +246,7 @@
       },
       "SnapshotAlias": {
         "type": "object",
-        "required": [
-          "id",
-          "snapshot_id",
-          "alias",
-          "created_at",
-          "updated_at"
-        ],
+        "required": ["id", "snapshot_id", "alias", "created_at", "updated_at"],
         "properties": {
           "id": {
             "type": "string",
@@ -339,12 +271,7 @@
       },
       "ContainerRegistryCredential": {
         "type": "object",
-        "required": [
-          "username",
-          "password",
-          "registry_url",
-          "expired_at"
-        ],
+        "required": ["username", "password", "registry_url", "expired_at"],
         "properties": {
           "username": {
             "type": "string"
@@ -357,21 +284,14 @@
             "description": "Registry URL including the namespace path (e.g. registry.example.com/nbswy3dp)."
           },
           "expired_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           }
         }
       },
       "Error": {
         "type": "object",
-        "required": [
-          "code",
-          "message",
-          "errors"
-        ],
+        "required": ["code", "message", "errors"],
         "properties": {
           "code": {
             "type": "string"
@@ -576,11 +496,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "millicpu",
-                  "memory_bytes",
-                  "disk_bytes"
-                ],
+                "required": ["millicpu", "memory_bytes", "disk_bytes"],
                 "properties": {
                   "id": {
                     "type": "string",
@@ -906,10 +822,7 @@
                 "properties": {
                   "stop_type": {
                     "type": "string",
-                    "enum": [
-                      "shutdown",
-                      "hibernate"
-                    ],
+                    "enum": ["shutdown", "hibernate"],
                     "default": "shutdown",
                     "description": "How to stop the sandbox."
                   }
@@ -1318,9 +1231,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "image"
-                ],
+                "required": ["image"],
                 "properties": {
                   "image": {
                     "type": "string",
@@ -1328,10 +1239,7 @@
                   },
                   "architecture": {
                     "type": "string",
-                    "enum": [
-                      "amd64",
-                      "arm64"
-                    ],
+                    "enum": ["amd64", "arm64"],
                     "description": "Expected image architecture."
                   }
                 }
@@ -1641,9 +1549,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "alias"
-                ],
+                "required": ["alias"],
                 "properties": {
                   "alias": {
                     "type": "string"

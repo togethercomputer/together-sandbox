@@ -119,8 +119,6 @@ async def retry_until(
 
         elapsed = asyncio.get_event_loop().time() - start_time
         if elapsed >= timeout:
-            raise TimeoutError(
-                f"Condition not met within {timeout}s. Last result: {result}"
-            )
+            raise TimeoutError(f"Condition not met within {timeout}s. Last result: {result}")
 
         await asyncio.sleep(interval)

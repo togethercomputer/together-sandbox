@@ -405,10 +405,7 @@ Returned object shape:
 Throws if the stream ends without delivering an exit code (e.g. the process was killed externally or the sandbox was shut down mid-run).
 
 ```typescript
-const result = await sandbox.execs.exec("sh", [
-  "-c",
-  "echo hello && echo oops >&2 && exit 3",
-]);
+const result = await sandbox.execs.exec("sh", ["-c", "echo hello && echo oops >&2 && exit 3"]);
 
 console.log(result.exitCode); // 3
 console.log(result.output); // "hello\noops\n" — stdout and stderr interleaved by arrival order
@@ -610,11 +607,7 @@ Pass a `RetryConfig` to `new TogetherSandbox({ retry: ... })` to customise this 
 ### Example
 
 ```typescript
-import {
-  TogetherSandbox,
-  type RetryConfig,
-  type RetryContext,
-} from "together-sandbox";
+import { TogetherSandbox, type RetryConfig, type RetryContext } from "together-sandbox";
 
 const sdk = new TogetherSandbox({
   apiKey: process.env.TOGETHER_API_KEY!,

@@ -46,6 +46,7 @@ class TestResolveConnection:
         with pytest.raises(RuntimeError, match="no agent connection details"):
             _resolve_connection(sandbox)
 
+
 # ─── RetryConfig docstring integrity ──────────────────────────────────────────
 
 
@@ -56,4 +57,3 @@ class TestRetryConfigDocstring:
 
         assert RetryConfig.__doc__ is not None
         assert "return result" not in RetryConfig.__doc__
-

@@ -39,24 +39,19 @@ Python generator), then runs `npm run generate` in the TypeScript package and
 
 ## Formatting
 
-Code is formatted by `prettier` (TS/JS/JSON/MD/YAML) and `ruff format` (Python),
-enforced by a pre-commit hook and a blocking CI check.
-
-One-time setup:
+Prettier (TS/JS/JSON/MD/YAML) and Ruff (Python) are enforced by a blocking CI check.
 
 ```bash
-pipx install pre-commit
-pre-commit install
+bash format.sh         # format everything in place
+bash format.sh check   # what CI runs
 ```
 
-Run manually against all files:
-
-```bash
-pre-commit run --all-files
-```
+No setup needed — the script bootstraps a local `.venv-format/` for Ruff
+on first run (requires `python3`, which macOS ships by default). Prettier
+comes from `npm install` at the repo root.
 
 Generated code under `src/api-clients/`, `together_sandbox/api/`, and
-`together_sandbox/sandbox/` is excluded — never formatted.
+`together_sandbox/sandbox/` is excluded.
 
 ## Environment variables
 

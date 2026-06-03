@@ -63,9 +63,7 @@ sending to `createFile`. Never send content as a plain string or JSON body.
 
 ```typescript
 const body =
-  typeof content === "string"
-    ? new Blob([content], { type: "application/octet-stream" })
-    : content;
+  typeof content === "string" ? new Blob([content], { type: "application/octet-stream" }) : content;
 ```
 
 ### Namespace delegation pattern

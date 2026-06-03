@@ -1,15 +1,11 @@
-import type {
-  Sandbox as SandboxModel,
-  CreateSandboxData,
-} from "./api-clients/api/types.gen.js";
+import type { Sandbox as SandboxModel, CreateSandboxData } from "./api-clients/api/types.gen.js";
 
 /**
  * Configuration for the {@link TogetherSandbox} facade.
  */
-type SnakeToCamelCase<S extends string> =
-  S extends `${infer Head}_${infer Tail}`
-    ? `${Head}${Capitalize<SnakeToCamelCase<Tail>>}`
-    : S;
+type SnakeToCamelCase<S extends string> = S extends `${infer Head}_${infer Tail}`
+  ? `${Head}${Capitalize<SnakeToCamelCase<Tail>>}`
+  : S;
 
 /**
  * Converts all top-level property keys from snake_case to camelCase.
@@ -59,8 +55,6 @@ export interface RetryContext {
 
 export interface RetryConfig {
   maxAttempts?: number; // default 3
-  shouldRetry?: (
-    ctx: RetryContext,
-  ) => boolean | number | Promise<boolean | number>;
+  shouldRetry?: (ctx: RetryContext) => boolean | number | Promise<boolean | number>;
   onRetry?: (ctx: RetryContext) => void | Promise<void>;
 }

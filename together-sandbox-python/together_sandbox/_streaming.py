@@ -5,7 +5,9 @@ import httpx
 
 
 class SSEEvent:
-    def __init__(self, data: str, event: str | None = None, id: str | None = None, retry: int | None = None) -> None:
+    def __init__(
+        self, data: str, event: str | None = None, id: str | None = None, retry: int | None = None
+    ) -> None:
         self.data: str = data
         self.event: str | None = event
         self.id: str | None = id

@@ -6,20 +6,11 @@ import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { isLocalEnvironment } from "./configuration.js";
 import { callApi, sleep, withRetry } from "./utils.js";
 import { describeLifecycleFailure } from "./lifecycle.js";
-import {
-  buildDockerImage,
-  dockerLogin,
-  isDockerAvailable,
-  pushDockerImage,
-} from "./docker.js";
+import { buildDockerImage, dockerLogin, isDockerAvailable, pushDockerImage } from "./docker.js";
 import { RemoteImageBuilderClient } from "./RemoteImageBuilder.js";
 import { randomUUID } from "crypto";
 import type { RetryConfig } from "./types.js";
-import {
-  DEFAULT_DISK_BYTES,
-  DEFAULT_MEMORY_BYTES,
-  DEFAULT_MILLICPU,
-} from "./Sandboxes.js";
+import { DEFAULT_DISK_BYTES, DEFAULT_MEMORY_BYTES, DEFAULT_MILLICPU } from "./Sandboxes.js";
 
 export type SnapshotProgress = { output: string } & (
   | { step: "prepare" }
@@ -52,9 +43,7 @@ export type CreateImageSnapshotParams = {
   /** @internal */
   memorySnapshot?: boolean;
 };
-export type CreateSnapshotParams =
-  | CreateContextSnapshotParams
-  | CreateImageSnapshotParams;
+export type CreateSnapshotParams = CreateContextSnapshotParams | CreateImageSnapshotParams;
 
 /**
  * Result of a successful snapshot creation.
@@ -370,22 +359,13 @@ export class SnapshotsNamespace {
     // pathological inputs that strip to an empty string.
     const lastSegment = params.image.split("/").pop() ?? "";
     const imageNameSlug =
-      lastSegment
-        .split("@")[0]
-        .split(":")[0]
-        .toLowerCase()
-        .replace(/_/g, "-") || "image";
+      lastSegment.split("@")[0].split(":")[0].toLowerCase().replace(/_/g, "-") || "image";
 
-    const tmpParent = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), "together-sandbox-"),
-    );
+    const tmpParent = await fs.promises.mkdtemp(path.join(os.tmpdir(), "together-sandbox-"));
     const contextDir = path.join(tmpParent, imageNameSlug);
     try {
       await fs.promises.mkdir(contextDir, { recursive: true });
-      await fs.promises.writeFile(
-        path.join(contextDir, "Dockerfile"),
-        `FROM ${params.image}\n`,
-      );
+      await fs.promises.writeFile(path.join(contextDir, "Dockerfile"), `FROM ${params.image}\n`);
 
       return await this._buildRemotely({
         context: contextDir,
@@ -417,10 +397,7 @@ export class SnapshotsNamespace {
       : path.join(contextDir, "Dockerfile");
     const dockerfileRel = path.relative(contextDir, dockerfilePath);
 
-    const imageNameSlug = path
-      .basename(contextDir)
-      .toLowerCase()
-      .replace(/_/g, "-");
+    const imageNameSlug = path.basename(contextDir).toLowerCase().replace(/_/g, "-");
     const imageTag = String(Math.floor(Date.now() / 1000));
 
     // The server derives the namespace from the auth token; pass name:tag only.
@@ -473,9 +450,7 @@ export class SnapshotsNamespace {
     params: CreateContextSnapshotParams,
   ): Promise<{ image: string; architecture: "amd64" | "arm64" }> {
     const architecture: "amd64" | "arm64" =
-      process.arch === "arm64" && isLocalEnvironment(this._baseUrl)
-        ? "arm64"
-        : "amd64";
+      process.arch === "arm64" && isLocalEnvironment(this._baseUrl) ? "arm64" : "amd64";
     const dockerfilePath = params.dockerfile;
     const context = params.context;
 

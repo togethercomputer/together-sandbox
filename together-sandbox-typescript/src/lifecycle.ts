@@ -27,12 +27,9 @@ const STOP_REASON_HINTS: Record<string, string> = {
     "Sandbox was killed for exceeding its memory limit. Increase memoryBytes when creating the sandbox.",
   crashed:
     "The VM crashed. Inspect sandbox logs and re-start, or re-create from a known-good snapshot.",
-  evicted:
-    "Sandbox was evicted from its node. Usually transient — retry sdk.sandboxes.start().",
-  node_lost:
-    "Sandbox's node was lost. Usually transient — retry sdk.sandboxes.start().",
-  cluster_lost:
-    "Sandbox's cluster was lost. Usually transient — retry sdk.sandboxes.start().",
+  evicted: "Sandbox was evicted from its node. Usually transient — retry sdk.sandboxes.start().",
+  node_lost: "Sandbox's node was lost. Usually transient — retry sdk.sandboxes.start().",
+  cluster_lost: "Sandbox's cluster was lost. Usually transient — retry sdk.sandboxes.start().",
 };
 
 function firstDefined<T>(...values: (T | null | undefined)[]): T | undefined {
@@ -61,10 +58,7 @@ export function describeLifecycleFailure(
   const id = sandbox.id ?? "<unknown>";
   const status = sandbox.status ?? "<unknown>";
   const reason = firstDefined(sandbox.stop_reason, sandbox.stopReason);
-  const recovery = firstDefined(
-    sandbox.recovery_status,
-    sandbox.recoveryStatus,
-  );
+  const recovery = firstDefined(sandbox.recovery_status, sandbox.recoveryStatus);
 
   // 1. Unrecoverable — terminal, biggest signal
   if (recovery === "unrecoverable") {

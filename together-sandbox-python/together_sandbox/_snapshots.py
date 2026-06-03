@@ -424,14 +424,11 @@ class SnapshotsNamespace:
     ) -> dict[str, str | CreateSnapshotBodyArchitecture]:
         architecture = (
             CreateSnapshotBodyArchitecture.ARM64
-            if platform.machine().lower() == "arm64"
-            and is_local_environment(self._base_url)
+            if platform.machine().lower() == "arm64" and is_local_environment(self._base_url)
             else CreateSnapshotBodyArchitecture.AMD64
         )
         context = os.path.realpath(params.context)
-        dockerfile_path = (
-            os.path.realpath(params.dockerfile) if params.dockerfile else None
-        )
+        dockerfile_path = os.path.realpath(params.dockerfile) if params.dockerfile else None
 
         credential: ContainerRegistryCredential = await _call_api(
             "api.issue_container_registry_credential",
@@ -485,8 +482,7 @@ class SnapshotsNamespace:
         async def _on_push_retry(ctx: RetryContext) -> None:
             _emit(
                 "push",
-                f"Push failed (attempt {ctx.attempt}), "
-                f"retrying in {ctx.delay:.1f}s…",
+                f"Push failed (attempt {ctx.attempt}), retrying in {ctx.delay:.1f}s…",
             )
             if self._retry and self._retry.on_retry:
                 result = self._retry.on_retry(ctx)

@@ -97,11 +97,9 @@ class RetryConfig:
     custom delay. May be a coroutine function.
     """
 
-    on_retry: (
-        Callable[[RetryContext], None]
-        | Callable[[RetryContext], Awaitable[None]]
-        | None
-    ) = field(default=None)
+    on_retry: Callable[[RetryContext], None] | Callable[[RetryContext], Awaitable[None]] | None = (
+        field(default=None)
+    )
     """Called after each failed attempt, before the next retry.
 
     Use for logging, metrics, or UI updates. May be a coroutine function.
@@ -161,9 +159,7 @@ async def _with_retry(
             if attempt >= max_attempts:
                 break
 
-            default_delay = (
-                _BASE_DELAY * math.pow(2, attempt - 1) + random.random() * _JITTER
-            )
+            default_delay = _BASE_DELAY * math.pow(2, attempt - 1) + random.random() * _JITTER
 
             # Surface ``.status`` (when present) so user ``should_retry``
             # callbacks can branch on HTTP status. Network-level errors and
@@ -249,9 +245,7 @@ async def _call_api(
     #   - ``sandbox.*`` → in-VM sandbox agent
     #   - ``api.*``     → Together management API (Bartender)
     # This drives the transport-failure hint without needing a per-call argument.
-    target: Literal["api", "sandbox"] = (
-        "sandbox" if operation.startswith("sandbox.") else "api"
-    )
+    target: Literal["api", "sandbox"] = "sandbox" if operation.startswith("sandbox.") else "api"
 
     async def _attempt() -> Any:
         # Wrap transport-level failures (httpx.*) into HttpError(status=0) so
@@ -278,8 +272,7 @@ async def _call_api(
             if isinstance(errors_attr, list):
                 details = errors_attr
             raise HttpError(
-                f"Failed to {operation}{suffix}: "
-                f"{parsed.message} (code: {parsed.code})",
+                f"Failed to {operation}{suffix}: {parsed.message} (code: {parsed.code})",
                 status,
                 code=str(parsed.code),
                 details=details,
@@ -396,22 +389,13 @@ def _hint_for(
     if status == 404:
         op_lower = operation.lower()
         if "snapshot" in op_lower:
-            return (
-                "Snapshot does not exist. List available snapshots with "
-                "sdk.snapshots.list()."
-            )
+            return "Snapshot does not exist. List available snapshots with sdk.snapshots.list()."
         if target == "api" and "sandbox" in op_lower:
-            return (
-                "Sandbox does not exist. List active sandboxes with "
-                "sdk.sandboxes.list()."
-            )
+            return "Sandbox does not exist. List active sandboxes with sdk.sandboxes.list()."
         return "Resource not found. Verify the ID or alias and retry."
 
     if status == 429:
-        return (
-            "Rate limited. Back off and retry; see the Retry-After header "
-            "for guidance."
-        )
+        return "Rate limited. Back off and retry; see the Retry-After header for guidance."
     if status >= 500:
         return (
             "Together backend error. Retry; if it persists, report the issue "

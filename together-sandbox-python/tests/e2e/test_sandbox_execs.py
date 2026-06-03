@@ -34,18 +34,14 @@ class TestSandboxExecs:
 
     async def test_create_and_list_exec(self, sandbox: Sandbox):
         """Test creating an exec and listing it."""
-        exec_item = await sandbox.execs.create(
-            command="echo", args=["hello"], autostart=False
-        )
+        exec_item = await sandbox.execs.create(command="echo", args=["hello"], autostart=False)
         exec_list = await sandbox.execs.list()
 
         assert exec_list[0].id == exec_item.id
 
     async def test_delete_exec(self, sandbox: Sandbox):
         """Test deleting an exec."""
-        exec_item = await sandbox.execs.create(
-            command="echo", args=["hello"], autostart=False
-        )
+        exec_item = await sandbox.execs.create(command="echo", args=["hello"], autostart=False)
         await sandbox.execs.delete(exec_item.id)
 
         with pytest.raises(RuntimeError, match="Failed to sandbox.get_exec"):
@@ -94,9 +90,7 @@ class TestSandboxExecs:
     async def test_exec_with_cwd(self, sandbox: Sandbox):
         """Test exec with cwd (working directory)."""
         await sandbox.directories.create("/exec-cwd-test")
-        exec_item = await sandbox.execs.create(
-            command="pwd", args=[], cwd="/exec-cwd-test"
-        )
+        exec_item = await sandbox.execs.create(command="pwd", args=[], cwd="/exec-cwd-test")
         await retry_until(
             fn=lambda: sandbox.execs.get_output(exec_item.id),
             predicate=lambda r: "/exec-cwd-test" in r["output"],
@@ -118,30 +112,22 @@ class TestSandboxExecs:
 
     async def test_exec_with_args(self, sandbox: Sandbox):
         """Test that exec args are forwarded correctly."""
-        exec_item = await sandbox.execs.create(
-            command="echo", args=["one", "two", "three"]
-        )
+        exec_item = await sandbox.execs.create(command="echo", args=["one", "two", "three"])
         await retry_until(
             fn=lambda: sandbox.execs.get_output(exec_item.id),
-            predicate=lambda r: all(
-                token in r["output"] for token in ["one", "two", "three"]
-            ),
+            predicate=lambda r: all(token in r["output"] for token in ["one", "two", "three"]),
             timeout=10.0,
         )
 
     async def test_exec_autostart_false(self, sandbox: Sandbox):
         """Test that exec with autostart=False does not run immediately."""
-        exec_item = await sandbox.execs.create(
-            command="sleep", args=["5"], autostart=False
-        )
+        exec_item = await sandbox.execs.create(command="sleep", args=["5"], autostart=False)
         item = await sandbox.execs.get(exec_item.id)
         assert item.status != "running"
 
     async def test_start_exec(self, sandbox: Sandbox):
         """Test starting a created exec with autostart=False (sets its status to running)."""
-        exec_item = await sandbox.execs.create(
-            command="sleep", args=["5"], autostart=False
-        )
+        exec_item = await sandbox.execs.create(command="sleep", args=["5"], autostart=False)
         item = await sandbox.execs.get(exec_item.id)
         assert item.status != "running"
 
@@ -155,9 +141,7 @@ class TestSandboxExecs:
 
     async def test_exec(self, sandbox: Sandbox):
         """Test the convenience exec() method that runs a command and collects output."""
-        result = await sandbox.execs.exec(
-            "sh", ["-c", "echo hello && echo oops >&2 && exit 3"]
-        )
+        result = await sandbox.execs.exec("sh", ["-c", "echo hello && echo oops >&2 && exit 3"])
         assert result["exit_code"] == 3
         assert "hello" in result["output"]
         assert "oops" in result["output"]

@@ -50,10 +50,7 @@ const buildOptions = {
   // Resolve together-sandbox to the SDK TypeScript source directly,
   // so it gets inlined into the bundle rather than installed as an npm package.
   alias: {
-    "together-sandbox": path.resolve(
-      __dirname,
-      "../together-sandbox-typescript/src/index.ts",
-    ),
+    "together-sandbox": path.resolve(__dirname, "../together-sandbox-typescript/src/index.ts"),
   },
   plugins: [devtoolsStubPlugin],
 };

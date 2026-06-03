@@ -7,7 +7,7 @@ const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 export function base32Encode(
   input: string,
   lowercase: boolean = true,
-  removePadding: boolean = true
+  removePadding: boolean = true,
 ): string {
   const buffer = Buffer.from(input, "utf-8");
   let bits = 0;

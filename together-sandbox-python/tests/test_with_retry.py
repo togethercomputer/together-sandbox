@@ -89,9 +89,7 @@ class TestWithRetryBehavior:
 
         with patch("together_sandbox._utils.asyncio.sleep"):
             with pytest.raises(RuntimeError):
-                await _with_retry(
-                    "op", fn, RetryConfig(on_retry=on_retry, max_attempts=3)
-                )
+                await _with_retry("op", fn, RetryConfig(on_retry=on_retry, max_attempts=3))
 
         # max_attempts=3 → 2 retries → on_retry called twice (not on the
         # final failure that gets re-raised).

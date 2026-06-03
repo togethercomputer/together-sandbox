@@ -60,12 +60,8 @@ describe("callApi", () => {
     it("retries on status 429 (Too Many Requests)", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("429"), 429),
-        )
-        .mockResolvedValueOnce(
-          createApiResult({ success: true }, undefined, 200),
-        );
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("429"), 429))
+        .mockResolvedValueOnce(createApiResult({ success: true }, undefined, 200));
 
       const promise = callApi("testOp", fn);
       await vi.runAllTimersAsync();
@@ -78,12 +74,8 @@ describe("callApi", () => {
     it("retries on status 500 (Internal Server Error)", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("500"), 500),
-        )
-        .mockResolvedValueOnce(
-          createApiResult({ fixed: true }, undefined, 200),
-        );
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("500"), 500))
+        .mockResolvedValueOnce(createApiResult({ fixed: true }, undefined, 200));
 
       const promise = callApi("testOp", fn);
       await vi.runAllTimersAsync();
@@ -96,9 +88,7 @@ describe("callApi", () => {
     it("retries on status 502 (Bad Gateway)", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("502"), 502),
-        )
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("502"), 502))
         .mockResolvedValueOnce(createApiResult({ ok: true }, undefined, 200));
 
       const promise = callApi("testOp", fn);
@@ -112,12 +102,8 @@ describe("callApi", () => {
     it("retries on status 503 (Service Unavailable)", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("503"), 503),
-        )
-        .mockResolvedValueOnce(
-          createApiResult({ ready: true }, undefined, 200),
-        );
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("503"), 503))
+        .mockResolvedValueOnce(createApiResult({ ready: true }, undefined, 200));
 
       const promise = callApi("testOp", fn);
       await vi.runOnlyPendingTimersAsync();
@@ -130,12 +116,8 @@ describe("callApi", () => {
     it("retries on status 504 (Gateway Timeout)", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("504"), 504),
-        )
-        .mockResolvedValueOnce(
-          createApiResult({ timeout: false }, undefined, 200),
-        );
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("504"), 504))
+        .mockResolvedValueOnce(createApiResult({ timeout: false }, undefined, 200));
 
       const promise = callApi("testOp", fn);
       await vi.runAllTimersAsync();
@@ -148,12 +130,8 @@ describe("callApi", () => {
     it("retries on status 408 (Request Timeout)", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("408"), 408),
-        )
-        .mockResolvedValueOnce(
-          createApiResult({ alive: true }, undefined, 200),
-        );
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("408"), 408))
+        .mockResolvedValueOnce(createApiResult({ alive: true }, undefined, 200));
 
       const promise = callApi("testOp", fn);
       await vi.runAllTimersAsync();
@@ -166,9 +144,7 @@ describe("callApi", () => {
     it("does NOT retry on status 400 (Bad Request)", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("Bad Request"), 400),
-        );
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("Bad Request"), 400));
 
       const assertion = expect(callApi("testOp", fn)).rejects.toThrow();
       await vi.runAllTimersAsync();
@@ -179,9 +155,7 @@ describe("callApi", () => {
     it("does NOT retry on status 401 (Unauthorized)", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("Unauthorized"), 401),
-        );
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("Unauthorized"), 401));
 
       const assertion = expect(callApi("testOp", fn)).rejects.toThrow();
       await vi.runAllTimersAsync();
@@ -192,9 +166,7 @@ describe("callApi", () => {
     it("does NOT retry on status 403 (Forbidden)", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("Forbidden"), 403),
-        );
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("Forbidden"), 403));
 
       const assertion = expect(callApi("testOp", fn)).rejects.toThrow();
       await vi.runAllTimersAsync();
@@ -205,9 +177,7 @@ describe("callApi", () => {
     it("does NOT retry on status 404 (Not Found)", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("Not Found"), 404),
-        );
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("Not Found"), 404));
 
       const assertion = expect(callApi("testOp", fn)).rejects.toThrow();
       await vi.runAllTimersAsync();
@@ -216,9 +186,7 @@ describe("callApi", () => {
     });
 
     it("exhausts maxAttempts (default 3) and then throws", async () => {
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
 
       const assertion = expect(callApi("testOp", fn)).rejects.toThrow();
       await vi.runAllTimersAsync();
@@ -227,13 +195,9 @@ describe("callApi", () => {
     });
 
     it("fn is called exactly N times where N = maxAttempts", async () => {
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
 
-      const assertion = expect(
-        callApi("testOp", fn, { maxAttempts: 2 }),
-      ).rejects.toThrow();
+      const assertion = expect(callApi("testOp", fn, { maxAttempts: 2 })).rejects.toThrow();
       await vi.runAllTimersAsync();
       await assertion;
       expect(fn).toHaveBeenCalledTimes(2);
@@ -264,9 +228,7 @@ describe("callApi", () => {
     it("wraps fetch TypeError into HttpError with status 0 after maxAttempts", async () => {
       const fn = vi.fn().mockRejectedValue(new TypeError("network error"));
 
-      const errPromise = callApi("testOp", fn, { maxAttempts: 2 }).catch(
-        (e) => e,
-      );
+      const errPromise = callApi("testOp", fn, { maxAttempts: 2 }).catch((e) => e);
       await vi.runAllTimersAsync();
       const err = await errPromise;
 
@@ -286,9 +248,7 @@ describe("callApi", () => {
 
     it("returning false stops immediately, even for a retryable status", async () => {
       const shouldRetry = vi.fn().mockReturnValue(false);
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
 
       await expect(callApi("testOp", fn, { shouldRetry })).rejects.toThrow();
       expect(fn).toHaveBeenCalledTimes(1);
@@ -299,9 +259,7 @@ describe("callApi", () => {
       const shouldRetry = vi.fn().mockReturnValue(true);
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("400"), 400),
-        )
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("400"), 400))
         .mockResolvedValueOnce(createApiResult({ ok: true }));
 
       const promise = callApi("testOp", fn, { shouldRetry });
@@ -318,9 +276,7 @@ describe("callApi", () => {
       const onRetry = vi.fn();
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("500"), 500),
-        )
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("500"), 500))
         .mockResolvedValueOnce(createApiResult({ ok: true }));
 
       const promise = callApi("testOp", fn, { shouldRetry, onRetry });
@@ -328,16 +284,12 @@ describe("callApi", () => {
       const result = await promise;
 
       expect(result).toEqual({ ok: true });
-      expect(onRetry).toHaveBeenCalledWith(
-        expect.objectContaining({ delay: 1000 }),
-      );
+      expect(onRetry).toHaveBeenCalledWith(expect.objectContaining({ delay: 1000 }));
     });
 
     it("is called with correct RetryContext shape: operation, attempt, status, error, delay", async () => {
       const shouldRetry = vi.fn().mockReturnValue(false);
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, new Error("503"), 503));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, new Error("503"), 503));
 
       await expect(callApi("myOp", fn, { shouldRetry })).rejects.toThrow();
 
@@ -356,9 +308,7 @@ describe("callApi", () => {
         .mockReturnValueOnce(true)
         .mockReturnValueOnce(true)
         .mockReturnValueOnce(false);
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
 
       const assertion = expect(
         callApi("testOp", fn, { shouldRetry, maxAttempts: 4 }),
@@ -366,18 +316,9 @@ describe("callApi", () => {
       await vi.runAllTimersAsync();
       await assertion;
 
-      expect(shouldRetry).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ attempt: 1 }),
-      );
-      expect(shouldRetry).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ attempt: 2 }),
-      );
-      expect(shouldRetry).toHaveBeenNthCalledWith(
-        3,
-        expect.objectContaining({ attempt: 3 }),
-      );
+      expect(shouldRetry).toHaveBeenNthCalledWith(1, expect.objectContaining({ attempt: 1 }));
+      expect(shouldRetry).toHaveBeenNthCalledWith(2, expect.objectContaining({ attempt: 2 }));
+      expect(shouldRetry).toHaveBeenNthCalledWith(3, expect.objectContaining({ attempt: 3 }));
     });
   });
 
@@ -390,9 +331,7 @@ describe("callApi", () => {
 
     it("is called once per failed attempt (not on the final rethrow)", async () => {
       const onRetry = vi.fn();
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
 
       const assertion = expect(
         callApi("testOp", fn, { onRetry, maxAttempts: 3 }),
@@ -406,9 +345,7 @@ describe("callApi", () => {
 
     it("is called with correct attempt number (1-based)", async () => {
       const onRetry = vi.fn();
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
 
       const assertion = expect(
         callApi("testOp", fn, { onRetry, maxAttempts: 3 }),
@@ -416,21 +353,13 @@ describe("callApi", () => {
       await vi.runAllTimersAsync();
       await assertion;
 
-      expect(onRetry).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ attempt: 1 }),
-      );
-      expect(onRetry).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ attempt: 2 }),
-      );
+      expect(onRetry).toHaveBeenNthCalledWith(1, expect.objectContaining({ attempt: 1 }));
+      expect(onRetry).toHaveBeenNthCalledWith(2, expect.objectContaining({ attempt: 2 }));
     });
 
     it("is called with the computed delay (exponential backoff)", async () => {
       const onRetry = vi.fn();
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
 
       vi.spyOn(Math, "random").mockReturnValue(0); // Deterministic jitter
 
@@ -443,22 +372,14 @@ describe("callApi", () => {
       // BASE_DELAY = 500, JITTER = 250, random = 0
       // Attempt 1: 500 * 2^0 + 0 = 500
       // Attempt 2: 500 * 2^1 + 0 = 1000
-      expect(onRetry).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ delay: 500 }),
-      );
-      expect(onRetry).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ delay: 1000 }),
-      );
+      expect(onRetry).toHaveBeenNthCalledWith(1, expect.objectContaining({ delay: 500 }));
+      expect(onRetry).toHaveBeenNthCalledWith(2, expect.objectContaining({ delay: 1000 }));
     });
 
     it("receives updated delay when shouldRetry returns a number", async () => {
       const shouldRetry = vi.fn().mockReturnValue(777);
       const onRetry = vi.fn();
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
 
       const assertion = expect(
         callApi("testOp", fn, { shouldRetry, onRetry, maxAttempts: 2 }),
@@ -466,9 +387,7 @@ describe("callApi", () => {
       await vi.runAllTimersAsync();
       await assertion;
 
-      expect(onRetry).toHaveBeenCalledWith(
-        expect.objectContaining({ delay: 777 }),
-      );
+      expect(onRetry).toHaveBeenCalledWith(expect.objectContaining({ delay: 777 }));
     });
   });
 
@@ -480,13 +399,9 @@ describe("callApi", () => {
     });
 
     it("maxAttempts: 1 means no retries — throws on first failure", async () => {
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, new Error("500"), 500));
 
-      const assertion = expect(
-        callApi("testOp", fn, { maxAttempts: 1 }),
-      ).rejects.toThrow();
+      const assertion = expect(callApi("testOp", fn, { maxAttempts: 1 })).rejects.toThrow();
       await vi.runAllTimersAsync();
       await assertion;
       expect(fn).toHaveBeenCalledTimes(1);
@@ -495,18 +410,10 @@ describe("callApi", () => {
     it("maxAttempts: 5 retries up to 5 times", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("500"), 500),
-        )
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("500"), 500),
-        )
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("500"), 500),
-        )
-        .mockResolvedValueOnce(
-          createApiResult(undefined, new Error("500"), 500),
-        )
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("500"), 500))
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("500"), 500))
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("500"), 500))
+        .mockResolvedValueOnce(createApiResult(undefined, new Error("500"), 500))
         .mockResolvedValueOnce(createApiResult({ success: true }));
 
       const promise = callApi("testOp", fn, { maxAttempts: 5 });
@@ -548,9 +455,7 @@ describe("callApi", () => {
     it("preserves the original cause message when wrapping a network TypeError", async () => {
       const fn = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
 
-      const err = await callApi("listFiles", fn, { maxAttempts: 1 }).catch(
-        (e) => e,
-      );
+      const err = await callApi("listFiles", fn, { maxAttempts: 1 }).catch((e) => e);
 
       expect(err).toBeInstanceOf(HttpError);
       expect((err as HttpError).message).toContain("Failed to fetch");
@@ -575,9 +480,7 @@ describe("callApi", () => {
           ),
         );
 
-      const err = await callApi("getSandbox", fn, { maxAttempts: 1 }).catch(
-        (e) => e,
-      );
+      const err = await callApi("getSandbox", fn, { maxAttempts: 1 }).catch((e) => e);
 
       expect(err).toBeInstanceOf(HttpError);
       expect((err as HttpError).status).toBe(404);
@@ -590,16 +493,10 @@ describe("callApi", () => {
       const fn = vi
         .fn()
         .mockResolvedValue(
-          createApiResult(
-            undefined,
-            { code: 404, message: "file not found" },
-            404,
-          ),
+          createApiResult(undefined, { code: 404, message: "file not found" }, 404),
         );
 
-      const err = await callApi("files.read", fn, { maxAttempts: 1 }).catch(
-        (e) => e,
-      );
+      const err = await callApi("files.read", fn, { maxAttempts: 1 }).catch((e) => e);
 
       expect(err).toBeInstanceOf(HttpError);
       expect((err as HttpError).status).toBe(404);
@@ -620,9 +517,7 @@ describe("callApi", () => {
         .mockResolvedValueOnce(createApiResult(undefined, apiErrorShape, 500))
         .mockResolvedValueOnce(createApiResult(undefined, apiErrorShape, 500));
 
-      const assertion = expect(
-        callApi("startSandbox", fn),
-      ).rejects.toBeInstanceOf(HttpError);
+      const assertion = expect(callApi("startSandbox", fn)).rejects.toBeInstanceOf(HttpError);
       await vi.runAllTimersAsync();
       await assertion;
       expect(fn).toHaveBeenCalledTimes(3);
@@ -631,9 +526,7 @@ describe("callApi", () => {
     it("wraps fetch TypeError into HttpError on the first attempt", async () => {
       const fn = vi.fn().mockRejectedValue(new TypeError("network error"));
 
-      const err = await callApi("testOp", fn, { maxAttempts: 1 }).catch(
-        (e) => e,
-      );
+      const err = await callApi("testOp", fn, { maxAttempts: 1 }).catch((e) => e);
 
       expect(err).toBeInstanceOf(HttpError);
       expect((err as HttpError).status).toBe(0);
@@ -649,19 +542,12 @@ describe("callApi", () => {
       const fn = vi
         .fn()
         .mockResolvedValue(
-          createApiResult(
-            undefined,
-            { code: "NOT_FOUND", message: "not found", errors: [] },
-            404,
-          ),
+          createApiResult(undefined, { code: "NOT_FOUND", message: "not found", errors: [] }, 404),
         );
 
-      const err = await callApi(
-        "files.read",
-        fn,
-        { maxAttempts: 1 },
-        "for sandbox 'abc123'",
-      ).catch((e) => e);
+      const err = await callApi("files.read", fn, { maxAttempts: 1 }, "for sandbox 'abc123'").catch(
+        (e) => e,
+      );
 
       expect((err as HttpError).message).toBe(
         "Failed to files.read for sandbox 'abc123': not found (code: NOT_FOUND)\nHint: Resource not found. Verify the ID or alias and retry.",
@@ -671,13 +557,7 @@ describe("callApi", () => {
     it("appends context to formatted message for sandbox-API shape", async () => {
       const fn = vi
         .fn()
-        .mockResolvedValue(
-          createApiResult(
-            undefined,
-            { code: 500, message: "exec failed" },
-            500,
-          ),
-        );
+        .mockResolvedValue(createApiResult(undefined, { code: 500, message: "exec failed" }, 500));
 
       const err = await callApi(
         "execs.create",
@@ -717,9 +597,7 @@ describe("callApi", () => {
 
   describe("204 / no-body path", () => {
     it("returns undefined when data and error are both absent (204 No Content)", async () => {
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, undefined, 204));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, undefined, 204));
 
       const result = await callApi("deleteFile", fn);
 
@@ -728,9 +606,7 @@ describe("callApi", () => {
     });
 
     it("returns undefined when data is absent on a 200 response", async () => {
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, undefined, 200));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, undefined, 200));
 
       const result = await callApi("deleteFile", fn);
 
@@ -739,9 +615,7 @@ describe("callApi", () => {
 
     it("does not call onRetry for a no-body success", async () => {
       const onRetry = vi.fn();
-      const fn = vi
-        .fn()
-        .mockResolvedValue(createApiResult(undefined, undefined, 204));
+      const fn = vi.fn().mockResolvedValue(createApiResult(undefined, undefined, 204));
 
       await callApi("deleteFile", fn, { onRetry });
 
@@ -797,10 +671,7 @@ describe("withRetry", () => {
     });
 
     it("retries on thrown error and returns on first success", async () => {
-      const fn = vi
-        .fn()
-        .mockRejectedValueOnce(new Error("transient"))
-        .mockResolvedValueOnce("ok");
+      const fn = vi.fn().mockRejectedValueOnce(new Error("transient")).mockResolvedValueOnce("ok");
 
       const promise = withRetry("op", fn);
       await vi.runAllTimersAsync();
@@ -837,9 +708,7 @@ describe("withRetry", () => {
       const onRetry = vi.fn();
       const fn = vi.fn().mockRejectedValue(new Error("boom"));
 
-      const assertion = expect(
-        withRetry("op", fn, { onRetry, maxAttempts: 3 }),
-      ).rejects.toThrow();
+      const assertion = expect(withRetry("op", fn, { onRetry, maxAttempts: 3 })).rejects.toThrow();
       await vi.runAllTimersAsync();
       await assertion;
 
@@ -871,9 +740,7 @@ describe("withRetry", () => {
       const fn = vi.fn().mockRejectedValue(err);
       const isRetryable = vi.fn().mockReturnValue(false);
 
-      await expect(
-        withRetry("op", fn, undefined, { isRetryable }),
-      ).rejects.toBe(err);
+      await expect(withRetry("op", fn, undefined, { isRetryable })).rejects.toBe(err);
 
       expect(fn).toHaveBeenCalledTimes(1);
       expect(isRetryable).toHaveBeenCalledTimes(1);
@@ -881,10 +748,7 @@ describe("withRetry", () => {
     });
 
     it("retries when isRetryable returns true", async () => {
-      const fn = vi
-        .fn()
-        .mockRejectedValueOnce(new Error("transient"))
-        .mockResolvedValueOnce("ok");
+      const fn = vi.fn().mockRejectedValueOnce(new Error("transient")).mockResolvedValueOnce("ok");
 
       const promise = withRetry("op", fn, undefined, {
         isRetryable: () => true,
@@ -898,10 +762,7 @@ describe("withRetry", () => {
     it("is ignored when shouldRetry is also provided (shouldRetry wins)", async () => {
       const isRetryable = vi.fn().mockReturnValue(false);
       const shouldRetry = vi.fn().mockReturnValue(true);
-      const fn = vi
-        .fn()
-        .mockRejectedValueOnce(new Error("boom"))
-        .mockResolvedValueOnce("ok");
+      const fn = vi.fn().mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce("ok");
 
       const promise = withRetry("op", fn, { shouldRetry }, { isRetryable });
       await vi.runAllTimersAsync();
@@ -922,9 +783,7 @@ describe("withRetry", () => {
       const err = new Error("boom");
       const fn = vi.fn().mockRejectedValue(err);
 
-      await expect(
-        withRetry("op", fn, { shouldRetry, maxAttempts: 5 }),
-      ).rejects.toBe(err);
+      await expect(withRetry("op", fn, { shouldRetry, maxAttempts: 5 })).rejects.toBe(err);
 
       expect(fn).toHaveBeenCalledTimes(1);
       expect(shouldRetry).toHaveBeenCalledTimes(1);
@@ -933,18 +792,13 @@ describe("withRetry", () => {
     it("returning a number uses it as the custom delay", async () => {
       const shouldRetry = vi.fn().mockReturnValue(2222);
       const onRetry = vi.fn();
-      const fn = vi
-        .fn()
-        .mockRejectedValueOnce(new Error("transient"))
-        .mockResolvedValueOnce("ok");
+      const fn = vi.fn().mockRejectedValueOnce(new Error("transient")).mockResolvedValueOnce("ok");
 
       const promise = withRetry("op", fn, { shouldRetry, onRetry });
       await vi.runAllTimersAsync();
       await promise;
 
-      expect(onRetry).toHaveBeenCalledWith(
-        expect.objectContaining({ delay: 2222 }),
-      );
+      expect(onRetry).toHaveBeenCalledWith(expect.objectContaining({ delay: 2222 }));
     });
 
     it("receives a RetryContext with undefined status for non-HTTP errors", async () => {
@@ -976,14 +830,8 @@ describe("withRetry", () => {
 
       // BASE_DELAY = 500, JITTER = 250, random = 0
       // Attempt 1 → 500, Attempt 2 → 1000
-      expect(onRetry).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ delay: 500 }),
-      );
-      expect(onRetry).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ delay: 1000 }),
-      );
+      expect(onRetry).toHaveBeenNthCalledWith(1, expect.objectContaining({ delay: 500 }));
+      expect(onRetry).toHaveBeenNthCalledWith(2, expect.objectContaining({ delay: 1000 }));
     });
   });
 });

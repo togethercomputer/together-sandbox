@@ -44,9 +44,7 @@ class TogetherSandbox:
         resolved_url = base_url or get_inferred_base_url()
 
         if not resolved_key:
-            raise ValueError(
-                "api_key must be provided or TOGETHER_API_KEY env var must be set"
-            )
+            raise ValueError("api_key must be provided or TOGETHER_API_KEY env var must be set")
         self._api_key = resolved_key
         self._base_url = resolved_url + "/api/v1"
         self._retry = retry

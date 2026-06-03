@@ -10,10 +10,7 @@ import { withRetry, sleep, RETRYABLE_STATUS_CODES } from "./utils.js";
  * Status codes that should trigger a retry of the SSE log stream. Combines
  * the shared retryable set with 404 (the build pod hasn't materialised yet).
  */
-const STREAM_RETRYABLE_STATUS_CODES = new Set<number>([
-  ...RETRYABLE_STATUS_CODES,
-  404,
-]);
+const STREAM_RETRYABLE_STATUS_CODES = new Set<number>([...RETRYABLE_STATUS_CODES, 404]);
 
 /**
  * Minimal logger contract used by {@link RemoteImageBuilderClient} to surface
@@ -129,36 +126,29 @@ export class RemoteImageBuilderClient {
     const tarBuffer = await this._streamToBuffer(tarStream);
 
     // ── Submit build (retries on transient transport failures) ──────────────
-    const buildData = await withRetry<SubmitResponse>(
-      "imageBuilder.submit",
-      async () => {
-        const form = new FormData();
-        form.append("image_name", opts.imageName);
-        form.append("dockerfile", dockerfile);
-        form.append("build_args", JSON.stringify(opts.buildArgs ?? {}));
-        form.append("nydus_convert", nydus ? "true" : "false");
-        form.append(
-          "context",
-          new Blob([new Uint8Array(tarBuffer)], { type: "application/gzip" }),
-          "context.tar.gz",
-        );
+    const buildData = await withRetry<SubmitResponse>("imageBuilder.submit", async () => {
+      const form = new FormData();
+      form.append("image_name", opts.imageName);
+      form.append("dockerfile", dockerfile);
+      form.append("build_args", JSON.stringify(opts.buildArgs ?? {}));
+      form.append("nydus_convert", nydus ? "true" : "false");
+      form.append(
+        "context",
+        new Blob([new Uint8Array(tarBuffer)], { type: "application/gzip" }),
+        "context.tar.gz",
+      );
 
-        const response = await fetch(`${this._apiUrl}/builds`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${this._token}` },
-          body: form,
-        });
-        if (!response.ok) {
-          const text = await response.text().catch(() => "");
-          throw new Error(
-            `imageBuilder.submit: HTTP ${response.status}${
-              text ? ` — ${text}` : ""
-            }`,
-          );
-        }
-        return (await response.json()) as SubmitResponse;
-      },
-    );
+      const response = await fetch(`${this._apiUrl}/builds`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this._token}` },
+        body: form,
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(`imageBuilder.submit: HTTP ${response.status}${text ? ` — ${text}` : ""}`);
+      }
+      return (await response.json()) as SubmitResponse;
+    });
 
     const buildId = buildData.build_id;
     if (!buildId) {
@@ -198,9 +188,7 @@ export class RemoteImageBuilderClient {
       });
     } catch (e) {
       this._logger?.warning(
-        `Failed to cancel build ${buildId}: ${
-          e instanceof Error ? e.message : String(e)
-        }`,
+        `Failed to cancel build ${buildId}: ${e instanceof Error ? e.message : String(e)}`,
       );
     }
   }
@@ -234,8 +222,7 @@ export class RemoteImageBuilderClient {
         // shared retryable set plus 404 (build pod isn't ready yet).
         const match = e.message.match(/^SSE HTTP (\d+)/);
         const status = match ? Number(match[1]) : undefined;
-        const isRetryable =
-          status !== undefined && STREAM_RETRYABLE_STATUS_CODES.has(status);
+        const isRetryable = status !== undefined && STREAM_RETRYABLE_STATUS_CODES.has(status);
         if (!isRetryable || attempt >= maxAttempts) throw e;
         attempt++;
         await sleep(wait);
@@ -249,11 +236,7 @@ export class RemoteImageBuilderClient {
         const status = await this._getStatus(buildId);
         const imageRef = status.image_ref;
         if (!imageRef) {
-          throw new Error(
-            `Build succeeded but no image_ref in status: ${JSON.stringify(
-              status,
-            )}`,
-          );
+          throw new Error(`Build succeeded but no image_ref in status: ${JSON.stringify(status)}`);
         }
         return imageRef;
       }
@@ -272,10 +255,7 @@ export class RemoteImageBuilderClient {
    * sentinel arrives. The caller is responsible for turning that into a
    * thrown error so retry-vs-fatal classification stays in one place.
    */
-  private _consumeStream(
-    url: string,
-    onError: (msg: string) => void,
-  ): Promise<boolean> {
+  private _consumeStream(url: string, onError: (msg: string) => void): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
       const token = this._token;
       const logger = this._logger;
@@ -304,10 +284,7 @@ export class RemoteImageBuilderClient {
       es.onmessage = (event: MessageEvent) => {
         const data = typeof event.data === "string" ? event.data : "";
         // JSON control events contain "done" or "error" keys.
-        if (
-          data.startsWith("{") &&
-          (data.includes('"done"') || data.includes('"error"'))
-        ) {
+        if (data.startsWith("{") && (data.includes('"done"') || data.includes('"error"'))) {
           try {
             const obj = JSON.parse(data) as {
               done?: boolean;
@@ -337,11 +314,7 @@ export class RemoteImageBuilderClient {
         const evt = event as { code?: number; message?: string };
         if (typeof evt.code === "number") {
           settle(() =>
-            reject(
-              new Error(
-                `SSE HTTP ${evt.code}${evt.message ? `: ${evt.message}` : ""}`,
-              ),
-            ),
+            reject(new Error(`SSE HTTP ${evt.code}${evt.message ? `: ${evt.message}` : ""}`)),
           );
           return;
         }
@@ -371,11 +344,7 @@ export class RemoteImageBuilderClient {
    * into {@link out}. Mirrors `Path.rglob("*")` + `is_file() or is_symlink()`
    * from the Python implementation.
    */
-  private async _walkDir(
-    root: string,
-    rel: string,
-    out: string[],
-  ): Promise<void> {
+  private async _walkDir(root: string, rel: string, out: string[]): Promise<void> {
     const here = rel ? path.join(root, rel) : root;
     const entries = await fs.promises.readdir(here, { withFileTypes: true });
     for (const entry of entries) {
@@ -391,9 +360,7 @@ export class RemoteImageBuilderClient {
   /**
    * Collect a Readable stream's chunks into a single Buffer.
    */
-  private async _streamToBuffer(
-    stream: NodeJS.ReadableStream,
-  ): Promise<Buffer> {
+  private async _streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
     const chunks: Buffer[] = [];
     for await (const chunk of stream) {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));

@@ -387,9 +387,7 @@ class Execs:
         """
         events: list[ExecStdout] = await _call_api(
             "sandbox.get_exec_output",
-            lambda: get_exec_output_api(
-                id_, client=self._client, last_sequence=last_sequence
-            ),
+            lambda: get_exec_output_api(id_, client=self._client, last_sequence=last_sequence),
             self._retry,
             context=f"for id {id_!r}",
         )

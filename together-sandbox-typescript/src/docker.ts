@@ -56,9 +56,7 @@ export type DockerBuildOptions = {
   onOutput?: (output: string) => void;
 };
 
-export async function buildDockerImage(
-  options: DockerBuildOptions,
-): Promise<void> {
+export async function buildDockerImage(options: DockerBuildOptions): Promise<void> {
   const {
     dockerfilePath,
     imageName,
@@ -114,11 +112,7 @@ export async function buildDockerImage(
         onOutput(`Docker image built successfully: ${imageName}`);
         resolve();
       } else {
-        reject(
-          new Error(
-            `Docker build failed with exit code ${code}\n${outputBuffer}`,
-          ),
-        );
+        reject(new Error(`Docker build failed with exit code ${code}\n${outputBuffer}`));
       }
     });
 
@@ -182,11 +176,7 @@ export async function dockerLogin(options: DockerLoginOptions): Promise<void> {
         onOutput(`Docker login successful${registry ? ` to ${registry}` : ""}`);
         resolve();
       } else {
-        reject(
-          new Error(
-            `Docker login failed with exit code ${code}\n${outputBuffer}`,
-          ),
-        );
+        reject(new Error(`Docker login failed with exit code ${code}\n${outputBuffer}`));
       }
     });
 
@@ -236,11 +226,7 @@ export async function pushDockerImage(
         onOutput(`Docker image pushed successfully: ${imageName}`);
         resolve();
       } else {
-        reject(
-          new Error(
-            `Docker push failed with exit code ${code}\n${outputBuffer}`,
-          ),
-        );
+        reject(new Error(`Docker push failed with exit code ${code}\n${outputBuffer}`));
       }
     });
 
@@ -265,9 +251,7 @@ export async function prepareDockerBuild(
 
   const dockerAvailable = await isDockerAvailable();
   if (!dockerAvailable) {
-    console.error(
-      "Docker is not available. Please install Docker to use beta build mode.",
-    );
+    console.error("Docker is not available. Please install Docker to use beta build mode.");
     process.exit(1);
   }
 

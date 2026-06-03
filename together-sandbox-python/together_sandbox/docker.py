@@ -12,7 +12,8 @@ async def is_docker_available() -> bool:
     """Check if Docker is available on the system."""
     try:
         proc = await asyncio.create_subprocess_exec(
-            "docker", "--version",
+            "docker",
+            "--version",
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
@@ -76,11 +77,14 @@ async def build_docker_image(options: DockerBuildOptions) -> None:
     on_output = options.on_output or (lambda _: None)
 
     proc = await asyncio.create_subprocess_exec(
-        "docker", "build",
-        "--platform", f"linux/{options.architecture}",
+        "docker",
+        "build",
+        "--platform",
+        f"linux/{options.architecture}",
         "--progress=plain",
-        *(['-f', options.dockerfile_path] if options.dockerfile_path else []),
-        "-t", options.image_name,
+        *(["-f", options.dockerfile_path] if options.dockerfile_path else []),
+        "-t",
+        options.image_name,
         options.context,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
@@ -136,9 +140,7 @@ async def docker_login(options: DockerLoginOptions) -> None:
 
     if proc.returncode != 0:
         output = stdout_data.decode(errors="replace") + stderr_data.decode(errors="replace")
-        raise RuntimeError(
-            f"Docker login failed with exit code {proc.returncode}\n{output}"
-        )
+        raise RuntimeError(f"Docker login failed with exit code {proc.returncode}\n{output}")
 
     registry_label = f" to {options.registry}" if options.registry else ""
     on_output(f"Docker login successful{registry_label}")
@@ -152,7 +154,9 @@ async def push_docker_image(
     _on_output = on_output or (lambda _: None)
 
     proc = await asyncio.create_subprocess_exec(
-        "docker", "push", image_name,
+        "docker",
+        "push",
+        image_name,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )

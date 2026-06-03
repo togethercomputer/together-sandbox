@@ -2151,15 +2151,7 @@
             "description": "User the command runs as, in \"uid[:gid]\" form. Omitted when no explicit\ncredentials are set on the exec.\n"
           }
         },
-        "required": [
-          "id",
-          "command",
-          "args",
-          "status",
-          "pid",
-          "pty",
-          "exitCode"
-        ]
+        "required": ["id", "command", "args", "status", "pid", "pty", "exitCode"]
       },
       "ExecListResponse": {
         "type": "object",

@@ -30,6 +30,7 @@ build/
 .venv/
 venv/
 *.pth
+.venv-format/
 
 # static docs
 api-docs/*.json

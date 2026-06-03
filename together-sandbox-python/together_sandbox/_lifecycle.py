@@ -24,15 +24,11 @@ _STOP_REASON_HINTS: dict[str, str] = {
         "from a known-good snapshot."
     ),
     "evicted": (
-        "Sandbox was evicted from its node. Usually transient — retry "
-        "sdk.sandboxes.start()."
+        "Sandbox was evicted from its node. Usually transient — retry sdk.sandboxes.start()."
     ),
-    "node_lost": (
-        "Sandbox's node was lost. Usually transient — retry " "sdk.sandboxes.start()."
-    ),
+    "node_lost": ("Sandbox's node was lost. Usually transient — retry sdk.sandboxes.start()."),
     "cluster_lost": (
-        "Sandbox's cluster was lost. Usually transient — retry "
-        "sdk.sandboxes.start()."
+        "Sandbox's cluster was lost. Usually transient — retry sdk.sandboxes.start()."
     ),
 }
 

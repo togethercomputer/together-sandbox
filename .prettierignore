@@ -1,0 +1,11 @@
+node_modules
+**/dist
+together-sandbox-typescript/src/api-clients
+together-sandbox-python/together_sandbox/api
+together-sandbox-python/together_sandbox/sandbox
+together-sandbox-typescript/docs
+together-sandbox-python/docs
+api-docs
+**/*.gen.ts
+CHANGELOG.md
+package-lock.json

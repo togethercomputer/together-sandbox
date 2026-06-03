@@ -42,9 +42,7 @@ def make_error_response(status: int) -> Response:
     return make_response(status, None)
 
 
-def make_api_error_response(
-    status: int, message: str = "error", code: str = "ERROR"
-) -> Response:
+def make_api_error_response(status: int, message: str = "error", code: str = "ERROR") -> Response:
     """Response with an ApiError model — documented error status (e.g. 400, 404)."""
     return make_response(status, ApiError(message=message, code=code, errors=[]))
 
@@ -172,9 +170,7 @@ class TestCallApiErrorModel:
     @pytest.mark.asyncio
     async def test_raises_for_api_error_at_non_retryable_status(self):
         fn = AsyncMock(
-            return_value=make_api_error_response(
-                404, message="not found", code="NOT_FOUND"
-            )
+            return_value=make_api_error_response(404, message="not found", code="NOT_FOUND")
         )
 
         with patch("together_sandbox._utils.asyncio.sleep"):
@@ -186,9 +182,7 @@ class TestCallApiErrorModel:
     @pytest.mark.asyncio
     async def test_error_message_includes_model_message_field(self):
         fn = AsyncMock(
-            return_value=make_api_error_response(
-                400, message="missing field", code="BAD_REQUEST"
-            )
+            return_value=make_api_error_response(400, message="missing field", code="BAD_REQUEST")
         )
 
         with patch("together_sandbox._utils.asyncio.sleep"):
@@ -259,9 +253,7 @@ class TestCallApiShouldRetry:
         )
 
         with patch("together_sandbox._utils.asyncio.sleep"):
-            result = await _call_api(
-                "testOp", fn, RetryConfig(should_retry=should_retry)
-            )
+            result = await _call_api("testOp", fn, RetryConfig(should_retry=should_retry))
 
         assert result is data
         assert fn.call_count == 2
@@ -335,9 +327,7 @@ class TestCallApiOnRetry:
 
         with patch("together_sandbox._utils.asyncio.sleep"):
             with pytest.raises(RuntimeError):
-                await _call_api(
-                    "testOp", fn, RetryConfig(on_retry=on_retry, max_attempts=3)
-                )
+                await _call_api("testOp", fn, RetryConfig(on_retry=on_retry, max_attempts=3))
 
         # 3 attempts → 2 retries → on_retry called twice (not on the final failure)
         assert on_retry.call_count == 2
@@ -349,9 +339,7 @@ class TestCallApiOnRetry:
 
         with patch("together_sandbox._utils.asyncio.sleep"):
             with pytest.raises(RuntimeError):
-                await _call_api(
-                    "testOp", fn, RetryConfig(on_retry=on_retry, max_attempts=3)
-                )
+                await _call_api("testOp", fn, RetryConfig(on_retry=on_retry, max_attempts=3))
 
         attempts = [c[0][0].attempt for c in on_retry.call_args_list]
         assert attempts == [1, 2]
@@ -444,9 +432,7 @@ class TestCallApiAsyncCallbacks:
         )
 
         with patch("together_sandbox._utils.asyncio.sleep"):
-            result = await _call_api(
-                "testOp", fn, RetryConfig(should_retry=should_retry)
-            )
+            result = await _call_api("testOp", fn, RetryConfig(should_retry=should_retry))
 
         assert result is data
         assert fn.call_count == 2
@@ -463,9 +449,7 @@ class TestCallApiAsyncCallbacks:
 
         with patch("together_sandbox._utils.asyncio.sleep"):
             with pytest.raises(RuntimeError):
-                await _call_api(
-                    "testOp", fn, RetryConfig(on_retry=on_retry, max_attempts=3)
-                )
+                await _call_api("testOp", fn, RetryConfig(on_retry=on_retry, max_attempts=3))
 
         # max_attempts=3 → 2 retries → on_retry called twice
         assert len(calls) == 2
