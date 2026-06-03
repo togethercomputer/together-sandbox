@@ -40,3 +40,13 @@ packages = ["together_sandbox"]
 asyncio_mode = "auto"
 markers = ["e2e: end-to-end tests that require TOGETHER_API_KEY"]
 norecursedirs = ["e2e"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = [
+    "together_sandbox/api",
+    "together_sandbox/sandbox",
+]
+
+[tool.ruff.format]
+quote-style = "double"

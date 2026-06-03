@@ -1,0 +1,27 @@
+# Run formatters automatically on every commit.
+# Bootstrap once with: pipx install pre-commit && pre-commit install
+exclude: |
+  (?x)^(
+    together-sandbox-typescript/src/api-clients/.*|
+    together-sandbox-python/together_sandbox/api/.*|
+    together-sandbox-python/together_sandbox/sandbox/.*|
+    together-sandbox-typescript/docs/.*|
+    together-sandbox-python/docs/.*|
+    api-docs/.*|
+    .*\.gen\.ts|
+    CHANGELOG\.md|
+    package-lock\.json
+  )$
+
+repos:
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.8.3
+    hooks:
+      - id: prettier
+        types_or: [ts, tsx, javascript, jsx, json, markdown, yaml]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.15
+    hooks:
+      - id: ruff-format
+        files: ^together-sandbox-python/.*\.py$

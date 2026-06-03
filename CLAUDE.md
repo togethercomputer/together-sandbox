@@ -37,6 +37,27 @@ This patches `api-openapi.json` (promotes inline schemas to named refs for the
 Python generator), then runs `npm run generate` in the TypeScript package and
 `bash generate.sh` in the Python package.
 
+## Formatting
+
+Code is formatted by `prettier` (TS/JS/JSON/MD/YAML) and `ruff format` (Python),
+enforced by a pre-commit hook and a blocking CI check.
+
+One-time setup:
+
+```bash
+pipx install pre-commit
+pre-commit install
+```
+
+Run manually against all files:
+
+```bash
+pre-commit run --all-files
+```
+
+Generated code under `src/api-clients/`, `together_sandbox/api/`, and
+`together_sandbox/sandbox/` is excluded — never formatted.
+
 ## Environment variables
 
 | Variable            | Purpose                                                |
