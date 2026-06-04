@@ -14,10 +14,10 @@ from together_sandbox._utils import (
     RetryContext,
     _call_api,
 )
-from together_sandbox.api.models import Error as ApiError
-from together_sandbox.api.types import Response
+from together_sandbox._api.models import Error as ApiError
+from together_sandbox._api.types import Response
 from together_sandbox.errors import HttpError
-from together_sandbox.sandbox.models.error import Error as SandboxError
+from together_sandbox._sandbox_client.models.error import Error as SandboxError
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 

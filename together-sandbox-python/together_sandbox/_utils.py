@@ -10,11 +10,11 @@ from typing import Any, Awaitable, Callable, Literal, TypeVar
 
 import httpx
 
-from .api.models import Error as ApiError
-from .api.types import Response
+from ._api.models import Error as ApiError
+from ._api.types import Response
 from .errors import HttpError
-from .sandbox.models.error import Error as SandboxError
-from .api.models.sandbox import Sandbox as SandboxModel
+from ._sandbox_client.models.error import Error as SandboxError
+from ._api.models.sandbox import Sandbox as SandboxModel
 
 # ─── ANSI / encoding helpers ─────────────────────────────────────────────────
 

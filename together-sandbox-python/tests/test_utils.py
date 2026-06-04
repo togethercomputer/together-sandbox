@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 from together_sandbox._sandboxes import _resolve_connection
-from together_sandbox.sandbox.models.error import Error
-from together_sandbox.api.models.sandbox import Sandbox as SandboxModel
+from together_sandbox._sandbox_client.models.error import Error
+from together_sandbox._api.models.sandbox import Sandbox as SandboxModel
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 

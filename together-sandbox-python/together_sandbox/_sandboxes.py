@@ -1,29 +1,32 @@
 from __future__ import annotations
 
-from .api.client import AuthenticatedClient as ApiClient
+from ._api.client import AuthenticatedClient as ApiClient
 
 from ._sandbox import Sandbox
 
 # ── Management API endpoint functions (detailed variants) ─────────────────────
-from .api.api.default.start_sandbox import asyncio_detailed as start_sandbox_api
-from .api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandbox_api
-from .api.api.default.stop_sandbox import asyncio_detailed as stop_sandbox_api
-from .api.api.default.create_sandbox import asyncio_detailed as create_sandbox_api
+from ._api.api.default.start_sandbox import asyncio_detailed as start_sandbox_api
+from ._api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandbox_api
+from ._api.api.default.stop_sandbox import asyncio_detailed as stop_sandbox_api
+from ._api.api.default.create_sandbox import asyncio_detailed as create_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
-from .api.models.sandbox import Sandbox as SandboxModel
-from .api.models.stop_sandbox_body import StopSandboxBody
-from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
-from .api.models.create_sandbox_body import CreateSandboxBody
-from .api.models.start_sandbox_body import StartSandboxBody
-from .api.types import UNSET
+from ._api.models.sandbox import Sandbox as SandboxModel
+from ._api.models.stop_sandbox_body import StopSandboxBody
+from ._api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
+from ._api.models.create_sandbox_body import CreateSandboxBody
+from ._api.models.start_sandbox_body import StartSandboxBody
+from ._api.types import UNSET
 
 # ── Helpers ─────────────────────────────────────────────────────
 from ._utils import RetryConfig, _call_api, _resolve_connection
 from ._lifecycle import describe_lifecycle_failure
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
-from .sandbox.client import AuthenticatedClient as SandboxClient
+from ._sandbox_client.client import AuthenticatedClient as SandboxClient
+
+# ── Public facade types + boundary adapter ───────────────────────────────────
+from .types import SandboxInfo, _sandbox_info_from_model
 
 # Default sandbox resource allocation. Match the TS SDK / CLI helper.
 DEFAULT_MILLICPU = 1000  # 1 vCPU
@@ -105,7 +108,7 @@ class SandboxesNamespace:
         snapshot_id: str | None = None,
         snapshot_alias: str | None = None,
         ephemeral: bool | None = None,
-    ) -> SandboxModel:
+    ) -> SandboxInfo:
         """Create a new sandbox (does not start the VM).
 
         Args:
@@ -126,11 +129,12 @@ class SandboxesNamespace:
             memory_bytes=memory_bytes,
             disk_bytes=disk_bytes,
         )
-        return await _call_api(
+        result = await _call_api(
             "api.create_sandbox",
             lambda: create_sandbox_api(client=self._api_client, body=body),
             self._retry,
         )
+        return _sandbox_info_from_model(result)
 
     async def hibernate(self, sandbox_id: str) -> None:
         """Hibernate (suspend) a VM by sandbox ID."""

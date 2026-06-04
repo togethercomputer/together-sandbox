@@ -37,6 +37,14 @@ This patches `api-openapi.json` (promotes inline schemas to named refs for the
 Python generator), then runs `npm run generate` in the TypeScript package and
 `bash generate.sh` in the Python package.
 
+## Public API surface
+
+Both SDKs expose **only hand-written facade types** — generated OpenAPI types
+are never exported or used in a public signature. Before changing what either
+package exports (or adding a facade method whose return/params touch generated
+types), read **[EXPORTED_TYPES.md](EXPORTED_TYPES.md)**. It holds the policy,
+the conversion patterns, the canonical export lists, and a change checklist.
+
 ## Environment variables
 
 | Variable            | Purpose                                                |

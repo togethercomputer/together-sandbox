@@ -8,9 +8,10 @@ Recommended entry point::
     async with await sdk.sandboxes.start("sandbox-id") as sb:
         content = await sb.files.read("/package.json")
 
-Low-level clients (advanced use)::
+Public facade types (for annotations) live in ``together_sandbox.types`` and
+are re-exported here::
 
-    from together_sandbox import ApiClient, SandboxClient
+    from together_sandbox import SandboxInfo, FileInfo, ExecInfo, Snapshot
 
 Catching errors::
 
@@ -20,41 +21,72 @@ Catching errors::
         await sdk.sandboxes.start("sandbox-id")
     except HttpError as e:
         print(e.status, str(e))
+
+The generated OpenAPI clients under ``together_sandbox._api`` and
+``together_sandbox._sandbox_client`` are internal implementation details and
+are not part of the public API. See ``EXPORTED_TYPES.md`` at the repo root.
 """
 
 from ._together_sandbox import TogetherSandbox
-from ._sandboxes import SandboxesNamespace
+from ._sandbox import Sandbox
 from ._snapshots import (
-    SnapshotsNamespace,
     CreateSnapshotParams,
     CreateContextSnapshotParams,
     CreateImageSnapshotParams,
     CreateSnapshotResult,
     SnapshotProgress,
-    Snapshot,
 )
-from ._sandbox import Sandbox
-from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
-from together_sandbox.sandbox.models.exec_stdout_type import ExecStdoutType
-from together_sandbox.sandbox.models.exec_stdout import ExecStdout
 from ._utils import RetryConfig, RetryContext
 from .errors import HttpError
+from .types import (
+    SandboxInfo,
+    SandboxStatus,
+    StartType,
+    StopReason,
+    RecoveryStatus,
+    FileInfo,
+    WatcherEvent,
+    WatcherEventType,
+    ExecInfo,
+    ExecStatus,
+    ExecStreamKind,
+    ExecOutputEvent,
+    ExecResult,
+    PortInfo,
+    Snapshot,
+)
 
 __all__ = [
+    # Entry points / classes
     "TogetherSandbox",
     "Sandbox",
-    "SandboxesNamespace",
-    "SnapshotsNamespace",
+    "HttpError",
+    # Configuration & retry
+    "RetryConfig",
+    "RetryContext",
+    # Sandbox lifecycle
+    "SandboxInfo",
+    "SandboxStatus",
+    "StartType",
+    "StopReason",
+    "RecoveryStatus",
+    # File system
+    "FileInfo",
+    "WatcherEvent",
+    "WatcherEventType",
+    # Execs
+    "ExecInfo",
+    "ExecStatus",
+    "ExecStreamKind",
+    "ExecOutputEvent",
+    "ExecResult",
+    # Ports
+    "PortInfo",
+    # Snapshots
+    "Snapshot",
     "CreateSnapshotParams",
     "CreateContextSnapshotParams",
     "CreateImageSnapshotParams",
     "CreateSnapshotResult",
     "SnapshotProgress",
-    "Snapshot",
-    "CreateExecRequest",
-    "ExecStdoutType",
-    "ExecStdout",
-    "RetryConfig",
-    "RetryContext",
-    "HttpError",
 ]

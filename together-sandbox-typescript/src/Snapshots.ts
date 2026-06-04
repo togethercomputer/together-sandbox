@@ -4,7 +4,7 @@ import * as path from "path";
 import * as api from "./api-clients/api/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { isLocalEnvironment } from "./configuration.js";
-import { callApi, sleep, withRetry } from "./utils.js";
+import { callApi, sleep, withRetry, camelCaseKeys } from "./utils.js";
 import { describeLifecycleFailure } from "./lifecycle.js";
 import {
   buildDockerImage,
@@ -31,7 +31,23 @@ export type SnapshotProgress = { output: string } & (
   | { step: "alias" }
 );
 
-export type Snapshot = api.Snapshot;
+/** CPU architecture a snapshot was built for. */
+export type SnapshotArchitecture = "amd64" | "arm64";
+
+/**
+ * A registered snapshot, returned by `snapshots.getById/getByAlias/list`.
+ */
+export interface Snapshot {
+  id: string;
+  projectId: string;
+  byteSize: number;
+  protected: boolean;
+  optimized: boolean;
+  includesMemorySnapshot: boolean;
+  createdAt: string;
+  optimizedAt: string | null;
+  updatedAt: string;
+}
 
 /**
  * Parameters for creating a snapshot
@@ -88,6 +104,7 @@ export type ImageReference = {
  * Snapshot build and management operations, accessed as `sdk.snapshots.*`.
  */
 export class SnapshotsNamespace {
+  /** @internal Reached via `sdk.snapshots`; not constructed directly by consumers. */
   constructor(
     private readonly _apiClient: ApiClient,
     private readonly _baseUrl: string,
@@ -108,7 +125,7 @@ export class SnapshotsNamespace {
       this._retryConfig,
     );
 
-    return result;
+    return camelCaseKeys(result);
   }
 
   async getByAlias(alias: string): Promise<Snapshot> {
@@ -122,7 +139,7 @@ export class SnapshotsNamespace {
       this._retryConfig,
     );
 
-    return result;
+    return camelCaseKeys(result);
   }
 
   async list(): Promise<Snapshot[]> {
@@ -135,7 +152,7 @@ export class SnapshotsNamespace {
       this._retryConfig,
     );
 
-    return result;
+    return result.map((snapshot) => camelCaseKeys(snapshot));
   }
 
   async alias(snapshotId: string, alias: string): Promise<void> {
@@ -181,7 +198,7 @@ export class SnapshotsNamespace {
   /**
    * Create a snapshot from a Docker build context or a public Docker image.
    *
-   * Pass `{ context, dockerfile?, alias?, onProgress?, memorySnapshot? }` to build from a Dockerfile.
+   * Pass `{ context, dockerfile?, alias?, onProgress? }` to build from a Dockerfile.
    * Pass `{ image, alias?, onProgress? }` to register a public Docker image.
    *
    * @note The `snapshots.create` operation is not idempotent: retrying on a 500 error

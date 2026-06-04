@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from together_sandbox import Sandbox, ExecStdoutType
+from together_sandbox import Sandbox
 from .helpers import retry_until
 
 
@@ -75,11 +75,11 @@ class TestSandboxExecs:
         """Test distinguishing stdout vs stderr output types."""
         exec_item = await sandbox.execs.create(command="echo", args=["hello"])
 
-        async def collect_events() -> list[dict]:
-            events: list[dict] = []
+        async def collect_events():
+            events = []
             async for event in sandbox.execs.stream_output(exec_item.id):
                 events.append(event)
-                if isinstance(event.get("exitCode"), int):
+                if isinstance(event.exit_code, int):
                     break
             return events
 
@@ -87,8 +87,7 @@ class TestSandboxExecs:
             events = await collect_events()
 
         assert any(
-            "hello" in event["output"] and event["type"] == ExecStdoutType.STDOUT.value
-            for event in events
+            "hello" in event.output and event.type == "stdout" for event in events
         )
 
     async def test_exec_with_cwd(self, sandbox: Sandbox):

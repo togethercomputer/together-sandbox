@@ -1,40 +1,57 @@
-// Client factories re-exported from generated code so consumers don't need
-// to import from internal paths
-export {
-  createClient as createApiClient,
-  createConfig as createApiConfig,
-  type Client as ApiClient,
-  type Config as ApiConfig,
-} from "./api-clients/api/client/index.js";
-export {
-  createClient as createSandboxClient,
-  createConfig as createSandboxConfig,
-  type Client as SandboxApiClient,
-  type Config as SandboxApiConfig,
-} from "./api-clients/sandbox/client/index.js";
-
-// Re-export commonly used generated model types so consumers don't need
-// to reach into the `api-clients/` namespace
-export type { ExecStdout } from "./api-clients/sandbox/index.js";
+// Public API surface for `together-sandbox`.
+//
+// Only hand-written facade types are exported here — the auto-generated
+// OpenAPI clients under `src/api-clients/` are an internal implementation
+// detail and must never appear in this list or in a public method signature.
+// See EXPORTED_TYPES.md at the repo root for the policy.
 
 // Unified facade — recommended entry point
 export { TogetherSandbox } from "./TogetherSandbox.js";
+export { Sandbox } from "./Sandbox.js";
+export { HttpError } from "./errors.js";
+
+// Configuration & retry
 export type {
   TogetherSandboxConfig,
   RetryConfig,
   RetryContext,
 } from "./types.js";
 
-// Public camelCase types and facade classes
-export type { SandboxInfo, CreateSandboxParams } from "./types.js";
-export { Sandbox } from "./Sandbox.js";
-export { HttpError } from "./errors.js";
+// Sandbox lifecycle
 export type {
+  SandboxInfo,
+  SandboxStatus,
+  StopReason,
+  StartType,
+  RecoveryStatus,
+  CreateSandboxParams,
+} from "./types.js";
+export type { StartOptions, WatchOptions } from "./Sandbox.js";
+
+// File system
+export type { FileInfo, WatcherEvent, WatcherEventType } from "./types.js";
+
+// Execs
+export type {
+  ExecInfo,
+  ExecStatus,
+  ExecStreamKind,
+  CreateExecParams,
+  ExecOutputEvent,
+  ExecStdinInput,
+  ExecResult,
+} from "./types.js";
+
+// Ports
+export type { PortInfo } from "./types.js";
+
+// Snapshots
+export type {
+  Snapshot,
+  SnapshotArchitecture,
   CreateSnapshotParams,
   CreateContextSnapshotParams,
   CreateImageSnapshotParams,
   CreateSnapshotResult,
   SnapshotProgress,
-  Snapshot,
 } from "./Snapshots.js";
-export type { StartOptions, WatchOptions } from "./Sandbox.js";

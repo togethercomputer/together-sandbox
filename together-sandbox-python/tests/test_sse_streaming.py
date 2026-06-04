@@ -7,8 +7,9 @@ import json
 import httpx
 import pytest
 
-from together_sandbox._sandbox import Execs, Files, Ports
-from together_sandbox.sandbox.client import AuthenticatedClient as SandboxAuthClient
+from together_sandbox._sandbox import Execs
+from together_sandbox._streaming import stream_sse_json
+from together_sandbox._sandbox_client.client import AuthenticatedClient as SandboxAuthClient
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -52,13 +53,12 @@ def _make_sandbox_client(body: bytes) -> SandboxAuthClient:
 
 
 @pytest.mark.asyncio
-async def test_execs_stream_output():
-    """stream_output() parses SSE frames and yields dicts."""
+async def test_stream_sse_json_parses_frames():
+    """stream_sse_json parses SSE frames and yields the raw decoded dicts."""
     payload = [{"type": "stdout", "data": "hello"}, {"type": "stdout", "data": "world"}]
     client = _make_sandbox_client(_sse_body(*payload))
-    facade = Execs(client)
     results = []
-    async for event in facade.stream_output("exec-123"):
+    async for event in stream_sse_json(client.get_async_httpx_client(), "/x"):
         results.append(event)
     assert results == payload
 
@@ -68,9 +68,8 @@ async def test_stream_handles_empty_data_fields():
     """SSE events with empty data: lines are skipped."""
     body = b'data: \n\ndata: {"key": "val"}\n\n'
     client = _make_sandbox_client(body)
-    facade = Execs(client)
     results = []
-    async for event in facade.stream_list():
+    async for event in stream_sse_json(client.get_async_httpx_client(), "/x"):
         results.append(event)
     # Empty data events should be skipped; only non-empty ones yielded
     assert len(results) == 1
@@ -82,8 +81,26 @@ async def test_stream_handles_sse_comments():
     """Comment lines (: comment) are ignored."""
     body = b': this is a comment\ndata: {"k": 1}\n\n'
     client = _make_sandbox_client(body)
-    facade = Execs(client)
     results = []
-    async for event in facade.stream_list():
+    async for event in stream_sse_json(client.get_async_httpx_client(), "/x"):
         results.append(event)
     assert results == [{"k": 1}]
+
+
+@pytest.mark.asyncio
+async def test_execs_stream_output_yields_typed_events():
+    """Execs.stream_output() converts raw SSE dicts into ExecOutputEvent facades."""
+    payload = [
+        {"type": "stdout", "output": "hello", "sequence": 0},
+        {"type": "stderr", "output": "oops", "sequence": 1, "exitCode": 3},
+    ]
+    client = _make_sandbox_client(_sse_body(*payload))
+    facade = Execs(client)
+    events = []
+    async for event in facade.stream_output("exec-123"):
+        events.append(event)
+
+    assert [e.type for e in events] == ["stdout", "stderr"]
+    assert [e.output for e in events] == ["hello", "oops"]
+    assert events[0].exit_code is None
+    assert events[1].exit_code == 3

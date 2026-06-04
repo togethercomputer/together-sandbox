@@ -4,57 +4,56 @@ from typing import Any, AsyncIterator, TypedDict
 from types import TracebackType
 
 # ── Management API client ─────────────────────────────────────────────────────
-from .api.client import AuthenticatedClient as ApiClient
+from ._api.client import AuthenticatedClient as ApiClient
 
 # ── Management API endpoint functions (detailed variants) ─────────────────────
-from .api.api.default.stop_sandbox import asyncio_detailed as stop_sandbox_api
-from .api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandbox_api
+from ._api.api.default.stop_sandbox import asyncio_detailed as stop_sandbox_api
+from ._api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
-from .api.models.sandbox import Sandbox as SandboxModel
-from .api.models.stop_sandbox_body import StopSandboxBody
-from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
+from ._api.models.sandbox import Sandbox as SandboxModel
+from ._api.models.stop_sandbox_body import StopSandboxBody
+from ._api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
-from .sandbox.client import AuthenticatedClient as SandboxClient
+from ._sandbox_client.client import AuthenticatedClient as SandboxClient
 
 # ── Sandbox API endpoint functions (detailed variants) ───────────────────────
-from .sandbox.api.files.read_file import asyncio_detailed as read_file_api
-from .sandbox.api.files.create_file import asyncio_detailed as create_file_api
-from .sandbox.api.files.delete_file import asyncio_detailed as delete_file_api
-from .sandbox.api.files.get_file_stat import asyncio_detailed as get_file_stat_api
-from .sandbox.api.files.perform_file_action import (
+from ._sandbox_client.api.files.read_file import asyncio_detailed as read_file_api
+from ._sandbox_client.api.files.create_file import asyncio_detailed as create_file_api
+from ._sandbox_client.api.files.delete_file import asyncio_detailed as delete_file_api
+from ._sandbox_client.api.files.get_file_stat import asyncio_detailed as get_file_stat_api
+from ._sandbox_client.api.files.perform_file_action import (
     asyncio_detailed as perform_file_action_api,
 )
-from .sandbox.api.execs.list_execs import asyncio_detailed as list_execs_api
-from .sandbox.api.execs.create_exec import asyncio_detailed as create_exec_api
-from .sandbox.api.execs.get_exec import asyncio_detailed as get_exec_api
-from .sandbox.api.execs.get_exec_output import asyncio_detailed as get_exec_output_api
-from .sandbox.api.execs.start_exec import asyncio_detailed as start_exec_api
-from .sandbox.api.execs.delete_exec import asyncio_detailed as delete_exec_api
-from .sandbox.api.execs.exec_exec_stdin import asyncio_detailed as exec_exec_stdin_api
-from .sandbox.api.ports.list_ports import asyncio_detailed as list_ports_api
-from .sandbox.api.directories.list_directory import (
+from ._sandbox_client.api.execs.list_execs import asyncio_detailed as list_execs_api
+from ._sandbox_client.api.execs.create_exec import asyncio_detailed as create_exec_api
+from ._sandbox_client.api.execs.get_exec import asyncio_detailed as get_exec_api
+from ._sandbox_client.api.execs.get_exec_output import asyncio_detailed as get_exec_output_api
+from ._sandbox_client.api.execs.start_exec import asyncio_detailed as start_exec_api
+from ._sandbox_client.api.execs.delete_exec import asyncio_detailed as delete_exec_api
+from ._sandbox_client.api.execs.exec_exec_stdin import asyncio_detailed as exec_exec_stdin_api
+from ._sandbox_client.api.ports.list_ports import asyncio_detailed as list_ports_api
+from ._sandbox_client.api.directories.list_directory import (
     asyncio_detailed as list_directory_api,
 )
-from .sandbox.api.directories.create_directory import (
+from ._sandbox_client.api.directories.create_directory import (
     asyncio_detailed as create_directory_api,
 )
-from .sandbox.api.directories.delete_directory import (
+from ._sandbox_client.api.directories.delete_directory import (
     asyncio_detailed as delete_directory_api,
 )
 
 # ── Sandbox API models ────────────────────────────────────────────────────────
-from .sandbox.models.create_exec_request import CreateExecRequest
-from .sandbox.models.create_exec_request_env import CreateExecRequestEnv
-from .sandbox.models.file_action_request import FileActionRequest
-from .sandbox.models.file_action_request_action import FileActionRequestAction
-from .sandbox.models.file_info import FileInfo
-from .sandbox.models.exec_stdin_type import ExecStdinType
-from .sandbox.models.exec_stdin import ExecStdin
-from .sandbox.models.exec_stdout import ExecStdout
-from .sandbox.models.exec_start import ExecStart
-from .sandbox.types import UNSET, File, Unset
+from ._sandbox_client.models.create_exec_request import CreateExecRequest
+from ._sandbox_client.models.create_exec_request_env import CreateExecRequestEnv
+from ._sandbox_client.models.file_action_request import FileActionRequest
+from ._sandbox_client.models.file_action_request_action import FileActionRequestAction
+from ._sandbox_client.models.exec_stdin_type import ExecStdinType
+from ._sandbox_client.models.exec_stdin import ExecStdin
+from ._sandbox_client.models.exec_stdout import ExecStdout
+from ._sandbox_client.models.exec_start import ExecStart
+from ._sandbox_client.types import UNSET, File, Unset
 
 # ── SSE streaming helper ─────────────────────────────────────────────────────
 from ._streaming import stream_sse_json
@@ -62,6 +61,25 @@ from ._streaming import stream_sse_json
 # ── Utils ─────────────────────────────────────────────────────
 from ._utils import RetryConfig, _call_api
 from ._lifecycle import describe_lifecycle_failure
+
+# ── Public facade types + boundary adapters ──────────────────────────────────
+from .types import (
+    SandboxInfo,
+    FileInfo,
+    ExecInfo,
+    ExecOutputEvent,
+    ExecResult,
+    WatcherEvent,
+    PortInfo,
+    _sandbox_info_from_model,
+    _file_info_from_model,
+    _exec_info_from_model,
+    _port_info_from_model,
+    _exec_info_from_dict,
+    _exec_output_event_from_dict,
+    _watcher_event_from_dict,
+    _port_info_from_dict,
+)
 
 
 class Files:
@@ -153,19 +171,20 @@ class Files:
 
     async def stat(self, path: str) -> FileInfo:
         """Get file metadata at the specified path."""
-        return await _call_api(
+        result = await _call_api(
             "sandbox.get_file_stat",
             lambda: get_file_stat_api(path, client=self._client),
             self._retry,
             context=f"for path {path!r}",
         )
+        return _file_info_from_model(result)
 
-    def watch(
+    async def watch(
         self,
         path: str,
         recursive: bool | None = None,
         ignore_patterns: list[str] | None = None,
-    ) -> AsyncIterator[dict[str, Any]]:
+    ) -> AsyncIterator[WatcherEvent]:
         """
         Watch a directory for file system changes via SSE.
 
@@ -176,11 +195,12 @@ class Files:
             params["recursive"] = recursive
         if ignore_patterns is not None:
             params["ignorePatterns"] = ignore_patterns
-        return stream_sse_json(
+        async for event in stream_sse_json(
             self._client.get_async_httpx_client(),
             f"/api/v1/stream/directories/watcher/{path}",
             params=params,
-        )
+        ):
+            yield _watcher_event_from_dict(event)
 
 
 # ─── Execs facade ─────────────────────────────────────────────────────────────
@@ -206,14 +226,14 @@ class Execs:
         self._client = sandbox_client
         self._retry = retry
 
-    async def list(self):
+    async def list(self) -> list[ExecInfo]:
         """List all active execs."""
         result = await _call_api(
             "sandbox.list_execs",
             lambda: list_execs_api(client=self._client),
             self._retry,
         )
-        return result.execs
+        return [_exec_info_from_model(e) for e in result.execs]
 
     async def create(
         self,
@@ -225,7 +245,7 @@ class Execs:
         cwd: str | None = None,
         env: dict[str, str] | None = None,
         user: str | None = None,
-    ):
+    ) -> ExecInfo:
         """Create a new exec.
 
         Args:
@@ -252,20 +272,22 @@ class Execs:
             env=env_obj,
             user=user if user is not None else UNSET,
         )
-        return await _call_api(
+        result = await _call_api(
             "sandbox.create_exec",
             lambda: create_exec_api(client=self._client, body=body),
             self._retry,
         )
+        return _exec_info_from_model(result)
 
-    async def get(self, id_: str):
+    async def get(self, id_: str) -> ExecInfo:
         """Get exec by ID."""
-        return await _call_api(
+        result = await _call_api(
             "sandbox.get_exec",
             lambda: get_exec_api(id_, client=self._client),
             self._retry,
             context=f"for id {id_!r}",
         )
+        return _exec_info_from_model(result)
 
     async def exec(
         self,
@@ -276,7 +298,7 @@ class Execs:
         cwd: str | None = None,
         env: dict[str, str] | None = None,
         user: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> ExecResult:
         """Run a command to completion and return its result.
 
         Creates an exec with ``autostart=True``,
@@ -315,9 +337,9 @@ class Execs:
         chunks: list[str] = []
         exit_code: int | None = None
         async for event in self.stream_output(exec_item.id):
-            chunks.append(event.get("output", ""))
-            if isinstance(event.get("exitCode"), int):
-                exit_code = event["exitCode"]
+            chunks.append(event.output)
+            if isinstance(event.exit_code, int):
+                exit_code = event.exit_code
                 break
 
         if exit_code is None:
@@ -328,9 +350,9 @@ class Execs:
 
         return {"exit_code": exit_code, "output": "".join(chunks)}
 
-    async def start(self, id_: str):
+    async def start(self, id_: str) -> ExecInfo:
         """Start a stopped exec (sets its status to ``running``)."""
-        return await _call_api(
+        result = await _call_api(
             "sandbox.start_exec",
             lambda: start_exec_api(
                 id_,
@@ -340,6 +362,7 @@ class Execs:
             self._retry,
             context=f"for id {id_!r}",
         )
+        return _exec_info_from_model(result)
 
     async def delete(self, id_: str) -> None:
         """Delete an exec."""
@@ -350,18 +373,19 @@ class Execs:
             context=f"for id {id_!r}",
         )
 
-    def stream_output(
+    async def stream_output(
         self, id_: str, last_sequence: int | None = None
-    ) -> AsyncIterator[dict[str, Any]]:
+    ) -> AsyncIterator[ExecOutputEvent]:
         """Stream exec output via SSE (renamed from get_exec_output)."""
         params: dict[str, Any] = {}
         if last_sequence is not None:
             params["lastSequence"] = last_sequence
-        return stream_sse_json(
+        async for event in stream_sse_json(
             self._client.get_async_httpx_client(),
             f"/api/v1/stream/execs/{id_}/io",
             params=params,
-        )
+        ):
+            yield _exec_output_event_from_dict(event)
 
     async def get_output(
         self,
@@ -399,14 +423,14 @@ class Execs:
         )
         return {"exit_code": exit_code, "output": "".join(e.output for e in events)}
 
-    async def send_stdin(self, id_: str, data: str):
+    async def send_stdin(self, id_: str, data: str) -> ExecInfo:
         """Send stdin data to an exec.
 
         Args:
             id_: Exec ID.
             data: Raw stdin data to send (e.g. ``"ls -la\\n"``).
         """
-        return await _call_api(
+        result = await _call_api(
             "sandbox.exec_stdin",
             lambda: exec_exec_stdin_api(
                 id_,
@@ -416,8 +440,9 @@ class Execs:
             self._retry,
             context=f"for id {id_!r}",
         )
+        return _exec_info_from_model(result)
 
-    async def resize(self, id_: str, cols: int, rows: int):
+    async def resize(self, id_: str, cols: int, rows: int) -> ExecInfo:
         """Resize the PTY for an exec.
 
         Args:
@@ -431,7 +456,7 @@ class Execs:
             yet — if your terminal does not resize correctly, check the
             agent's expected format and adjust here.
         """
-        return await _call_api(
+        result = await _call_api(
             "sandbox.exec_stdin",
             lambda: exec_exec_stdin_api(
                 id_,
@@ -444,13 +469,18 @@ class Execs:
             self._retry,
             context=f"for id {id_!r}",
         )
+        return _exec_info_from_model(result)
 
-    def stream_list(self) -> AsyncIterator[dict[str, Any]]:
-        """Stream list of all active execs via SSE (renamed from stream_execs_list)."""
-        return stream_sse_json(
+    async def stream_list(self) -> AsyncIterator[list[ExecInfo]]:
+        """Stream the list of all active execs via SSE (renamed from stream_execs_list).
+
+        Yields the full exec list on each change.
+        """
+        async for event in stream_sse_json(
             self._client.get_async_httpx_client(),
             "/api/v1/stream/execs",
-        )
+        ):
+            yield [_exec_info_from_dict(e) for e in event.get("execs", [])]
 
 
 # ─── Ports facade ─────────────────────────────────────────────────────────────
@@ -466,21 +496,25 @@ class Ports:
         self._client = sandbox_client
         self._retry = retry
 
-    async def list(self):
+    async def list(self) -> list[PortInfo]:
         """List open ports."""
         result = await _call_api(
             "sandbox.list_ports",
             lambda: list_ports_api(client=self._client),
             self._retry,
         )
-        return result.ports
+        return [_port_info_from_model(p) for p in result.ports]
 
-    def stream_list(self) -> AsyncIterator[dict[str, Any]]:
-        """Stream port changes via SSE (renamed from stream_ports_list)."""
-        return stream_sse_json(
+    async def stream_list(self) -> AsyncIterator[list[PortInfo]]:
+        """Stream port changes via SSE (renamed from stream_ports_list).
+
+        Yields the full open-port list on each change.
+        """
+        async for event in stream_sse_json(
             self._client.get_async_httpx_client(),
             "/api/v1/stream/ports",
-        )
+        ):
+            yield [_port_info_from_dict(p) for p in event.get("ports", [])]
 
 
 # ─── Directories facade ──────────────────────────────────────────────────────
@@ -504,7 +538,7 @@ class Directories:
             self._retry,
             context=f"for path {path!r}",
         )
-        return result.files
+        return [_file_info_from_model(f) for f in result.files]
 
     async def create(self, path: str) -> None:
         """Create a directory."""
@@ -580,9 +614,9 @@ class Sandbox:
         return self._vm_info.id
 
     @property
-    def vm_info(self) -> SandboxModel:
-        """Raw sandbox model (id, agent_url, agent_token, etc.)."""
-        return self._vm_info
+    def vm_info(self) -> SandboxInfo:
+        """Information about this VM (id, status, agent_url, agent_token, etc.)."""
+        return _sandbox_info_from_model(self._vm_info)
 
     # ── Sandbox sub-namespace delegation ──────────────────────────────────────
 

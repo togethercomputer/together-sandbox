@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from uuid import uuid4, UUID
-from .api.client import AuthenticatedClient as ApiClient
+from ._api.client import AuthenticatedClient as ApiClient
 from ._utils import (
     _strip_ansi,
     RetryConfig,
@@ -20,27 +20,29 @@ from ._utils import (
 from ._configuration import get_inferred_base_url, is_local_environment
 
 # ── Snapshot API endpoint functions (detailed variants) ───────────────────────
-from .api.api.default.create_snapshot import asyncio_detailed as create_snapshot_api
-from .api.api.default.alias_snapshot import asyncio_detailed as alias_snapshot_api
-from .api.api.default.get_snapshot_by_alias import (
+from ._api.api.default.create_snapshot import asyncio_detailed as create_snapshot_api
+from ._api.api.default.alias_snapshot import asyncio_detailed as alias_snapshot_api
+from ._api.api.default.get_snapshot_by_alias import (
     asyncio_detailed as get_snapshot_by_alias_api,
 )
-from .api.api.default.issue_container_registry_credential import (
+from ._api.api.default.issue_container_registry_credential import (
     asyncio_detailed as issue_container_registry_credential_api,
 )
-from .api.api.default.get_snapshot import asyncio_detailed as get_snapshot_api
-from .api.api.default.list_snapshots import asyncio_detailed as list_snapshots_api
-from .api.api.default.delete_snapshot import asyncio_detailed as delete_snapshot_api
-from .api.api.default.delete_snapshot_by_alias import (
+from ._api.api.default.get_snapshot import asyncio_detailed as get_snapshot_api
+from ._api.api.default.list_snapshots import asyncio_detailed as list_snapshots_api
+from ._api.api.default.delete_snapshot import asyncio_detailed as delete_snapshot_api
+from ._api.api.default.delete_snapshot_by_alias import (
     asyncio_detailed as delete_snapshot_by_alias_api,
 )
 
 # ── Snapshot API models ───────────────────────────────────────────────────────
-from .api.models.alias_snapshot_body import AliasSnapshotBody
-from .api.models.create_snapshot_body import CreateSnapshotBody
-from .api.models.create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
-from .api.models.container_registry_credential import ContainerRegistryCredential
-from .api.models.snapshot import Snapshot
+from ._api.models.alias_snapshot_body import AliasSnapshotBody
+from ._api.models.create_snapshot_body import CreateSnapshotBody
+from ._api.models.create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
+from ._api.models.container_registry_credential import ContainerRegistryCredential
+
+# ── Public facade types + boundary adapter ───────────────────────────────────
+from .types import Snapshot, _snapshot_from_model
 
 # ── Helpers ────────────────────────────────────────────────────────────
 from .docker import (
@@ -206,12 +208,13 @@ class SnapshotsNamespace:
             >>> print(snapshot.id)
             >>> print(snapshot.byte_size)
         """
-        return await _call_api(
+        result = await _call_api(
             "api.get_snapshot",
             lambda: get_snapshot_api(UUID(id), client=self._api_client),
             self._retry,
             context=f"for id {id!r}",
         )
+        return _snapshot_from_model(result)
 
     async def get_by_alias(self, alias: str) -> Snapshot:
         """
@@ -232,7 +235,7 @@ class SnapshotsNamespace:
             >>> print(snapshot.id)
             >>> print(snapshot.byte_size)
         """
-        return await _call_api(
+        result = await _call_api(
             "api.get_snapshot_by_alias",
             lambda: get_snapshot_by_alias_api(
                 alias,
@@ -241,6 +244,7 @@ class SnapshotsNamespace:
             self._retry,
             context=f"for alias {alias!r}",
         )
+        return _snapshot_from_model(result)
 
     async def list(self) -> list[Snapshot]:
         """
@@ -258,11 +262,12 @@ class SnapshotsNamespace:
             >>> for snapshot in snapshots:
             ...     print(snapshot.id)
         """
-        return await _call_api(
+        result = await _call_api(
             "api.list_snapshots",
             lambda: list_snapshots_api(client=self._api_client),
             self._retry,
         )
+        return [_snapshot_from_model(s) for s in result]
 
     async def delete_by_id(self, id: str) -> None:
         """

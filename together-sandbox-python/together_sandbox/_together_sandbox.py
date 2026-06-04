@@ -5,7 +5,7 @@ import os
 from types import TracebackType
 
 # ── Management API client ─────────────────────────────────────────────────────
-from .api.client import AuthenticatedClient as ApiClient
+from ._api.client import AuthenticatedClient as ApiClient
 
 from ._sandboxes import SandboxesNamespace
 from ._snapshots import SnapshotsNamespace

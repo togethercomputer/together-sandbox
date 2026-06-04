@@ -34,6 +34,7 @@ export const DEFAULT_DISK_BYTES = 10240 * 1024 * 1024; // 10 GiB
  * Sandbox lifecycle operations, accessed as `sdk.sandboxes.*`.
  */
 export class SandboxesNamespace {
+  /** @internal Reached via `sdk.sandboxes`; not constructed directly by consumers. */
   constructor(
     private readonly _apiClient: ApiClient,
     private readonly _retryConfig?: RetryConfig,

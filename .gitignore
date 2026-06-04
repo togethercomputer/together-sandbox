@@ -1,7 +1,7 @@
 # Generated code
 together-sandbox-typescript/src/api-clients
-together-sandbox-python/together_sandbox/api
-together-sandbox-python/together_sandbox/sandbox
+together-sandbox-python/together_sandbox/_api
+together-sandbox-python/together_sandbox/_sandbox_client
 
 # Generated SDK docs
 together-sandbox-typescript/docs

@@ -5,6 +5,14 @@ import type {
   RetryConfig,
   SandboxInfo,
   TogetherSandboxConfig,
+  FileInfo,
+  WatcherEvent,
+  ExecInfo,
+  CreateExecParams,
+  ExecOutputEvent,
+  ExecStdinInput,
+  ExecResult,
+  PortInfo,
 } from "./types.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { TogetherSandbox } from "./TogetherSandbox.js";
@@ -45,6 +53,12 @@ export interface StartOptions {
  * ```
  */
 export class Sandbox {
+  /**
+   * @internal Not part of the public API. Construct a `Sandbox` via
+   * {@link Sandbox.start} or `sdk.sandboxes.start()` — the constructor takes
+   * internal generated clients and is omitted from the published type
+   * declarations.
+   */
   constructor(
     public readonly vmInfo: SandboxInfo,
     private readonly _sandboxClient: SandboxApiClient,
@@ -129,7 +143,7 @@ export class Sandbox {
           this._retryConfig,
         );
       },
-      stat: async (path: string) => {
+      stat: async (path: string): Promise<FileInfo> => {
         const result = await callApi(
           "sandbox.files.stat",
           () =>
@@ -141,7 +155,10 @@ export class Sandbox {
         );
         return result;
       },
-      watch: async (path: string, options?: WatchOptions) => {
+      watch: async (
+        path: string,
+        options?: WatchOptions,
+      ): Promise<AsyncIterable<WatcherEvent>> => {
         const result = await sandboxApi.createWatcher({
           client,
           path: { path },
@@ -162,7 +179,7 @@ export class Sandbox {
   get directories() {
     const client = this._sandboxClient;
     return {
-      list: async (path: string) => {
+      list: async (path: string): Promise<FileInfo[]> => {
         const result = await callApi(
           "sandbox.directories.list",
           () =>
@@ -203,7 +220,7 @@ export class Sandbox {
   get execs() {
     const client = this._sandboxClient;
     return {
-      list: async () => {
+      list: async (): Promise<ExecInfo[]> => {
         const result = await callApi(
           "sandbox.execs.list",
           () =>
@@ -214,9 +231,7 @@ export class Sandbox {
         );
         return result.execs;
       },
-      create: async (
-        body: Parameters<typeof sandboxApi.createExec>[0]["body"],
-      ) => {
+      create: async (body: CreateExecParams): Promise<ExecInfo> => {
         const result = await callApi(
           "sandbox.execs.create",
           () =>
@@ -228,7 +243,7 @@ export class Sandbox {
         );
         return result;
       },
-      get: async (id: string) => {
+      get: async (id: string): Promise<ExecInfo> => {
         const result = await callApi(
           "sandbox.execs.get",
           () =>
@@ -240,7 +255,7 @@ export class Sandbox {
         );
         return result;
       },
-      start: async (id: string) => {
+      start: async (id: string): Promise<ExecInfo> => {
         const result = await callApi(
           "sandbox.execs.start",
           () =>
@@ -264,7 +279,10 @@ export class Sandbox {
           this._retryConfig,
         );
       },
-      streamOutput: async (id: string, lastSequence?: number) => {
+      streamOutput: async (
+        id: string,
+        lastSequence?: number,
+      ): Promise<AsyncIterable<ExecOutputEvent>> => {
         const result = await sandboxApi.streamExecOutput({
           client,
           path: { id },
@@ -275,11 +293,8 @@ export class Sandbox {
       exec: async (
         command: string,
         args: string[],
-        opts?: Omit<
-          Parameters<typeof sandboxApi.createExec>[0]["body"],
-          "command" | "args" | "autostart"
-        >,
-      ) => {
+        opts?: Omit<CreateExecParams, "command" | "args" | "autostart">,
+      ): Promise<ExecResult> => {
         const exec = await this.execs.create({
           ...opts,
           command,
@@ -326,8 +341,8 @@ export class Sandbox {
       },
       sendStdin: async (
         id: string,
-        body: Parameters<typeof sandboxApi.execExecStdin>[0]["body"],
-      ) => {
+        body: ExecStdinInput,
+      ): Promise<ExecInfo> => {
         const result = await callApi(
           "sandbox.execs.sendStdin",
           () =>
@@ -340,7 +355,7 @@ export class Sandbox {
         );
         return result;
       },
-      streamList: async () => {
+      streamList: async (): Promise<AsyncIterable<{ execs: ExecInfo[] }>> => {
         const result = await sandboxApi.streamExecsList({
           client,
         });
@@ -353,7 +368,7 @@ export class Sandbox {
   get ports() {
     const client = this._sandboxClient;
     return {
-      list: async () => {
+      list: async (): Promise<PortInfo[]> => {
         const result = await callApi(
           "sandbox.ports.list",
           () =>
@@ -364,7 +379,7 @@ export class Sandbox {
         );
         return result.ports;
       },
-      streamList: async () => {
+      streamList: async (): Promise<AsyncIterable<{ ports: PortInfo[] }>> => {
         const result = await sandboxApi.streamPortsList({
           client,
         });
