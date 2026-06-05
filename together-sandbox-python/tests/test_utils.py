@@ -57,3 +57,64 @@ class TestRetryConfigDocstring:
         assert RetryConfig.__doc__ is not None
         assert "return result" not in RetryConfig.__doc__
 
+
+# ─── Sandbox lifecycle method resolution ──────────────────────────────────────
+
+
+class TestSandboxLifecycleMethods:
+    """Guard against classmethods shadowing same-named instance methods.
+
+    In Python, a ``@classmethod`` defined after an instance method of the same
+    name silently replaces it in the class ``__dict__``.  If ``hibernate`` or
+    ``shutdown`` resolves as a classmethod on ``Sandbox``, calling
+    ``await sandbox.hibernate()`` on an instance raises ``TypeError`` because
+    the classmethod expects ``sandbox_id`` as its first positional argument.
+    """
+
+    def test_hibernate_is_instance_method_not_classmethod(self):
+        """Sandbox.hibernate must be a coroutine function, not a classmethod."""
+        import inspect
+        from together_sandbox._sandbox import Sandbox
+
+        raw = inspect.getattr_static(Sandbox, "hibernate")
+        assert not isinstance(raw, classmethod), (
+            "Sandbox.hibernate resolved as a classmethod — it shadows the "
+            "instance method and breaks await sandbox.hibernate()"
+        )
+        assert inspect.iscoroutinefunction(raw), (
+            "Sandbox.hibernate must be an async instance method"
+        )
+
+    def test_shutdown_is_instance_method_not_classmethod(self):
+        """Sandbox.shutdown must be a coroutine function, not a classmethod."""
+        import inspect
+        from together_sandbox._sandbox import Sandbox
+
+        raw = inspect.getattr_static(Sandbox, "shutdown")
+        assert not isinstance(raw, classmethod), (
+            "Sandbox.shutdown resolved as a classmethod — it shadows the "
+            "instance method and breaks await sandbox.shutdown()"
+        )
+        assert inspect.iscoroutinefunction(raw), (
+            "Sandbox.shutdown must be an async instance method"
+        )
+
+    def test_hibernate_by_id_is_classmethod(self):
+        """Sandbox.hibernate_by_id must be the classmethod factory."""
+        import inspect
+        from together_sandbox._sandbox import Sandbox
+
+        raw = inspect.getattr_static(Sandbox, "hibernate_by_id")
+        assert isinstance(raw, classmethod), (
+            "Sandbox.hibernate_by_id must be a classmethod"
+        )
+
+    def test_shutdown_by_id_is_classmethod(self):
+        """Sandbox.shutdown_by_id must be the classmethod factory."""
+        import inspect
+        from together_sandbox._sandbox import Sandbox
+
+        raw = inspect.getattr_static(Sandbox, "shutdown_by_id")
+        assert isinstance(raw, classmethod), (
+            "Sandbox.shutdown_by_id must be a classmethod"
+        )
