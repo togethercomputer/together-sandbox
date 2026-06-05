@@ -692,7 +692,7 @@ class Sandbox:
         return await sdk.sandboxes.start(sandbox_id, version_number=version_number)
 
     @classmethod
-    async def hibernate(
+    async def hibernate_by_id(
         cls, sandbox_id: str, *, api_key: str | None = None, base_url: str | None = None
     ) -> None:
         """Hibernate a sandbox by ID without a running Sandbox instance."""
@@ -702,7 +702,7 @@ class Sandbox:
         await sdk.sandboxes.hibernate(sandbox_id)
 
     @classmethod
-    async def shutdown(
+    async def shutdown_by_id(
         cls, sandbox_id: str, *, api_key: str | None = None, base_url: str | None = None
     ) -> None:
         """Shut down a sandbox by ID without a running Sandbox instance."""
