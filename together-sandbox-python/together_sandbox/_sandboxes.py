@@ -9,9 +9,15 @@ from .api.api.default.start_sandbox import asyncio_detailed as start_sandbox_api
 from .api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandbox_api
 from .api.api.default.stop_sandbox import asyncio_detailed as stop_sandbox_api
 from .api.api.default.create_sandbox import asyncio_detailed as create_sandbox_api
+from .api.api.default.list_sandboxes import asyncio_detailed as list_sandboxes_api
+from .api.api.default.get_sandbox import asyncio_detailed as get_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
+
+# Public alias for the raw sandbox metadata model returned by list/get endpoints.
+# Named separately from the ``Sandbox`` runtime class (a wired client).
+SandboxRecord = SandboxModel
 from .api.models.stop_sandbox_body import StopSandboxBody
 from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 from .api.models.create_sandbox_body import CreateSandboxBody
@@ -21,6 +27,7 @@ from .api.types import UNSET
 # ── Helpers ─────────────────────────────────────────────────────
 from ._utils import RetryConfig, _call_api, _resolve_connection
 from ._lifecycle import describe_lifecycle_failure
+from ._pagination import Page
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -130,6 +137,66 @@ class SandboxesNamespace:
             "api.create_sandbox",
             lambda: create_sandbox_api(client=self._api_client, body=body),
             self._retry,
+        )
+
+    async def list(
+        self,
+        *,
+        limit: int | None = None,
+        cursor: str | None = None,
+        project_id: str | None = None,
+    ) -> Page[SandboxRecord]:
+        """List sandboxes, one page at a time.
+
+        Args:
+            limit: Maximum number of items to return (1–100, default 20).
+            cursor: A ``next_cursor`` value returned by a previous page.
+            project_id: Restrict results to a specific project.
+
+        Returns:
+            Page[SandboxRecord]: A page of sandboxes. Pass ``page.next_cursor``
+            back as ``cursor`` to fetch the next page; it is ``None`` on the
+            last page.
+
+        Raises:
+            HttpError: If the API request fails.
+
+        Example:
+            >>> page = await sdk.sandboxes.list(limit=20)
+            >>> for sandbox in page.data:
+            ...     print(sandbox.id)
+            >>> if page.next_cursor:
+            ...     page = await sdk.sandboxes.list(cursor=page.next_cursor)
+        """
+        resp = await _call_api(
+            "api.list_sandboxes",
+            lambda: list_sandboxes_api(
+                client=self._api_client,
+                limit=UNSET if limit is None else limit,
+                cursor=UNSET if cursor is None else cursor,
+                project_id=UNSET if project_id is None else project_id,
+            ),
+            self._retry,
+        )
+        return Page(data=resp.data, next_cursor=resp.next_cursor)
+
+    async def get(self, id: str) -> SandboxRecord:
+        """Fetch a single sandbox by id.
+
+        Args:
+            id: The sandbox id.
+
+        Returns:
+            SandboxRecord: The raw sandbox metadata model.
+
+        Raises:
+            HttpError: If the API request fails (e.g. the sandbox is not found).
+        """
+        return await _call_api(
+            "api.get_sandbox",
+            lambda: get_sandbox_api(id, client=self._api_client),
+            self._retry,
+            context=f"for sandbox {id!r}",
         )
 
     async def hibernate(self, sandbox_id: str) -> None:

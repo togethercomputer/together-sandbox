@@ -23,10 +23,13 @@ export type {
   TogetherSandboxConfig,
   RetryConfig,
   RetryContext,
+  Page,
+  ListParams,
 } from "./types.js";
 
 // Public camelCase types and facade classes
 export type { SandboxInfo, CreateSandboxParams } from "./types.js";
+export type { SandboxRecord } from "./Sandboxes.js";
 export { Sandbox } from "./Sandbox.js";
 export { HttpError } from "./errors.js";
 export type {

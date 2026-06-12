@@ -14,7 +14,7 @@ import {
 } from "./docker.js";
 import { RemoteImageBuilderClient } from "./RemoteImageBuilder.js";
 import { randomUUID } from "crypto";
-import type { RetryConfig } from "./types.js";
+import type { RetryConfig, Page, ListParams } from "./types.js";
 import {
   DEFAULT_DISK_BYTES,
   DEFAULT_MEMORY_BYTES,
@@ -125,12 +125,22 @@ export class SnapshotsNamespace {
     return result;
   }
 
-  async list(): Promise<Snapshot[]> {
+  /**
+   * List snapshots, one page at a time. Pass `next_cursor` from the returned
+   * page back as `cursor` to fetch the following page; `next_cursor` is `null`
+   * on the last page.
+   */
+  async list(params: ListParams = {}): Promise<Page<Snapshot>> {
     const result = await callApi(
       "api.snapshots.list",
       () =>
         api.listSnapshots({
           client: this._apiClient,
+          query: {
+            project_id: params.projectId,
+            limit: params.limit,
+            cursor: params.cursor,
+          },
         }),
       this._retryConfig,
     );

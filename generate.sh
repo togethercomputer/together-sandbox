@@ -57,6 +57,49 @@ for schema_name, schema in schemas.items():
 added = [n for n in new_schemas if n not in schemas]
 schemas.update(new_schemas)
 
+# Flatten paginated `allOf: [Page, { data: [...] }]` responses into named
+# schemas. The list endpoints describe their 200 body inline as an allOf that
+# merges the shared `Page` schema (data/next_cursor) with an override that pins
+# `data` to the concrete item type. openapi-python-client mis-merges these
+# anonymous allOf bodies — it collides every list response onto a single
+# inline class, so e.g. `listSnapshots` ends up typed `list[Sandbox]`. Promoting
+# each response to a flat, uniquely-named component (e.g. ListSnapshotsResponse)
+# sidesteps the merge entirely. TypeScript is unaffected either way.
+def _resolve(part):
+    ref = part.get("$ref")
+    if ref:
+        return schemas[ref.split("/")[-1]]
+    return part
+
+flattened = {}
+for route in spec.get("paths", {}).values():
+    for op in route.values():
+        if not isinstance(op, dict):
+            continue
+        for resp in op.get("responses", {}).values():
+            schema = resp.get("content", {}).get("application/json", {}).get("schema", {})
+            all_of = schema.get("allOf")
+            if not all_of or not any(
+                p.get("$ref", "").endswith("/Page") for p in all_of
+            ):
+                continue
+            merged = {"type": "object", "properties": {}, "required": []}
+            for part in all_of:
+                resolved = _resolve(part)
+                merged["properties"].update(copy.deepcopy(resolved.get("properties", {})))
+                for req in resolved.get("required", []):
+                    if req not in merged["required"]:
+                        merged["required"].append(req)
+            op_id = op.get("operationId", "")
+            name = f"{op_id[:1].upper()}{op_id[1:]}Response"
+            flattened[name] = merged
+            resp["content"]["application/json"]["schema"] = {
+                "$ref": f"#/components/schemas/{name}"
+            }
+
+added += [n for n in flattened if n not in schemas]
+schemas.update(flattened)
+
 # Fix global security: replace empty [] with a reference to the defined scheme.
 # An empty security array means "no global default", which triggers security linters.
 # The authorization scheme is defined in components/securitySchemes.

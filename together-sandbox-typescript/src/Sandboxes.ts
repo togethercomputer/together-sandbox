@@ -9,6 +9,8 @@ import {
   type SandboxInfo,
   type CreateSandboxParams,
   type RetryConfig,
+  type Page,
+  type ListParams,
 } from "./types.js";
 import { camelCaseKeys, callApi } from "./utils.js";
 import { describeLifecycleFailure } from "./lifecycle.js";
@@ -24,6 +26,14 @@ function resolveConnectionDetails(sandbox: SandboxInfo): {
     throw new Error("Sandbox has no agent connection details");
   return { url: sandbox.agentUrl, token: sandbox.agentToken };
 }
+
+/**
+ * A sandbox record as returned by the management API list/get endpoints.
+ *
+ * Named separately from the {@link Sandbox} runtime class (a wired client) —
+ * this is the raw metadata model.
+ */
+export type SandboxRecord = api.Sandbox;
 
 // Default sandbox resource allocation. Match the CLI/snapshot helper.
 export const DEFAULT_MILLICPU = 1000; // 1 vCPU
@@ -61,6 +71,48 @@ export class SandboxesNamespace {
       this._retryConfig,
     );
     return camelCaseKeys(data);
+  }
+
+  /**
+   * List sandboxes, one page at a time. Pass `next_cursor` from the returned
+   * page back as `cursor` to fetch the following page; `next_cursor` is `null`
+   * on the last page.
+   */
+  async list(params: ListParams = {}): Promise<Page<SandboxRecord>> {
+    const result = await callApi(
+      "api.sandboxes.list",
+      () =>
+        api.listSandboxes({
+          client: this._apiClient,
+          query: {
+            project_id: params.projectId,
+            limit: params.limit,
+            cursor: params.cursor,
+          },
+        }),
+      this._retryConfig,
+    );
+
+    return result;
+  }
+
+  /**
+   * Fetch a single sandbox by id. Returns the raw {@link SandboxRecord}
+   * metadata (snake_case, consistent with {@link list}).
+   */
+  async get(sandboxId: string): Promise<SandboxRecord> {
+    const result = await callApi(
+      "api.sandboxes.get",
+      () =>
+        api.getSandbox({
+          client: this._apiClient,
+          path: { id: sandboxId },
+        }),
+      this._retryConfig,
+      `for sandbox '${sandboxId}'`,
+    );
+
+    return result;
   }
 
   /**
