@@ -177,9 +177,11 @@ function lifecycleCommand(
   describe: string,
   action: (sdk: TogetherSandbox, id: string) => Promise<unknown>,
   done: (id: string) => string,
+  aliases: string[] = [],
 ): yargs.CommandModule<Record<string, never>, IdArgs> {
   return {
     command: `${verb} <id>`,
+    aliases,
     describe,
     builder: (yargs) =>
       yargs.positional("id", {
@@ -321,6 +323,7 @@ export const stopCommand = lifecycleCommand(
   "Stop (shut down) a sandbox.",
   (sdk, id) => sdk.sandboxes.shutdown(id),
   (id) => `sandbox ${id} stopped`,
+  ["shutdown"],
 );
 
 export const hibernateCommand = lifecycleCommand(
