@@ -210,14 +210,34 @@ Fetch snapshot metadata by alias.
 snapshot = await sdk.snapshots.get_by_alias("my-app@v1")
 ```
 
-#### `sdk.snapshots.list() -> list[Snapshot]`
+#### `sdk.snapshots.list(*, limit=None) -> Page[Snapshot]`
 
-List all snapshots for the account.
+List snapshots. Returns a `Page` that is async-iterable across all pages —
+iterate it directly to walk every snapshot, or use `get_next_page()` /
+`next_cursor` for manual page-by-page control. `limit` sets the page size
+(1–100, default 20).
 
 ```python
-snapshots = await sdk.snapshots.list()
-for s in snapshots:
-    print(s.id)
+# Iterate every snapshot across all pages
+async for snapshot in await sdk.snapshots.list():
+    print(snapshot.id)
+
+# Or page-by-page when the cursor matters
+page = await sdk.snapshots.list(limit=50)
+while page.has_next_page():
+    print(page.data, page.next_cursor)
+    page = await page.get_next_page()
+```
+
+#### `sdk.sandboxes.list(*, limit=None, project_id=None) -> Page[Sandbox]`
+
+List sandboxes. Returns a `Page` (same shape as `snapshots.list()`). `limit`
+sets the page size (1–100, default 20); `project_id` filters to a single
+project.
+
+```python
+async for sandbox in await sdk.sandboxes.list():
+    print(sandbox.id)
 ```
 
 #### `sdk.snapshots.alias(snapshot_id, alias) -> None`

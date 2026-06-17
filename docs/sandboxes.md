@@ -313,9 +313,16 @@ The SDK wraps these automatically — you don't need to use them directly. The `
 | Start sandbox                | `sdk.sandboxes.start(id)`                      | `sdk.sandboxes.start(id)`                                        |
 | Hibernate sandbox            | `sandbox.hibernate()`                          | `sandbox.hibernate()`                                            |
 | Shut down sandbox            | `sandbox.shutdown()`                           | `sandbox.shutdown()`                                             |
+| List sandboxes               | `sdk.sandboxes.list()`                         | `sdk.sandboxes.list()`                                           |
 | Create snapshot (Dockerfile) | `sdk.snapshots.create({ context: "…" })`       | `sdk.snapshots.create(CreateContextSnapshotParams(context="…"))` |
 | Create snapshot (image)      | `sdk.snapshots.create({ image: "…" })`         | `sdk.snapshots.create(CreateImageSnapshotParams(image="…"))`     |
 | Assign alias                 | `sdk.snapshots.alias(id, "my-app@v1")`         | `sdk.snapshots.alias(id, "my-app@v1")`                           |
 | Get snapshot by alias        | `sdk.snapshots.getByAlias("my-app@v1")`        | `sdk.snapshots.get_by_alias("my-app@v1")`                        |
 | List snapshots               | `sdk.snapshots.list()`                         | `sdk.snapshots.list()`                                           |
 | Delete snapshot              | `sdk.snapshots.deleteById(id)`                 | `sdk.snapshots.delete_by_id(id)`                                 |
+
+> **Note:** `sandboxes.list()` and `snapshots.list()` are cursor-paginated. They
+> return a `Page` you can iterate directly (`for await … of` / `async for …`) to
+> walk every item across pages, or step through manually with `getNextPage()` /
+> `get_next_page()`. See the [TypeScript](./typescript-sdk.md) and
+> [Python](./python-sdk.md) SDK references for details.

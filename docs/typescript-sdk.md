@@ -202,12 +202,37 @@ Fetch snapshot metadata by alias.
 const snapshot = await sdk.snapshots.getByAlias("my-app@v1");
 ```
 
-#### `sdk.snapshots.list(): Promise<Snapshot[]>`
+#### `sdk.snapshots.list(options?): Promise<Page<Snapshot>>`
 
-List all snapshots for the account.
+List snapshots. Returns a `Page` that is async-iterable across all pages —
+iterate it directly to walk every snapshot, or use `getNextPage()` /
+`nextCursor` for manual page-by-page control. `options.limit` sets the page
+size (1–100, default 20).
 
 ```typescript
-const snapshots = await sdk.snapshots.list();
+// Iterate every snapshot across all pages
+for await (const snapshot of await sdk.snapshots.list()) {
+  console.log(snapshot.id);
+}
+
+// Or page-by-page when the cursor matters
+let page = await sdk.snapshots.list({ limit: 50 });
+while (page.hasNextPage()) {
+  console.log(page.data, page.nextCursor);
+  page = await page.getNextPage();
+}
+```
+
+#### `sdk.sandboxes.list(options?): Promise<Page<SandboxInfo>>`
+
+List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
+`options.limit` sets the page size (1–100, default 20); `options.projectId`
+filters to a single project.
+
+```typescript
+for await (const sandbox of await sdk.sandboxes.list()) {
+  console.log(sandbox.id);
+}
 ```
 
 #### `sdk.snapshots.alias(snapshotId, alias): Promise<void>`

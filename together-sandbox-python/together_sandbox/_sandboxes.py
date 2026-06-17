@@ -9,6 +9,7 @@ from .api.api.default.start_sandbox import asyncio_detailed as start_sandbox_api
 from .api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandbox_api
 from .api.api.default.stop_sandbox import asyncio_detailed as stop_sandbox_api
 from .api.api.default.create_sandbox import asyncio_detailed as create_sandbox_api
+from .api.api.default.list_sandboxes import asyncio_detailed as list_sandboxes_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
@@ -20,6 +21,7 @@ from .api.types import UNSET
 
 # ── Helpers ─────────────────────────────────────────────────────
 from ._utils import RetryConfig, _call_api, _resolve_connection
+from ._pagination import Page
 from ._lifecycle import describe_lifecycle_failure
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
@@ -131,6 +133,42 @@ class SandboxesNamespace:
             lambda: create_sandbox_api(client=self._api_client, body=body),
             self._retry,
         )
+
+    async def list(
+        self, *, limit: int | None = None, project_id: str | None = None
+    ) -> Page[SandboxModel]:
+        """List sandboxes.
+
+        Returns a :class:`Page` that is async-iterable across all pages —
+        iterate it directly to walk every sandbox, or use ``get_next_page()``
+        / ``next_cursor`` for manual page-by-page control.
+
+        Args:
+            limit: Max items per page (1–100, default 20).
+            project_id: Filter to a single project.
+
+        Returns:
+            Page[Sandbox]: First page of sandboxes.
+
+        Example:
+            >>> async for sandbox in await sdk.sandboxes.list():
+            ...     print(sandbox.id)
+        """
+
+        async def fetch_page(cursor: str | None = None) -> Page[SandboxModel]:
+            result = await _call_api(
+                "api.list_sandboxes",
+                lambda: list_sandboxes_api(
+                    client=self._api_client,
+                    limit=limit if limit is not None else UNSET,
+                    cursor=cursor if cursor is not None else UNSET,
+                    project_id=project_id if project_id is not None else UNSET,
+                ),
+                self._retry,
+            )
+            return Page(result.data, result.next_cursor, fetch_page)
+
+        return await fetch_page()
 
     async def hibernate(self, sandbox_id: str) -> None:
         """Hibernate (suspend) a VM by sandbox ID."""

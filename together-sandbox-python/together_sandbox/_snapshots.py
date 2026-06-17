@@ -18,6 +18,8 @@ from ._utils import (
     _with_retry,
 )
 from ._configuration import get_inferred_base_url, is_local_environment
+from ._pagination import Page
+from .api.types import UNSET
 
 # ── Snapshot API endpoint functions (detailed variants) ───────────────────────
 from .api.api.default.create_snapshot import asyncio_detailed as create_snapshot_api
@@ -242,27 +244,41 @@ class SnapshotsNamespace:
             context=f"for alias {alias!r}",
         )
 
-    async def list(self) -> list[Snapshot]:
+    async def list(self, *, limit: int | None = None) -> Page[Snapshot]:
         """
         List snapshots.
 
+        Returns a :class:`Page` that is async-iterable across all pages —
+        iterate it directly to walk every snapshot, or use ``get_next_page()``
+        / ``next_cursor`` for manual page-by-page control.
+
+        Args:
+            limit: Max items per page (1–100, default 20).
+
         Returns:
-            list[Snapshot]: List of snapshot models with id, type, byte_size, and metadata
+            Page[Snapshot]: First page of snapshots.
 
         Raises:
-            RuntimeError: If the API returns no data
             httpx.TimeoutException: If the API request fails
 
         Example:
-            >>> snapshots = await sdk.snapshots.list()
-            >>> for snapshot in snapshots:
+            >>> async for snapshot in await sdk.snapshots.list():
             ...     print(snapshot.id)
         """
-        return await _call_api(
-            "api.list_snapshots",
-            lambda: list_snapshots_api(client=self._api_client),
-            self._retry,
-        )
+
+        async def fetch_page(cursor: str | None = None) -> Page[Snapshot]:
+            result = await _call_api(
+                "api.list_snapshots",
+                lambda: list_snapshots_api(
+                    client=self._api_client,
+                    limit=limit if limit is not None else UNSET,
+                    cursor=cursor if cursor is not None else UNSET,
+                ),
+                self._retry,
+            )
+            return Page(result.data, result.next_cursor, fetch_page)
+
+        return await fetch_page()
 
     async def delete_by_id(self, id: str) -> None:
         """
