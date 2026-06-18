@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v2.0.0...together-sandbox-workspace-v3.0.0) (2026-06-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **CSB-1547:** `snapshots.list()` now returns a paginated `Page` of snapshots (TypeScript `Page<Snapshot>`, Python `Page[Snapshot]`) instead of a plain `Snapshot[]` / `list[Snapshot]`.
+
+### Features
+
+* **CSB-1547:** add cursor pagination to list endpoints ([1ee1d1d](https://github.com/togethercomputer/together-sandbox/commit/1ee1d1d3be89ecb0932049e8c40ecfa8223ca133))
+
 ## [2.0.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v1.12.0...together-sandbox-workspace-v2.0.0) (2026-06-02)
 
 
