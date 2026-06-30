@@ -5,6 +5,7 @@ import * as api from "./api-clients/api/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { isLocalEnvironment } from "./configuration.js";
 import { callApi, sleep, withRetry } from "./utils.js";
+import { Page } from "./pagination.js";
 import { describeLifecycleFailure } from "./lifecycle.js";
 import {
   buildDockerImage,
@@ -126,26 +127,29 @@ export class SnapshotsNamespace {
   }
 
   /**
-   * List snapshots, one page at a time. Pass `next_cursor` from the returned
-   * page back as `cursor` to fetch the following page; `next_cursor` is `null`
-   * on the last page.
+   * List snapshots.
+   *
+   * Returns a {@link Page} that is async-iterable across all pages — iterate it
+   * directly to walk every snapshot, or use `getNextPage()` / `nextCursor` for
+   * manual page-by-page control.
+   *
+   * @param options.limit Max items per page (1–100, default 20).
    */
-  async list(params: ListParams = {}): Promise<Page<Snapshot>> {
-    const result = await callApi(
-      "api.snapshots.list",
-      () =>
-        api.listSnapshots({
-          client: this._apiClient,
-          query: {
-            project_id: params.projectId,
-            limit: params.limit,
-            cursor: params.cursor,
-          },
-        }),
-      this._retryConfig,
-    );
+  async list(options?: { limit?: number }): Promise<Page<Snapshot>> {
+    const fetchPage = async (cursor?: string): Promise<Page<Snapshot>> => {
+      const result = await callApi(
+        "api.snapshots.list",
+        () =>
+          api.listSnapshots({
+            client: this._apiClient,
+            query: { limit: options?.limit, cursor },
+          }),
+        this._retryConfig,
+      );
+      return new Page<Snapshot>(result.data, result.next_cursor, fetchPage);
+    };
 
-    return result;
+    return fetchPage();
   }
 
   async alias(snapshotId: string, alias: string): Promise<void> {

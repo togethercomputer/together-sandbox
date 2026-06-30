@@ -365,7 +365,7 @@
           }
         }
       },
-      "Page": {
+      "SandboxPage": {
         "type": "object",
         "required": [
           "data",
@@ -374,7 +374,31 @@
         "properties": {
           "data": {
             "type": "array",
-            "items": {}
+            "items": {
+              "$ref": "#/components/schemas/Sandbox"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cursor for the next page; `null` when there are no more items."
+          }
+        }
+      },
+      "SnapshotPage": {
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Snapshot"
+            }
           },
           "next_cursor": {
             "type": [
@@ -616,7 +640,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListSandboxesResponse"
+                  "$ref": "#/components/schemas/SandboxPage"
                 }
               }
             }
@@ -1373,7 +1397,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListSnapshotsResponse"
+                  "$ref": "#/components/schemas/SnapshotPage"
                 }
               }
             }

@@ -14,6 +14,7 @@ import {
 } from "./types.js";
 import { camelCaseKeys, callApi } from "./utils.js";
 import { describeLifecycleFailure } from "./lifecycle.js";
+import { Page } from "./pagination.js";
 
 /**
  * Extract the agent connection details from the Sandbox model.
@@ -74,45 +75,41 @@ export class SandboxesNamespace {
   }
 
   /**
-   * List sandboxes, one page at a time. Pass `next_cursor` from the returned
-   * page back as `cursor` to fetch the following page; `next_cursor` is `null`
-   * on the last page.
+   * List sandboxes.
+   *
+   * Returns a {@link Page} that is async-iterable across all pages — iterate it
+   * directly to walk every sandbox, or use `getNextPage()` / `nextCursor` for
+   * manual page-by-page control.
+   *
+   * @param options.limit Max items per page (1–100, default 20).
+   * @param options.projectId Filter to a single project.
    */
-  async list(params: ListParams = {}): Promise<Page<SandboxRecord>> {
-    const result = await callApi(
-      "api.sandboxes.list",
-      () =>
-        api.listSandboxes({
-          client: this._apiClient,
-          query: {
-            project_id: params.projectId,
-            limit: params.limit,
-            cursor: params.cursor,
-          },
-        }),
-      this._retryConfig,
-    );
+  async list(options?: {
+    limit?: number;
+    projectId?: string;
+  }): Promise<Page<SandboxInfo>> {
+    const fetchPage = async (cursor?: string): Promise<Page<SandboxInfo>> => {
+      const result = await callApi(
+        "api.listSandboxes",
+        () =>
+          api.listSandboxes({
+            client: this._apiClient,
+            query: {
+              limit: options?.limit,
+              cursor,
+              project_id: options?.projectId,
+            },
+          }),
+        this._retryConfig,
+      );
+      return new Page<SandboxInfo>(
+        result.data.map((s) => camelCaseKeys(s)),
+        result.next_cursor,
+        fetchPage,
+      );
+    };
 
-    return result;
-  }
-
-  /**
-   * Fetch a single sandbox by id. Returns the raw {@link SandboxRecord}
-   * metadata (snake_case, consistent with {@link list}).
-   */
-  async get(sandboxId: string): Promise<SandboxRecord> {
-    const result = await callApi(
-      "api.sandboxes.get",
-      () =>
-        api.getSandbox({
-          client: this._apiClient,
-          path: { id: sandboxId },
-        }),
-      this._retryConfig,
-      `for sandbox '${sandboxId}'`,
-    );
-
-    return result;
+    return fetchPage();
   }
 
   /**

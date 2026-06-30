@@ -39,12 +39,12 @@ from together_sandbox.sandbox.models.create_exec_request import CreateExecReques
 from together_sandbox.sandbox.models.exec_stdout_type import ExecStdoutType
 from together_sandbox.sandbox.models.exec_stdout import ExecStdout
 from ._utils import RetryConfig, RetryContext
+from ._pagination import Page
 from .errors import HttpError
 
 __all__ = [
     "TogetherSandbox",
     "Sandbox",
-    "SandboxRecord",
     "Page",
     "SandboxesNamespace",
     "SnapshotsNamespace",

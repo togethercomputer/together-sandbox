@@ -18,6 +18,8 @@ from ._utils import (
     _with_retry,
 )
 from ._configuration import get_inferred_base_url, is_local_environment
+from ._pagination import Page
+from .api.types import UNSET
 
 # ── Snapshot API endpoint functions (detailed variants) ───────────────────────
 from .api.api.default.create_snapshot import asyncio_detailed as create_snapshot_api
@@ -245,13 +247,7 @@ class SnapshotsNamespace:
             context=f"for alias {alias!r}",
         )
 
-    async def list(
-        self,
-        *,
-        limit: int | None = None,
-        cursor: str | None = None,
-        project_id: str | None = None,
-    ) -> Page[Snapshot]:
+    async def list(self, *, limit: int | None = None) -> Page[Snapshot]:
         """
         List snapshots, one page at a time.
 
@@ -260,31 +256,39 @@ class SnapshotsNamespace:
             cursor: A ``next_cursor`` value returned by a previous page.
             project_id: Restrict results to a specific project.
 
+        Returns a :class:`Page` that is async-iterable across all pages —
+        iterate it directly to walk every snapshot, or use ``get_next_page()``
+        / ``next_cursor`` for manual page-by-page control.
+
+        Args:
+            limit: Max items per page (1–100, default 20).
+
         Returns:
-            Page[Snapshot]: A page of snapshots. Pass ``page.next_cursor`` back
-            as ``cursor`` to fetch the next page; it is ``None`` on the last page.
+            Page[Snapshot]: First page of snapshots.
 
         Raises:
-            HttpError: If the API request fails.
+            httpx.TimeoutException: If the API request fails
 
         Example:
-            >>> page = await sdk.snapshots.list(limit=20)
-            >>> for snapshot in page.data:
+            >>> async for snapshot in await sdk.snapshots.list():
             ...     print(snapshot.id)
             >>> if page.next_cursor:
             ...     page = await sdk.snapshots.list(cursor=page.next_cursor)
         """
-        resp = await _call_api(
-            "api.list_snapshots",
-            lambda: list_snapshots_api(
-                client=self._api_client,
-                limit=UNSET if limit is None else limit,
-                cursor=UNSET if cursor is None else cursor,
-                project_id=UNSET if project_id is None else project_id,
-            ),
-            self._retry,
-        )
-        return Page(data=resp.data, next_cursor=resp.next_cursor)
+
+        async def fetch_page(cursor: str | None = None) -> Page[Snapshot]:
+            result = await _call_api(
+                "api.list_snapshots",
+                lambda: list_snapshots_api(
+                    client=self._api_client,
+                    limit=limit if limit is not None else UNSET,
+                    cursor=cursor if cursor is not None else UNSET,
+                ),
+                self._retry,
+            )
+            return Page(result.data, result.next_cursor, fetch_page)
+
+        return await fetch_page()
 
     async def delete_by_id(self, id: str) -> None:
         """
