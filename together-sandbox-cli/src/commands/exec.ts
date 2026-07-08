@@ -66,7 +66,7 @@ export const execCommand: yargs.CommandModule<Record<string, never>, ExecArgs> =
             `sandbox ${argv.id} is not running (status: ${sandbox.status})`,
           );
         }
-        if (!sandbox.agent_url || !sandbox.agent_token) {
+        if (!sandbox.agentUrl || !sandbox.agentToken) {
           throw new Error(`sandbox ${argv.id} has no agent connection details`);
         }
 
@@ -78,7 +78,7 @@ export const execCommand: yargs.CommandModule<Record<string, never>, ExecArgs> =
           env: parseEnv(argv.env),
           user: argv.user,
         };
-        const target = { agent: sandbox.agent_url, token: sandbox.agent_token };
+        const target = { agent: sandbox.agentUrl, token: sandbox.agentToken };
 
         const exitCode = await runExec(target, spec, {
           interactive: argv.interactive,

@@ -171,7 +171,9 @@ export const listCommand: yargs.CommandModule<Record<string, never>, ListArgs> =
         })
         .option("cursor", {
           type: "string",
-          describe: "Pagination cursor (a next_cursor from a previous page)",
+          describe:
+            "Resume from a cursor (from a prior page); shows a single page and " +
+            "disables the interactive pager",
         })
         .option("output", {
           alias: "o",

@@ -13,7 +13,7 @@ export interface ListArgs {
 }
 
 export interface ListConfig<T> {
-  /** Fetch a single page from the SDK. */
+  /** Fetch a single page from the SDK, optionally resuming from a cursor. */
   fetchPage: (params: { limit?: number; cursor?: string }) => Promise<Page<T>>;
   /** Uppercase column headers. */
   headers: string[];
@@ -25,44 +25,52 @@ export interface ListConfig<T> {
  * Drive a paginated `list` command. The display mode is decided by TTY
  * detection, not by which flags were passed:
  *
- *  - `--output json` → prints the raw API page (`{ data, next_cursor }`) as
- *    JSON to stdout. Single page.
- *  - stdout is a TTY → open an interactive pager (`less`) immediately and
- *    stream pages into it lazily: the next page is fetched only as you scroll
- *    (pipe backpressure pauses fetching; quitting the pager stops it).
- *  - stdout is not a TTY (piped/redirected), or `--ci` → fetch one page, print
- *    the table to stdout, and print `next_cursor` to stderr.
- *
- * `--limit` / `--cursor` only parametrize the request; they never switch mode.
+ *  - `--cursor` or `--limit` given → single-page mode: emit exactly one page,
+ *    no pager. The next cursor is printed on stderr so it can be fed back via
+ *    `--cursor` to fetch the following page. This is the explicit,
+ *    script-friendly path that mirrors the SDK's cursor pagination.
+ *  - otherwise, stdout is a TTY (and not `--ci`) → open an interactive pager
+ *    (`less`) and stream every page into it lazily: the next page is fetched
+ *    only as you scroll (pipe backpressure pauses fetching; quitting stops it).
+ *  - otherwise (`--ci`, piped/redirected, or `--output json`) → emit the first
+ *    page. JSON prints `{ data, nextCursor }`; the table prints to stdout with
+ *    a `--cursor` hint on stderr when more pages remain.
  */
 export async function runList<T>(
   config: ListConfig<T>,
   args: ListArgs,
 ): Promise<void> {
-  if (args.output === "json") {
-    const page = await config.fetchPage({
-      limit: args.limit,
-      cursor: args.cursor,
-    });
-    process.stdout.write(`${JSON.stringify(page, null, 2)}\n`);
-    return;
-  }
+  // Passing --cursor/--limit is an explicit request for one specific page: skip
+  // the interactive pager entirely.
+  const explicitPaging = args.cursor !== undefined || args.limit !== undefined;
+  const interactive =
+    Boolean(process.stdout.isTTY) && !args.ci && !explicitPaging;
 
-  if (Boolean(process.stdout.isTTY) && !args.ci) {
+  if (interactive && args.output !== "json") {
     await streamInteractive(config, args);
     return;
   }
 
-  // Non-interactive: one page to stdout, next cursor to stderr.
+  // Non-interactive: a single page, resumed from --cursor if given.
   const page = await config.fetchPage({
     limit: args.limit,
     cursor: args.cursor,
   });
+  const items = page.data;
+  const nextCursor = page.nextCursor;
+
+  if (args.output === "json") {
+    process.stdout.write(
+      `${JSON.stringify({ data: items, nextCursor }, null, 2)}\n`,
+    );
+    return;
+  }
+
   process.stdout.write(
-    `${renderTable(config.headers, page.data.map(config.toRow))}\n`,
+    `${renderTable(config.headers, items.map(config.toRow))}\n`,
   );
-  if (page.next_cursor) {
-    process.stderr.write(`next_cursor: ${page.next_cursor}\n`);
+  if (nextCursor !== null) {
+    process.stderr.write(`More results — use --cursor ${nextCursor}\n`);
   }
 }
 
@@ -108,11 +116,9 @@ async function streamInteractive<T>(
     });
 
   let widths: number[] | null = null;
-  let cursor = args.cursor;
   try {
-    do {
-      const page = await fetchPage({ limit: args.limit, cursor });
-      if (!alive) break;
+    let page = await fetchPage({ limit: args.limit });
+    while (alive) {
       const rows = page.data.map(toRow);
       if (widths === null) {
         widths = computeWidths(headers, rows);
@@ -122,8 +128,10 @@ async function streamInteractive<T>(
         if (!alive) break;
         await write(`${formatRow(row, widths)}\n`);
       }
-      cursor = page.next_cursor ?? undefined;
-    } while (cursor && alive);
+      if (!alive || !page.hasNextPage()) break;
+      // Lazily fetch the next page only once the current one is flushed.
+      page = await page.getNextPage();
+    }
   } finally {
     if (child && alive) sink.end();
     await closed;

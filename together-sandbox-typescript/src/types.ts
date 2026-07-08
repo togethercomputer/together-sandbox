@@ -49,28 +49,6 @@ export type CreateSandboxParams = Omit<
   diskBytes?: number;
 };
 
-/**
- * One page of a cursor-paginated list response.
- */
-export interface Page<T> {
-  /** The items in this page. */
-  data: T[];
-  /** Cursor to fetch the next page; `null` when there are no more items. */
-  next_cursor: string | null;
-}
-
-/**
- * Parameters for cursor-paginated list endpoints.
- */
-export interface ListParams {
-  /** Maximum number of items to return (1–100, default 20). */
-  limit?: number;
-  /** A `next_cursor` value returned by a previous page. */
-  cursor?: string;
-  /** Restrict results to a specific project. */
-  projectId?: string;
-}
-
 export interface RetryContext {
   operation: string; // e.g. 'startSandbox'
   attempt: number; // 1-based, the attempt that just failed

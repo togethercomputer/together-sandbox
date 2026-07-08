@@ -60,11 +60,46 @@ export function renderDescribe(sections: DescribeSection[]): string {
   return blocks.join("\n\n");
 }
 
-/** Render an uppercase header row + rows as space-aligned columns. */
-export function renderTable(headers: string[], rows: string[][]): string {
-  const widths = computeWidths(headers, rows);
+/** Truncate `s` to `max` columns, marking any elision with a trailing `…`. */
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  if (max <= 1) return s.slice(0, Math.max(0, max));
+  return `${s.slice(0, max - 1)}…`;
+}
+
+/**
+ * Render an uppercase header row + rows as space-aligned columns.
+ *
+ * When `maxWidth` is given (typically the terminal width), the last column is
+ * truncated so every line fits on one row, `ps aux`-style. Omit it — e.g. when
+ * output is piped — to print full, untruncated cells.
+ */
+export function renderTable(
+  headers: string[],
+  rows: string[][],
+  maxWidth?: number,
+): string {
+  let displayRows = rows;
+  let widths = computeWidths(headers, rows);
+
+  if (maxWidth !== undefined && widths.length > 1) {
+    const last = widths.length - 1;
+    const gaps = COLUMN_GAP.length * (widths.length - 1);
+    const fixed = widths.slice(0, last).reduce((a, b) => a + b, 0) + gaps;
+    // Leave at least a few columns for the last field even on a narrow tty.
+    const cap = Math.max(3, maxWidth - fixed);
+    if (widths[last] > cap) {
+      displayRows = rows.map((r) => {
+        const copy = r.slice();
+        copy[last] = truncate(copy[last] ?? "", cap);
+        return copy;
+      });
+      widths = computeWidths(headers, displayRows);
+    }
+  }
+
   return [
     formatRow(headers, widths),
-    ...rows.map((r) => formatRow(r, widths)),
+    ...displayRows.map((r) => formatRow(r, widths)),
   ].join("\n");
 }

@@ -16,9 +16,14 @@ import {
   runCommand as sandboxesRunCommand,
 } from "./commands/sandboxes";
 import { execCommand as sandboxesExecCommand } from "./commands/exec";
+import {
+  lsCommand as execsLsCommand,
+  logsCommand as execsLogsCommand,
+} from "./commands/execs";
 
 let snapshotsYargs: ReturnType<typeof yargs>;
 let sandboxesYargs: ReturnType<typeof yargs>;
+let execsYargs: ReturnType<typeof yargs>;
 
 yargs(hideBin(process.argv))
   .usage("together-sandbox CLI - Manage your Together Sandbox projects")
@@ -57,7 +62,21 @@ yargs(hideBin(process.argv))
         .command(sandboxesStopCommand)
         .command(sandboxesHibernateCommand)
         .command(sandboxesExecCommand)
-        .command(sandboxesRunCommand);
+        .command(sandboxesRunCommand)
+        .command({
+          command: "execs",
+          describe: "Inspect execs running in a sandbox",
+          builder: (yargs) => {
+            execsYargs = yargs
+              .recommendCommands()
+              .command(execsLsCommand)
+              .command(execsLogsCommand);
+            return execsYargs;
+          },
+          handler: () => {
+            execsYargs.showHelp();
+          },
+        });
       return sandboxesYargs;
     },
     handler: () => {

@@ -121,6 +121,89 @@ async function getExec(target: ExecTarget, id: string): Promise<ExecItem> {
   return (await res.json()) as ExecItem;
 }
 
+/** A single exec as returned by the agent's list endpoint. */
+export interface ExecListItem {
+  id: string;
+  command: string;
+  args: string[];
+  status: string;
+  pid: number;
+  pty: boolean;
+  exitCode: number;
+  user?: string;
+}
+
+/** List all execs known to the sandbox agent. */
+export async function listExecs(target: ExecTarget): Promise<ExecListItem[]> {
+  const res = await fetch(`${target.agent}/api/v1/execs`, {
+    headers: authHeaders(target.token),
+  });
+  if (!res.ok) {
+    throw new Error(`failed to list execs: HTTP ${res.status} ${await res.text()}`);
+  }
+  const body = (await res.json()) as { execs?: ExecListItem[] };
+  return body.execs ?? [];
+}
+
+/** One buffered output message from an exec. */
+export interface ExecOutputFrame {
+  type: "stdout" | "stderr";
+  output: string;
+  sequence: number;
+  exitCode?: number;
+}
+
+/** Fetch an exec's buffered output (a point-in-time snapshot). */
+export async function getExecOutput(
+  target: ExecTarget,
+  id: string,
+): Promise<ExecOutputFrame[]> {
+  const res = await fetch(`${target.agent}/api/v1/execs/${id}/io`, {
+    headers: authHeaders(target.token),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `failed to get exec output: HTTP ${res.status} ${await res.text()}`,
+    );
+  }
+  return (await res.json()) as ExecOutputFrame[];
+}
+
+/** Write one output frame to the right stream. */
+function writeFrame(frame: { output?: string; type?: string }): void {
+  if (!frame.output) return;
+  if (frame.type === "stderr") process.stderr.write(frame.output);
+  else process.stdout.write(frame.output);
+}
+
+/**
+ * Stream an exec's output (follow mode): the agent replays the buffered output
+ * from the start, then streams live output until the process exits. Resolves
+ * with the exit code once the exec exits (or `undefined` if the stream ends
+ * without one).
+ */
+export async function streamExecOutput(
+  target: ExecTarget,
+  id: string,
+): Promise<number | undefined> {
+  const res = await fetch(`${target.agent}/api/v1/stream/execs/${id}/io`, {
+    headers: { ...authHeaders(target.token), Accept: "text/event-stream" },
+  });
+  if (!res.ok || !res.body) {
+    throw new Error(`failed to stream exec output: HTTP ${res.status}`);
+  }
+
+  let exitCode: number | undefined;
+  for await (const frame of parseSse(res.body)) {
+    writeFrame(frame);
+    if (typeof frame.exitCode === "number") {
+      exitCode = frame.exitCode;
+      break;
+    }
+  }
+  return exitCode;
+}
+
 /** Read all of process.stdin to a string (used when stdin is piped). */
 function readAllStdin(): Promise<string> {
   return new Promise((resolve, reject) => {

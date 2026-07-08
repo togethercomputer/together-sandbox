@@ -23,8 +23,6 @@ export type {
   TogetherSandboxConfig,
   RetryConfig,
   RetryContext,
-  Page,
-  ListParams,
 } from "./types.js";
 
 // Public camelCase types and facade classes

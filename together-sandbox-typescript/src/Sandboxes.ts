@@ -9,8 +9,6 @@ import {
   type SandboxInfo,
   type CreateSandboxParams,
   type RetryConfig,
-  type Page,
-  type ListParams,
 } from "./types.js";
 import { camelCaseKeys, callApi } from "./utils.js";
 import { describeLifecycleFailure } from "./lifecycle.js";
@@ -83,10 +81,13 @@ export class SandboxesNamespace {
    *
    * @param options.limit Max items per page (1–100, default 20).
    * @param options.projectId Filter to a single project.
+   * @param options.cursor Resume from a cursor returned by a previous page's
+   *   {@link Page.nextCursor} (omit to start from the first page).
    */
   async list(options?: {
     limit?: number;
     projectId?: string;
+    cursor?: string;
   }): Promise<Page<SandboxInfo>> {
     const fetchPage = async (cursor?: string): Promise<Page<SandboxInfo>> => {
       const result = await callApi(
@@ -109,7 +110,26 @@ export class SandboxesNamespace {
       );
     };
 
-    return fetchPage();
+    return fetchPage(options?.cursor);
+  }
+
+  /**
+   * Fetch a single sandbox by id. Returns the camelCased {@link SandboxInfo}
+   * metadata, consistent with {@link list}.
+   */
+  async get(sandboxId: string): Promise<SandboxInfo> {
+    const data = await callApi(
+      "api.getSandbox",
+      () =>
+        api.getSandbox({
+          client: this._apiClient,
+          path: { id: sandboxId },
+        }),
+      this._retryConfig,
+      `for sandbox '${sandboxId}'`,
+    );
+
+    return camelCaseKeys(data);
   }
 
   /**

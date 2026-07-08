@@ -1,11 +1,11 @@
 import type * as yargs from "yargs";
 import { TogetherSandbox } from "together-sandbox";
-import type { SandboxRecord } from "together-sandbox";
+import type { SandboxInfo } from "together-sandbox";
 import { runList, type ListArgs } from "./_list";
 import { cell, humanBytes, renderDescribe } from "./_table";
 import { fullCommand, parseEnv, runExec } from "./_exec";
 
-function describeSandbox(s: SandboxRecord): {
+function describeSandbox(s: SandboxInfo): {
   title: string;
   rows: [string, string][];
 }[] {
@@ -14,53 +14,53 @@ function describeSandbox(s: SandboxRecord): {
       title: "Identity",
       rows: [
         ["ID", cell(s.id)],
-        ["Project", cell(s.project_id)],
+        ["Project", cell(s.projectId)],
         ["Ephemeral", cell(s.ephemeral)],
-        ["Cluster", cell(s.cluster_name)],
+        ["Cluster", cell(s.clusterName)],
       ],
     },
     {
       title: "Status",
       rows: [
         ["Status", cell(s.status)],
-        ["Stop reason", cell(s.stop_reason)],
-        ["Recovery", cell(s.recovery_status)],
+        ["Stop reason", cell(s.stopReason)],
+        ["Recovery", cell(s.recoveryStatus)],
       ],
     },
     {
       title: "Resources",
       rows: [
         ["Millicpu", cell(s.millicpu)],
-        ["Memory", humanBytes(s.memory_bytes)],
-        ["Disk", humanBytes(s.disk_bytes)],
+        ["Memory", humanBytes(s.memoryBytes)],
+        ["Disk", humanBytes(s.diskBytes)],
         ["GPU", cell(s.gpu)],
       ],
     },
     {
       title: "Versions",
       rows: [
-        ["Current", cell(s.current_version_number)],
-        ["Next", cell(s.next_version_number)],
-        ["Count", cell(s.version_count)],
+        ["Current", cell(s.currentVersionNumber)],
+        ["Next", cell(s.nextVersionNumber)],
+        ["Count", cell(s.versionCount)],
       ],
     },
     {
       title: "Agent",
       rows: [
-        ["Type", cell(s.agent_type)],
-        ["Version", cell(s.agent_version)],
-        ["URL", cell(s.agent_url)],
+        ["Type", cell(s.agentType)],
+        ["Version", cell(s.agentVersion)],
+        ["URL", cell(s.agentUrl)],
       ],
     },
     {
       title: "Lifecycle",
       rows: [
-        ["Created", cell(s.created_at)],
-        ["Started", cell(s.started_at)],
-        ["Stopped", cell(s.stopped_at)],
-        ["Updated", cell(s.updated_at)],
-        ["Start type", cell(s.start_type)],
-        ["Requested stop", cell(s.requested_stop_type)],
+        ["Created", cell(s.createdAt)],
+        ["Started", cell(s.startedAt)],
+        ["Stopped", cell(s.stoppedAt)],
+        ["Updated", cell(s.updatedAt)],
+        ["Start type", cell(s.startType)],
+        ["Requested stop", cell(s.requestedStopType)],
       ],
     },
   ];
@@ -78,7 +78,9 @@ export const listCommand: yargs.CommandModule<Record<string, never>, ListArgs> =
         })
         .option("cursor", {
           type: "string",
-          describe: "Pagination cursor (a next_cursor from a previous page)",
+          describe:
+            "Resume from a cursor (from a prior page); shows a single page and " +
+            "disables the interactive pager",
         })
         .option("output", {
           alias: "o",
@@ -103,8 +105,8 @@ export const listCommand: yargs.CommandModule<Record<string, never>, ListArgs> =
             toRow: (s) => [
               cell(s.id),
               cell(s.status),
-              cell(s.cluster_name),
-              cell(s.created_at),
+              cell(s.clusterName),
+              cell(s.createdAt),
             ],
           },
           argv,

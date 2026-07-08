@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as api from "./api-clients/api/index.js";
 import { SnapshotsNamespace } from "./Snapshots.js";
 import { SandboxesNamespace } from "./Sandboxes.js";
+import { Page } from "./pagination.js";
 
 vi.mock("./api-clients/api/index.js", async (importOriginal) => {
   const actual =
@@ -20,41 +21,59 @@ const fakeClient = {} as any;
 describe("Snapshots.list", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("returns the page wrapper and forwards pagination params", async () => {
-    const page = { data: [{ id: "snap_1" }], next_cursor: "next-token" };
+  it("returns a Page and forwards pagination params", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (api.listSnapshots as any).mockResolvedValue({
-      data: page,
+      data: { data: [{ id: "snap_1" }], next_cursor: "next-token" },
       response: new Response(null, { status: 200 }),
     });
 
     const ns = new SnapshotsNamespace(fakeClient, "https://x", "key");
-    const result = await ns.list({ limit: 5, cursor: "c", projectId: "p" });
+    const page = await ns.list({ limit: 5 });
 
-    expect(result).toEqual(page);
-    expect(result.next_cursor).toBe("next-token");
+    expect(page).toBeInstanceOf(Page);
+    expect(page.data).toEqual([{ id: "snap_1" }]);
+    expect(page.nextCursor).toBe("next-token");
+    expect(page.hasNextPage()).toBe(true);
     expect(api.listSnapshots).toHaveBeenCalledWith(
       expect.objectContaining({
-        query: { project_id: "p", limit: 5, cursor: "c" },
+        query: { limit: 5, cursor: undefined },
+      }),
+    );
+  });
+
+  it("forwards a starting cursor", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (api.listSnapshots as any).mockResolvedValue({
+      data: { data: [], next_cursor: null },
+      response: new Response(null, { status: 200 }),
+    });
+
+    const ns = new SnapshotsNamespace(fakeClient, "https://x", "key");
+    await ns.list({ limit: 5, cursor: "page-2" });
+
+    expect(api.listSnapshots).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: { limit: 5, cursor: "page-2" },
       }),
     );
   });
 
   it("sends undefined query params when called with no args", async () => {
-    const page = { data: [], next_cursor: null };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (api.listSnapshots as any).mockResolvedValue({
-      data: page,
+      data: { data: [], next_cursor: null },
       response: new Response(null, { status: 200 }),
     });
 
     const ns = new SnapshotsNamespace(fakeClient, "https://x", "key");
-    const result = await ns.list();
+    const page = await ns.list();
 
-    expect(result).toEqual(page);
+    expect(page.data).toEqual([]);
+    expect(page.hasNextPage()).toBe(false);
     expect(api.listSnapshots).toHaveBeenCalledWith(
       expect.objectContaining({
-        query: { project_id: undefined, limit: undefined, cursor: undefined },
+        query: { limit: undefined, cursor: undefined },
       }),
     );
   });
@@ -63,22 +82,39 @@ describe("Snapshots.list", () => {
 describe("Sandboxes.list", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("returns the page wrapper and forwards pagination params", async () => {
-    const page = { data: [{ id: "sb_1" }], next_cursor: null };
+  it("returns a Page of camelCased records and forwards pagination params", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (api.listSandboxes as any).mockResolvedValue({
-      data: page,
+      data: { data: [{ id: "sb_1", cluster_name: "c1" }], next_cursor: null },
       response: new Response(null, { status: 200 }),
     });
 
     const ns = new SandboxesNamespace(fakeClient);
-    const result = await ns.list({ limit: 10 });
+    const page = await ns.list({ limit: 10 });
 
-    expect(result).toEqual(page);
-    expect(result.next_cursor).toBeNull();
+    expect(page).toBeInstanceOf(Page);
+    expect(page.data).toEqual([{ id: "sb_1", clusterName: "c1" }]);
+    expect(page.nextCursor).toBeNull();
     expect(api.listSandboxes).toHaveBeenCalledWith(
       expect.objectContaining({
         query: { project_id: undefined, limit: 10, cursor: undefined },
+      }),
+    );
+  });
+
+  it("forwards a starting cursor", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (api.listSandboxes as any).mockResolvedValue({
+      data: { data: [], next_cursor: null },
+      response: new Response(null, { status: 200 }),
+    });
+
+    const ns = new SandboxesNamespace(fakeClient);
+    await ns.list({ limit: 10, cursor: "page-2" });
+
+    expect(api.listSandboxes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: { project_id: undefined, limit: 10, cursor: "page-2" },
       }),
     );
   });
@@ -87,18 +123,21 @@ describe("Sandboxes.list", () => {
 describe("Sandboxes.get", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("returns the record and forwards the id in the path", async () => {
-    const record = { id: "sb_1", status: "running" };
+  it("returns the camelCased record and forwards the id in the path", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (api.getSandbox as any).mockResolvedValue({
-      data: record,
+      data: { id: "sb_1", status: "running", agent_url: "https://agent" },
       response: new Response(null, { status: 200 }),
     });
 
     const ns = new SandboxesNamespace(fakeClient);
     const result = await ns.get("sb_1");
 
-    expect(result).toEqual(record);
+    expect(result).toEqual({
+      id: "sb_1",
+      status: "running",
+      agentUrl: "https://agent",
+    });
     expect(api.getSandbox).toHaveBeenCalledWith(
       expect.objectContaining({ path: { id: "sb_1" } }),
     );
