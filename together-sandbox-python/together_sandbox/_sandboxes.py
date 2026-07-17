@@ -107,8 +107,8 @@ class SandboxesNamespace:
         snapshot_id: str | None = None,
         snapshot_alias: str | None = None,
         ephemeral: bool | None = None,
-    ) -> SandboxModel:
-        """Create a new sandbox (does not start the VM).
+    ) -> Sandbox:
+        """Create a sandbox and wait for it to be running.
 
         Args:
             millicpu: CPU allocation in millicores (e.g. 1000 = 1 vCPU).
@@ -118,21 +118,44 @@ class SandboxesNamespace:
             snapshot_id: Optional snapshot ID to create the sandbox from.
             snapshot_alias: Optional snapshot alias to create the sandbox from.
             ephemeral: Optional flag to mark the sandbox as ephemeral.
+            autostart: Start the VM immediately after creation (default ``True``).
+
         """
         body = CreateSandboxBody(
             id=id if id is not None else UNSET,
             snapshot_id=snapshot_id if snapshot_id is not None else UNSET,
             snapshot_alias=snapshot_alias if snapshot_alias is not None else UNSET,
             ephemeral=ephemeral if ephemeral is not None else UNSET,
+            autostart=True,
             millicpu=millicpu,
             memory_bytes=memory_bytes,
             disk_bytes=disk_bytes,
         )
-        return await _call_api(
+        sandbox_model: SandboxModel = await _call_api(
             "api.create_sandbox",
             lambda: create_sandbox_api(client=self._api_client, body=body),
             self._retry,
         )
+
+        vm_info: SandboxModel = await _call_api(
+            "api.wait_for_sandbox",
+            lambda: wait_for_sandbox_api(sandbox_model.id, client=self._api_client),
+            self._retry,
+            context=f"for sandbox {sandbox_model.id!r}",
+        )
+
+        if vm_info.status != "running":
+            raise RuntimeError(describe_lifecycle_failure(vm_info, "running"))
+
+        url, token = _resolve_connection(vm_info)
+
+        sandbox_client = SandboxClient(
+            base_url=url,
+            token=token,
+            prefix="Bearer",
+        )
+
+        return Sandbox(vm_info, sandbox_client, self._api_client, retry=self._retry)
 
     async def list(
         self, *, limit: int | None = None, project_id: str | None = None

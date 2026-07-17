@@ -41,9 +41,9 @@ export class SandboxesNamespace {
   ) {}
 
   /**
-   * Create a new sandbox (does not start the VM).
+   * Create a sandbox and wait for it to be running, returning a connected {@link Sandbox}.
    */
-  async create(params: CreateSandboxParams): Promise<SandboxInfo> {
+  async create(params: CreateSandboxParams = {}): Promise<Sandbox> {
     const data = await callApi(
       "api.createSandbox",
       () =>
@@ -54,6 +54,7 @@ export class SandboxesNamespace {
             snapshot_id: params.snapshotId,
             snapshot_alias: params.snapshotAlias,
             ephemeral: params.ephemeral,
+            autostart: true,
             millicpu: params.millicpu ?? DEFAULT_MILLICPU,
             memory_bytes: params.memoryBytes ?? DEFAULT_MEMORY_BYTES,
             disk_bytes: params.diskBytes ?? DEFAULT_DISK_BYTES,
@@ -61,7 +62,38 @@ export class SandboxesNamespace {
         }),
       this._retryConfig,
     );
-    return camelCaseKeys(data);
+
+    const waitResult = await callApi(
+      "api.waitForSandbox",
+      () =>
+        api.waitForSandbox({
+          client: this._apiClient,
+          path: { id: data.id },
+        }),
+      this._retryConfig,
+    );
+
+    if (waitResult.status !== "running") {
+      throw new Error(describeLifecycleFailure(waitResult, "running"));
+    }
+
+    const finalData = camelCaseKeys(waitResult);
+    const { url, token } = resolveConnectionDetails(finalData);
+    const sandboxClient = createSandboxClient(
+      createSandboxConfig({
+        baseUrl: url,
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    );
+
+    sandboxClient.interceptors.error.use((error) => error);
+
+    return new Sandbox(
+      finalData,
+      sandboxClient,
+      this._apiClient,
+      this._retryConfig,
+    );
   }
 
   /**
