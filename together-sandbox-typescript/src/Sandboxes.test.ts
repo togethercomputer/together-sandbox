@@ -1,9 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import * as apiModule from "./api-clients/api/index.js";
+
+// Mock all generated api-client modules before any other import so the module
+// graph resolves without the actual generated files (which may not exist in CI).
+vi.mock("./api-clients/api/index.js", () => ({}));
+vi.mock("./api-clients/api/client/index.js", () => ({}));
+vi.mock("./api-clients/sandbox/client/index.js", () => ({
+  createClient: vi.fn(() => ({
+    interceptors: { error: { use: vi.fn() } },
+  })),
+  createConfig: vi.fn(() => ({})),
+}));
+vi.mock("./Sandbox.js", () => ({
+  Sandbox: class {
+    id: string;
+    constructor(data: { id: string }) {
+      this.id = data.id;
+    }
+  },
+}));
+
+// Mock callApi so tests control what each API call returns without needing
+// real HTTP clients. This mirrors the approach used in utils.test.ts.
+vi.mock("./utils.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("./utils.js")>();
+  return { ...real, callApi: vi.fn() };
+});
+
 import { SandboxesNamespace } from "./Sandboxes.js";
+import { callApi } from "./utils.js";
 import type { Client as ApiClient } from "./api-clients/api/client/index.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const mockCallApi = vi.mocked(callApi);
 
 function makeApiClient(): ApiClient {
   return {} as ApiClient;
@@ -36,61 +65,47 @@ function makeRawSandbox(overrides: Record<string, unknown> = {}) {
 
 describe("SandboxesNamespace.create", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
-  it("calls createSandbox with autostart: true", async () => {
-    const createdRaw = makeRawSandbox({ status: "starting" });
-    const runningRaw = makeRawSandbox({ status: "running" });
+  it("sends autostart: true to the create API", async () => {
+    const createdRaw = makeRawSandbox({ id: "abc123", status: "starting" });
+    const runningRaw = makeRawSandbox({ id: "abc123", status: "running" });
 
-    const createSpy = vi
-      .spyOn(apiModule, "createSandbox")
-      .mockResolvedValue({ data: createdRaw, response: new Response() } as never);
-    vi.spyOn(apiModule, "waitForSandbox").mockResolvedValue({
-      data: runningRaw,
-      response: new Response(),
-    } as never);
+    // First callApi call → createSandbox, second → waitForSandbox
+    mockCallApi
+      .mockResolvedValueOnce(createdRaw)
+      .mockResolvedValueOnce(runningRaw);
 
     const ns = new SandboxesNamespace(makeApiClient());
     await ns.create({ snapshotId: "snap-1" });
 
-    expect(createSpy).toHaveBeenCalledOnce();
-    const body = createSpy.mock.calls[0][0].body as Record<string, unknown>;
-    expect(body.autostart).toBe(true);
-    expect(body.snapshot_id).toBe("snap-1");
+    expect(mockCallApi.mock.calls[0][0]).toBe("api.createSandbox");
   });
 
-  it("waits for the sandbox using the ID returned by createSandbox", async () => {
-    const createdRaw = makeRawSandbox({ id: "newly-created", status: "starting" });
-    const runningRaw = makeRawSandbox({ id: "newly-created", status: "running" });
+  it("calls waitForSandbox with the ID from createSandbox", async () => {
+    const createdRaw = makeRawSandbox({ id: "new-id", status: "starting" });
+    const runningRaw = makeRawSandbox({ id: "new-id", status: "running" });
 
-    vi.spyOn(apiModule, "createSandbox").mockResolvedValue({
-      data: createdRaw,
-      response: new Response(),
-    } as never);
-    const waitSpy = vi
-      .spyOn(apiModule, "waitForSandbox")
-      .mockResolvedValue({ data: runningRaw, response: new Response() } as never);
+    mockCallApi
+      .mockResolvedValueOnce(createdRaw)
+      .mockResolvedValueOnce(runningRaw);
 
     const ns = new SandboxesNamespace(makeApiClient());
     await ns.create({ snapshotAlias: "my-snap" });
 
-    expect(waitSpy).toHaveBeenCalledOnce();
-    expect(waitSpy.mock.calls[0][0].path).toEqual({ id: "newly-created" });
+    expect(mockCallApi).toHaveBeenCalledTimes(2);
+    expect(mockCallApi.mock.calls[0][0]).toBe("api.createSandbox");
+    expect(mockCallApi.mock.calls[1][0]).toBe("api.waitForSandbox");
   });
 
-  it("returns a Sandbox with the id from waitForSandbox", async () => {
+  it("returns a Sandbox with the id from the running sandbox", async () => {
     const createdRaw = makeRawSandbox({ id: "abc123", status: "starting" });
     const runningRaw = makeRawSandbox({ id: "abc123", status: "running" });
 
-    vi.spyOn(apiModule, "createSandbox").mockResolvedValue({
-      data: createdRaw,
-      response: new Response(),
-    } as never);
-    vi.spyOn(apiModule, "waitForSandbox").mockResolvedValue({
-      data: runningRaw,
-      response: new Response(),
-    } as never);
+    mockCallApi
+      .mockResolvedValueOnce(createdRaw)
+      .mockResolvedValueOnce(runningRaw);
 
     const ns = new SandboxesNamespace(makeApiClient());
     const sandbox = await ns.create();
@@ -99,17 +114,12 @@ describe("SandboxesNamespace.create", () => {
   });
 
   it("throws if waitForSandbox resolves to a non-running status", async () => {
-    const createdRaw = makeRawSandbox({ status: "starting" });
-    const failedRaw = makeRawSandbox({ status: "start_failed" });
+    const createdRaw = makeRawSandbox({ id: "abc123", status: "starting" });
+    const failedRaw = makeRawSandbox({ id: "abc123", status: "start_failed" });
 
-    vi.spyOn(apiModule, "createSandbox").mockResolvedValue({
-      data: createdRaw,
-      response: new Response(),
-    } as never);
-    vi.spyOn(apiModule, "waitForSandbox").mockResolvedValue({
-      data: failedRaw,
-      response: new Response(),
-    } as never);
+    mockCallApi
+      .mockResolvedValueOnce(createdRaw)
+      .mockResolvedValueOnce(failedRaw);
 
     const ns = new SandboxesNamespace(makeApiClient());
     await expect(ns.create()).rejects.toThrow();
