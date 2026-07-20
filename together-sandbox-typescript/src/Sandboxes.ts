@@ -26,6 +26,43 @@ function resolveConnectionDetails(sandbox: SandboxInfo): {
   return { url: sandbox.agentUrl, token: sandbox.agentToken };
 }
 
+/**
+ * Wait for a sandbox to reach "running", wire up its client, and return a
+ * connected {@link Sandbox}. Shared by `create` and `start`.
+ */
+async function connectRunningSandbox(
+  sandboxId: string,
+  apiClient: ApiClient,
+  retryConfig: RetryConfig | undefined,
+): Promise<Sandbox> {
+  const waitResult = await callApi(
+    "api.waitForSandbox",
+    () =>
+      api.waitForSandbox({
+        client: apiClient,
+        path: { id: sandboxId },
+      }),
+    retryConfig,
+  );
+
+  if (waitResult.status !== "running") {
+    throw new Error(describeLifecycleFailure(waitResult, "running"));
+  }
+
+  const finalData = camelCaseKeys(waitResult);
+  const { url, token } = resolveConnectionDetails(finalData);
+  const sandboxClient = createSandboxClient(
+    createSandboxConfig({
+      baseUrl: url,
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  );
+
+  sandboxClient.interceptors.error.use((error) => error);
+
+  return new Sandbox(finalData, sandboxClient, apiClient, retryConfig);
+}
+
 // Default sandbox resource allocation. Match the CLI/snapshot helper.
 export const DEFAULT_MILLICPU = 1000; // 1 vCPU
 export const DEFAULT_MEMORY_BYTES = 2048 * 1024 * 1024; // 2 GiB
@@ -41,9 +78,9 @@ export class SandboxesNamespace {
   ) {}
 
   /**
-   * Create a new sandbox (does not start the VM).
+   * Create a sandbox and wait for it to be running, returning a connected {@link Sandbox}.
    */
-  async create(params: CreateSandboxParams): Promise<SandboxInfo> {
+  async create(params: CreateSandboxParams = {}): Promise<Sandbox> {
     const data = await callApi(
       "api.createSandbox",
       () =>
@@ -54,6 +91,7 @@ export class SandboxesNamespace {
             snapshot_id: params.snapshotId,
             snapshot_alias: params.snapshotAlias,
             ephemeral: params.ephemeral,
+            autostart: true,
             millicpu: params.millicpu ?? DEFAULT_MILLICPU,
             memory_bytes: params.memoryBytes ?? DEFAULT_MEMORY_BYTES,
             disk_bytes: params.diskBytes ?? DEFAULT_DISK_BYTES,
@@ -61,7 +99,8 @@ export class SandboxesNamespace {
         }),
       this._retryConfig,
     );
-    return camelCaseKeys(data);
+
+    return connectRunningSandbox(data.id, this._apiClient, this._retryConfig);
   }
 
   /**
@@ -123,38 +162,7 @@ export class SandboxesNamespace {
       this._retryConfig,
     );
 
-    const waitResult = await callApi(
-      "api.waitForSandbox",
-      () =>
-        api.waitForSandbox({
-          client: this._apiClient,
-          path: { id: sandboxId },
-        }),
-      this._retryConfig,
-    );
-
-    if (waitResult.status !== "running") {
-      throw new Error(describeLifecycleFailure(waitResult, "running"));
-    }
-
-    const finalData = camelCaseKeys(waitResult);
-    const { url, token } = resolveConnectionDetails(finalData);
-    const sandboxClient = createSandboxClient(
-      createSandboxConfig({
-        baseUrl: url,
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-    );
-
-    // Add error interceptor to handle non-retryable errors
-    sandboxClient.interceptors.error.use((error) => error);
-
-    return new Sandbox(
-      finalData,
-      sandboxClient,
-      this._apiClient,
-      this._retryConfig,
-    );
+    return connectRunningSandbox(sandboxId, this._apiClient, this._retryConfig);
   }
 
   /**
