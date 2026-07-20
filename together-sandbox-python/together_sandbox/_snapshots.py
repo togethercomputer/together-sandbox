@@ -144,13 +144,15 @@ class SnapshotsNamespace:
                 params.on_progress(SnapshotProgress(step=step, output=output))
 
         if isinstance(params, CreateContextSnapshotParams):
-            # Context-based snapshot — requires Docker
-            if not await is_docker_available():
-                raise RuntimeError(
-                    "Docker is not available. Please install Docker to use snapshot builds."
-                )
-
+            # Context-based snapshot. Builds run remotely by default, so Docker
+            # is only required when local build mode is explicitly opted into
+            # via TOGETHER_LOCAL_BUILD=1.
             if os.getenv("TOGETHER_LOCAL_BUILD") == "1":
+                if not await is_docker_available():
+                    raise RuntimeError(
+                        "Docker is not available. Please install Docker to use "
+                        "local build mode (TOGETHER_LOCAL_BUILD=1)."
+                    )
                 result = await self._build_and_register(params)
             else:
                 result = await self._build_image_remotely(params)
