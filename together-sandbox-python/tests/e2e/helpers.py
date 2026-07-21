@@ -72,10 +72,7 @@ async def sandbox(sdk: TogetherSandbox) -> AsyncGenerator[Sandbox, None]:
     """
     snapshot_id = get_snapshot_id()
 
-    sandbox = await sdk.sandboxes.create(snapshot_id=snapshot_id)
-
-    # Start sandbox with the template ID
-    sb = await sdk.sandboxes.start(sandbox_id=sandbox.id)
+    sb = await sdk.sandboxes.create(snapshot_id=snapshot_id)
 
     try:
         yield sb
