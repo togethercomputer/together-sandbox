@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v3.0.0...together-sandbox-workspace-v3.0.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* check docker only for local image builds in python sdk ([c9a0fd0](https://github.com/togethercomputer/together-sandbox/commit/c9a0fd09f9bb20db04010c285df5844c1992474d))
+* updates e2e tests and docs with the new creation flow ([6767feb](https://github.com/togethercomputer/together-sandbox/commit/6767feb92f9ad7b419f5d4306da1e09a72ec2c8e))
+
 ## [3.0.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v2.0.0...together-sandbox-workspace-v3.0.0) (2026-06-18)
 
 
