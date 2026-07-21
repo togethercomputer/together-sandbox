@@ -30,7 +30,7 @@ from together_sandbox import TogetherSandbox
 
 async def main():
     sdk = TogetherSandbox()  # reads TOGETHER_API_KEY from env
-    async with await sdk.sandboxes.start("your-sandbox-id") as sandbox:
+    async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
         content = await sandbox.files.read("/package.json")
         print(content)
         await sandbox.shutdown()
@@ -60,7 +60,7 @@ sdk = TogetherSandbox(api_key=None, base_url="https://api.bartender.codesandbox.
 
 ```python
 async with TogetherSandbox() as sdk:
-    sandbox = await sdk.sandboxes.start("your-sandbox-id")
+    sandbox = await sdk.sandboxes.create(snapshot_alias="my-app@v1")
     ...
 # Closes the management API HTTP connection on exit.
 ```
@@ -69,14 +69,12 @@ async with TogetherSandbox() as sdk:
 
 Sandbox lifecycle namespace.
 
-#### `sdk.sandboxes.create(*, millicpu=1000, memory_bytes=2*1024**3, disk_bytes=10*1024**3, id=None, snapshot_id=None, snapshot_alias=None, ephemeral=None) -> SandboxModel`
+#### `sdk.sandboxes.create(*, millicpu=1000, memory_bytes=2*1024**3, disk_bytes=10*1024**3, id=None, snapshot_id=None, snapshot_alias=None, ephemeral=None) -> Sandbox`
 
-Creates a new sandbox record from a snapshot. Does not start the VM — call `sdk.sandboxes.start()` with the returned ID afterwards.
+Creates a new sandbox from a snapshot, starts the VM, and returns a connected [`Sandbox`](#sandbox) instance. This is the primary way to get a running sandbox — no separate `start()` call is needed.
 
 ```python
-sandbox_model = await sdk.sandboxes.create(snapshot_alias="my-app@v1")
-
-sandbox = await sdk.sandboxes.start(sandbox_model.id)
+sandbox = await sdk.sandboxes.create(snapshot_alias="my-app@v1")
 ```
 
 Resource params (`millicpu`, `memory_bytes`, `disk_bytes`) default to **1 vCPU / 2 GiB memory / 10 GiB disk** if omitted.
@@ -93,12 +91,12 @@ Resource params (`millicpu`, `memory_bytes`, `disk_bytes`) default to **1 vCPU /
 
 #### `sdk.sandboxes.start(sandbox_id, *, version_number=None) -> Sandbox`
 
-Starts the VM for the given sandbox ID and returns a connected [`Sandbox`](#sandbox) instance.
+Starts the VM for the given sandbox ID and returns a connected [`Sandbox`](#sandbox) instance. Use this to resume a hibernated sandbox. For new sandboxes, prefer `sdk.sandboxes.create()`.
 
 ```python
 sandbox = await sdk.sandboxes.start("your-sandbox-id")
 
-# Pin a specific VM version:
+# Resume a specific version:
 sandbox = await sdk.sandboxes.start("your-sandbox-id", version_number=3)
 ```
 
@@ -142,8 +140,8 @@ result = await sdk.snapshots.create(CreateContextSnapshotParams(
     on_progress=lambda e: print(e.output),
 ))
 
-# Use the snapshot ID to create a sandbox:
-sandbox_model = await sdk.sandboxes.create(snapshot_id=result.snapshot_id)
+# Use the snapshot ID to start a sandbox:
+sandbox = await sdk.sandboxes.create(snapshot_id=result.snapshot_id)
 ```
 
 > **Local build opt-in.** Set `TOGETHER_LOCAL_BUILD=1` in the environment to build the image with your own Docker daemon and push it to the registry from your machine instead of using the remote image-builder. This requires Docker to be installed and running. Useful for debugging build issues locally or when working in restricted network environments.
@@ -268,10 +266,10 @@ await sdk.snapshots.delete_by_alias("my-app@v1")
 
 ## `Sandbox`
 
-A connected, running VM. Returned by `sdk.sandboxes.start()`. All sub-namespaces are available as properties.
+A connected, running VM. Returned by `sdk.sandboxes.create()` and `sdk.sandboxes.start()`. All sub-namespaces are available as properties.
 
 ```python
-async with await sdk.sandboxes.start("sandbox-id") as sandbox:
+async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
     ...
 ```
 
@@ -564,7 +562,7 @@ Close the underlying sandbox HTTP client connection without affecting the VM sta
 `Sandbox` supports use as an async context manager. Exiting the block closes the HTTP connection but does **not** shut down the VM.
 
 ```python
-async with await sdk.sandboxes.start("sandbox-id") as sandbox:
+async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
     content = await sandbox.files.read("/README.md")
     await sandbox.shutdown()
 ```

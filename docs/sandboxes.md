@@ -33,11 +33,6 @@ A sandbox moves through the following states:
                  create()
                     │
                     ▼
-               ┌─────────┐
-               │ created │
-               └────┬────┘
-                    │ start()
-                    ▼
               ┌──────────┐
               │ starting │  ← transitional
               └────┬─────┘
@@ -56,9 +51,19 @@ A sandbox moves through the following states:
               ┌─────────┐
               │ stopped │
               └─────────┘
+                   │ start()  (resume a hibernated sandbox)
+                   ▼
+              ┌──────────┐
+              │ starting │  ← transitional
+              └────┬─────┘
+                   │
+                   ▼
+              ┌─────────┐
+              │ running │
+              └─────────┘
 ```
 
-`starting` and `stopping` are transient states — the SDK's `start()`, `hibernate()`, and `shutdown()` methods all block until the sandbox reaches a terminal state (`running` or `stopped`).
+`starting` and `stopping` are transient states — `create()`, `start()`, `hibernate()`, and `shutdown()` all block until the sandbox reaches a terminal state (`running` or `stopped`).
 
 **Note!** A `starting` sandbox can move to `stopping => stopped`. This happens when the sandbox was unable to start.
 
@@ -301,7 +306,7 @@ Once a sandbox reaches the `running` state, two fields in the sandbox model unlo
 | `agent_url`   | Base URL for the in-VM HTTP/WebSocket API      |
 | `agent_token` | Bearer token required to authenticate requests |
 
-The SDK wraps these automatically — you don't need to use them directly. The `Sandbox` object returned by `sdk.sandboxes.start()` provides high-level methods for files, directories, shell commands (execs), and ports.
+The SDK wraps these automatically — you don't need to use them directly. The `Sandbox` object returned by `sdk.sandboxes.create()` (or `sdk.sandboxes.start()`) provides high-level methods for files, directories, shell commands (execs), and ports.
 
 ---
 

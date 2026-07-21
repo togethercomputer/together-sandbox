@@ -28,7 +28,7 @@ Or pass it directly when constructing the client (see below).
 import { TogetherSandbox } from "together-sandbox";
 
 const sdk = new TogetherSandbox({ apiKey: process.env.TOGETHER_API_KEY! });
-const sandbox = await sdk.sandboxes.start("your-sandbox-id");
+const sandbox = await sdk.sandboxes.create({ snapshotAlias: "my-app@v1" });
 
 const content = await sandbox.files.read("/package.json");
 console.log(content);
@@ -58,16 +58,14 @@ const sdk = new TogetherSandbox(config: TogetherSandboxConfig);
 
 Sandbox lifecycle namespace.
 
-#### `sdk.sandboxes.create(body): Promise<SandboxModel>`
+#### `sdk.sandboxes.create(params?): Promise<Sandbox>`
 
-Creates a new sandbox record from a snapshot. Does not start the VM — call `sdk.sandboxes.start()` with the returned ID afterwards.
+Creates a new sandbox from a snapshot, starts the VM, and returns a connected [`Sandbox`](#sandbox) instance. This is the primary way to get a running sandbox — no separate `start()` call is needed.
 
 ```typescript
-const sandboxModel = await sdk.sandboxes.create({
+const sandbox = await sdk.sandboxes.create({
   snapshotAlias: "my-app@v1",
 });
-
-const sandbox = await sdk.sandboxes.start(sandboxModel.id);
 ```
 
 Resource params (`millicpu`, `memoryBytes`, `diskBytes`) default to **1 vCPU / 2 GiB memory / 10 GiB disk** if omitted.
@@ -84,12 +82,12 @@ Resource params (`millicpu`, `memoryBytes`, `diskBytes`) default to **1 vCPU / 2
 
 #### `sdk.sandboxes.start(sandboxId, options?): Promise<Sandbox>`
 
-Starts the VM for the given sandbox ID and returns a connected [`Sandbox`](#sandbox) instance.
+Starts the VM for the given sandbox ID and returns a connected [`Sandbox`](#sandbox) instance. Use this to resume a hibernated sandbox. For new sandboxes, prefer `sdk.sandboxes.create()`.
 
 ```typescript
 const sandbox = await sdk.sandboxes.start("your-sandbox-id");
 
-// With optional start options:
+// Resume a specific version:
 const sandbox = await sdk.sandboxes.start("your-sandbox-id", {
   versionNumber: 3,
 });
@@ -133,8 +131,8 @@ const result = await sdk.snapshots.create({
   onProgress: (event) => console.log(event.output),
 });
 
-// Use the snapshot ID to create a sandbox:
-const sandboxModel = await sdk.sandboxes.create({
+// Use the snapshot ID to start a sandbox:
+const sandbox = await sdk.sandboxes.create({
   snapshotId: result.snapshotId,
 });
 ```
@@ -149,8 +147,8 @@ const result = await sdk.snapshots.create({
   alias: "my-node@latest", // optional
 });
 
-// Use the alias to create a sandbox:
-const sandboxModel = await sdk.sandboxes.create({
+// Use the alias to start a sandbox:
+const sandbox = await sdk.sandboxes.create({
   snapshotAlias: result.alias,
 });
 ```
@@ -263,7 +261,7 @@ await sdk.snapshots.deleteByAlias("my-app@v1");
 
 ## `Sandbox`
 
-A connected, running VM. Returned by `sdk.sandboxes.start()`. All sub-namespaces are available as properties.
+A connected, running VM. Returned by `sdk.sandboxes.create()` and `sdk.sandboxes.start()`. All sub-namespaces are available as properties.
 
 ### Properties
 
