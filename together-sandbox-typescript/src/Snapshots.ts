@@ -402,14 +402,11 @@ export class SnapshotsNamespace {
       : path.join(contextDir, "Dockerfile");
     const dockerfileRel = path.relative(contextDir, dockerfilePath);
 
-    const imageNameSlug = path
-      .basename(contextDir)
-      .toLowerCase()
-      .replace(/_/g, "-");
-    const imageTag = String(Math.floor(Date.now() / 1000));
-
-    // The server derives the namespace from the auth token; pass name:tag only.
-    const imageRef = `${imageNameSlug}:${imageTag}`;
+    // Unique name/tag per build so concurrent builds can't collide on the
+    // same ref (the namespace is shared, derived from the auth token).
+    const imageName = `image-${randomUUID().toLowerCase()}`;
+    const imageTag = randomUUID().toLowerCase();
+    const imageRef = `${imageName}:${imageTag}`;
 
     const emit = (output: string) =>
       params.onProgress?.({ step: "build", output: stripAnsiCodes(output) });
