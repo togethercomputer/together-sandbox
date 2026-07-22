@@ -2,6 +2,7 @@ import * as api from "./api-clients/api/index.js";
 import * as sandboxApi from "./api-clients/sandbox/index.js";
 import { type Client as SandboxApiClient } from "./api-clients/sandbox/client/index.js";
 import type {
+  CreateSandboxParams,
   RetryConfig,
   SandboxInfo,
   TogetherSandboxConfig,
@@ -22,14 +23,6 @@ export interface WatchOptions {
 }
 
 /**
- * Options for starting a VM.
- */
-export interface StartOptions {
-  /** Version number to start. Uses the current version if not provided. */
-  versionNumber?: number;
-}
-
-/**
  * A running VM with a pre-configured sandbox client attached.
  *
  * All sandbox sub-namespaces (`.files`, `.execs`, etc.) are
@@ -38,7 +31,7 @@ export interface StartOptions {
  *
  * @example
  * ```typescript
- * const sandbox = await sdk.sandboxes.start("my-sandbox-id");
+ * const sandbox = await sdk.sandboxes.create({ snapshotId: "my-snapshot-id" });
  * const file = await sandbox.files.read("/src/index.ts");
  * await sandbox.execs.create({ command: "ls", args: ["-la"] });
  * await sandbox.shutdown();
@@ -433,22 +426,22 @@ export class Sandbox {
   // ── Static factory methods ─────────────────────────────────────────────
 
   /**
-   * Start a sandbox in a single call (static factory).
+   * Create a sandbox in a single call (static factory).
    *
    * @example
    * ```typescript
-   * const sandbox = await Sandbox.start("my-sandbox-id", {
-   *   apiKey: process.env.TOGETHER_API_KEY!,
-   * });
+   * const sandbox = await Sandbox.create(
+   *   { apiKey: process.env.TOGETHER_API_KEY! },
+   *   { snapshotId: "my-snapshot-id" },
+   * );
    * ```
    */
-  static async start(
-    sandboxId: string,
+  static async create(
     config: TogetherSandboxConfig,
-    options?: StartOptions,
+    params?: CreateSandboxParams,
   ): Promise<Sandbox> {
     const sdk = new TogetherSandbox(config);
-    return sdk.sandboxes.start(sandboxId, options);
+    return sdk.sandboxes.create(params);
   }
 
   /**

@@ -5,7 +5,6 @@ from .api.client import AuthenticatedClient as ApiClient
 from ._sandbox import Sandbox
 
 # ── Management API endpoint functions (detailed variants) ─────────────────────
-from .api.api.default.start_sandbox import asyncio_detailed as start_sandbox_api
 from .api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandbox_api
 from .api.api.default.stop_sandbox import asyncio_detailed as stop_sandbox_api
 from .api.api.default.create_sandbox import asyncio_detailed as create_sandbox_api
@@ -16,7 +15,6 @@ from .api.models.sandbox import Sandbox as SandboxModel
 from .api.models.stop_sandbox_body import StopSandboxBody
 from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 from .api.models.create_sandbox_body import CreateSandboxBody
-from .api.models.start_sandbox_body import StartSandboxBody
 from .api.types import UNSET
 
 # ── Helpers ─────────────────────────────────────────────────────
@@ -40,7 +38,7 @@ async def _connect_running_sandbox(
 ) -> Sandbox:
     """Wait for a sandbox to reach 'running', wire up its client, and return it.
 
-    Shared by :meth:`SandboxesNamespace.create` and :meth:`SandboxesNamespace.start`.
+    Used by :meth:`SandboxesNamespace.create`.
     """
     vm_info: SandboxModel = await _call_api(
         "api.wait_for_sandbox",
@@ -74,39 +72,6 @@ class SandboxesNamespace:
     ) -> None:
         self._api_client = api_client
         self._retry = retry
-
-    async def start(
-        self,
-        sandbox_id: str,
-        *,
-        version_number: int | None = None,
-    ) -> Sandbox:
-        """
-        Start the VM for the given sandbox and return a :class:`Sandbox`
-        with a fully wired sandbox client.
-
-        Args:
-            sandbox_id: The sandbox (VM) ID to start.
-            version_number: Optional version number to start. Uses the current
-                version if not provided.
-
-        Returns:
-            A ready-to-use :class:`Sandbox` with all sub-namespaces.
-        """
-        body = (
-            UNSET
-            if version_number is None
-            else StartSandboxBody(version_number=version_number)
-        )
-
-        await _call_api(
-            "api.start_sandbox",
-            lambda: start_sandbox_api(sandbox_id, client=self._api_client, body=body),
-            self._retry,
-            context=f"for sandbox {sandbox_id!r}",
-        )
-
-        return await _connect_running_sandbox(sandbox_id, self._api_client, self._retry)
 
     async def create(
         self,

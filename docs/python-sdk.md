@@ -89,16 +89,7 @@ Resource params (`millicpu`, `memory_bytes`, `disk_bytes`) default to **1 vCPU /
 | `id`             | `str \| None`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                                     |
 | `ephemeral`      | `bool \| None` | No       | Mark the sandbox as ephemeral.                                                              |
 
-#### `sdk.sandboxes.start(sandbox_id, *, version_number=None) -> Sandbox`
-
-Starts the VM for the given sandbox ID and returns a connected [`Sandbox`](#sandbox) instance. Use this to resume a hibernated sandbox. For new sandboxes, prefer `sdk.sandboxes.create()`.
-
-```python
-sandbox = await sdk.sandboxes.start("your-sandbox-id")
-
-# Resume a specific version:
-sandbox = await sdk.sandboxes.start("your-sandbox-id", version_number=3)
-```
+Sandboxes autostart on creation, so there is no separate start step. A stopped sandbox is terminal and cannot be started again — to continue from its state, create a new sandbox from its snapshot (`snapshot_id`).
 
 #### `sdk.sandboxes.hibernate(sandbox_id): Coroutine[None]`
 
@@ -140,7 +131,7 @@ result = await sdk.snapshots.create(CreateContextSnapshotParams(
     on_progress=lambda e: print(e.output),
 ))
 
-# Use the snapshot ID to start a sandbox:
+# Use the snapshot ID to create a sandbox:
 sandbox = await sdk.sandboxes.create(snapshot_id=result.snapshot_id)
 ```
 
@@ -266,7 +257,7 @@ await sdk.snapshots.delete_by_alias("my-app@v1")
 
 ## `Sandbox`
 
-A connected, running VM. Returned by `sdk.sandboxes.create()` and `sdk.sandboxes.start()`. All sub-namespaces are available as properties.
+A connected, running VM. Returned by `sdk.sandboxes.create()`. All sub-namespaces are available as properties.
 
 ```python
 async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
@@ -573,10 +564,12 @@ async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
 
 Convenience classmethods that create a temporary SDK client internally.
 
-### `Sandbox.start(sandbox_id, *, api_key=None, base_url=..., version_number=None)`
+### `Sandbox.create(*, snapshot_id=None, snapshot_alias=None, api_key=None, base_url=..., **kwargs)`
+
+Creates a sandbox from a snapshot, starts the VM, and returns a connected [`Sandbox`](#sandbox) instance.
 
 ```python
-sandbox = await Sandbox.start("sandbox-id", api_key="your-key")
+sandbox = await Sandbox.create(snapshot_id="your-snapshot-id", api_key="your-key")
 ```
 
 ### `Sandbox.hibernate(sandbox_id, *, api_key=None, base_url=...)`
@@ -617,7 +610,7 @@ error-handling shape. The original transport exception (`httpx.TimeoutException`
 from together_sandbox import HttpError
 
 try:
-    await sdk.sandboxes.start("...")
+    await sdk.snapshots.get_by_id("...")
 except HttpError as e:
     if e.status == 0:
         # transport-level failure (DNS / timeout / connection refused)
@@ -654,7 +647,7 @@ Pass a `RetryConfig` to `TogetherSandbox(retry=...)` to customise this behaviour
 
 | Field       | Type          | Description                                                                                  |
 | ----------- | ------------- | -------------------------------------------------------------------------------------------- |
-| `operation` | `str`         | The operation that failed, e.g. `'startSandbox'`, `'files.read'`.                            |
+| `operation` | `str`         | The operation that failed, e.g. `'hibernateSandbox'`, `'files.read'`.                        |
 | `attempt`   | `int`         | 1-based number of the attempt that just failed.                                              |
 | `error`     | `Exception`   | The [`HttpError`](#httperror) that was raised.                                               |
 | `status`    | `int \| None` | HTTP status code, or `0` for transport-level failures.                                       |

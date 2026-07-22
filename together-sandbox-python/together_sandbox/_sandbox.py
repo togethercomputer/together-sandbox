@@ -551,7 +551,7 @@ class Sandbox:
 
     Can be used as an async context manager::
 
-        async with await sdk.sandboxes.start(id) as sandbox:
+        async with await sdk.sandboxes.create(snapshot_id="snapshot-id") as sandbox:
             await sandbox.files.read("/path")
         # Closes the sandbox HTTP connection on exit.
         # Does NOT automatically shut down the VM — call shutdown() explicitly.
@@ -671,25 +671,30 @@ class Sandbox:
     # ── Static factory methods ────────────────────────────────────────────────
 
     @classmethod
-    async def start(
+    async def create(
         cls,
-        sandbox_id: str,
         *,
         api_key: str | None = None,
         base_url: str | None = None,
-        version_number: int | None = None,
+        snapshot_id: str | None = None,
+        snapshot_alias: str | None = None,
+        ephemeral: bool | None = None,
     ) -> "Sandbox":
         """
-        Start a sandbox in a single call (classmethod factory).
+        Create a sandbox in a single call (classmethod factory).
 
         Example::
 
-            sandbox = await Sandbox.start("sandbox-id", api_key="your-key")
+            sandbox = await Sandbox.create(snapshot_id="snapshot-id", api_key="your-key")
         """
         from ._together_sandbox import TogetherSandbox
 
         sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
-        return await sdk.sandboxes.start(sandbox_id, version_number=version_number)
+        return await sdk.sandboxes.create(
+            snapshot_id=snapshot_id,
+            snapshot_alias=snapshot_alias,
+            ephemeral=ephemeral,
+        )
 
     @classmethod
     async def hibernate(
