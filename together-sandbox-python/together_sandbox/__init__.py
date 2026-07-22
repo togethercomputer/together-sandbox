@@ -5,7 +5,7 @@ Recommended entry point::
     from together_sandbox import TogetherSandbox
 
     sdk = TogetherSandbox()  # reads TOGETHER_API_KEY from env
-    async with await sdk.sandboxes.start("sandbox-id") as sb:
+    async with await sdk.sandboxes.create(snapshot_id="snapshot-id") as sb:
         content = await sb.files.read("/package.json")
 
 Low-level clients (advanced use)::
@@ -17,7 +17,7 @@ Catching errors::
     from together_sandbox import HttpError
 
     try:
-        await sdk.sandboxes.start("sandbox-id")
+        await sdk.sandboxes.create(snapshot_id="snapshot-id")
     except HttpError as e:
         print(e.status, str(e))
 """

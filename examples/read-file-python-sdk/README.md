@@ -6,7 +6,7 @@ Example of using the [Together Sandbox Python SDK](https://github.com/togetherco
 
 1. Looks for an existing snapshot by alias (`TOGETHER_SNAPSHOT_ALIAS`, default `test-snapshot-alias-v1`).
 2. If not found, builds one remotely from `template/Dockerfile`.
-3. Creates and starts a sandbox from the snapshot.
+3. Creates a sandbox from the snapshot (it starts automatically).
 4. Reads `/workspace/hello.txt` from the running sandbox and prints it.
 5. Shuts the sandbox down.
 

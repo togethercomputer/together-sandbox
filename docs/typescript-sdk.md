@@ -80,18 +80,7 @@ Resource params (`millicpu`, `memoryBytes`, `diskBytes`) default to **1 vCPU / 2
 | `id`            | `string`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                                     |
 | `ephemeral`     | `boolean` | No       | Mark the sandbox as ephemeral.                                                              |
 
-#### `sdk.sandboxes.start(sandboxId, options?): Promise<Sandbox>`
-
-Starts the VM for the given sandbox ID and returns a connected [`Sandbox`](#sandbox) instance. Use this to resume a hibernated sandbox. For new sandboxes, prefer `sdk.sandboxes.create()`.
-
-```typescript
-const sandbox = await sdk.sandboxes.start("your-sandbox-id");
-
-// Resume a specific version:
-const sandbox = await sdk.sandboxes.start("your-sandbox-id", {
-  versionNumber: 3,
-});
-```
+Sandboxes autostart on creation, so there is no separate start step. A stopped sandbox is terminal and cannot be started again — to continue from its state, create a new sandbox from its snapshot (`snapshotId`).
 
 #### `sdk.sandboxes.hibernate(sandboxId): Promise<void>`
 
@@ -113,7 +102,7 @@ await sdk.sandboxes.shutdown("your-sandbox-id");
 
 ### `sdk.snapshots`
 
-Snapshot creation namespace. Snapshots are images you can pass to `sdk.sandboxes.start()`.
+Snapshot creation namespace. Snapshots are images you can pass to `sdk.sandboxes.create()`.
 
 #### `sdk.snapshots.create(params): Promise<CreateSnapshotResult>`
 
@@ -131,7 +120,7 @@ const result = await sdk.snapshots.create({
   onProgress: (event) => console.log(event.output),
 });
 
-// Use the snapshot ID to start a sandbox:
+// Use the snapshot ID to create a sandbox:
 const sandbox = await sdk.sandboxes.create({
   snapshotId: result.snapshotId,
 });
@@ -147,7 +136,7 @@ const result = await sdk.snapshots.create({
   alias: "my-node@latest", // optional
 });
 
-// Use the alias to start a sandbox:
+// Use the alias to create a sandbox:
 const sandbox = await sdk.sandboxes.create({
   snapshotAlias: result.alias,
 });
@@ -261,7 +250,7 @@ await sdk.snapshots.deleteByAlias("my-app@v1");
 
 ## `Sandbox`
 
-A connected, running VM. Returned by `sdk.sandboxes.create()` and `sdk.sandboxes.start()`. All sub-namespaces are available as properties.
+A connected, running VM. Returned by `sdk.sandboxes.create()`. All sub-namespaces are available as properties.
 
 ### Properties
 
@@ -536,12 +525,15 @@ await sandbox.shutdown();
 
 These are convenience classmethods that create a temporary SDK client internally — useful when you only need to perform a single operation.
 
-### `Sandbox.start(sandboxId, config, options?): Promise<Sandbox>`
+### `Sandbox.create(config, params): Promise<Sandbox>`
+
+Creates a sandbox from a snapshot, starts the VM, and returns a connected [`Sandbox`](#sandbox) instance.
 
 ```typescript
-const sandbox = await Sandbox.start("your-sandbox-id", {
-  apiKey: process.env.TOGETHER_API_KEY!,
-});
+const sandbox = await Sandbox.create(
+  { apiKey: process.env.TOGETHER_API_KEY! },
+  { snapshotId: "your-snapshot-id" },
+);
 ```
 
 ### `Sandbox.hibernate(sandboxId, config): Promise<void>`
@@ -585,7 +577,7 @@ formatted message but isn't exposed as a separate field.
 import { HttpError } from "together-sandbox";
 
 try {
-  await sdk.sandboxes.start("...");
+  await sdk.snapshots.getById("...");
 } catch (e) {
   if (e instanceof HttpError) {
     if (e.status === 0) {
@@ -624,7 +616,7 @@ Pass a `RetryConfig` to `new TogetherSandbox({ retry: ... })` to customise this 
 
 | Field       | Type                  | Description                                                                                      |
 | ----------- | --------------------- | ------------------------------------------------------------------------------------------------ |
-| `operation` | `string`              | The operation that failed, e.g. `'startSandbox'`, `'files.read'`.                                |
+| `operation` | `string`              | The operation that failed, e.g. `'hibernateSandbox'`, `'files.read'`.                            |
 | `attempt`   | `number`              | 1-based number of the attempt that just failed.                                                  |
 | `error`     | `unknown`             | The [`HttpError`](#httperror) that was thrown.                                                   |
 | `status`    | `number \| undefined` | HTTP status code, or `0` for transport-level failures.                                           |

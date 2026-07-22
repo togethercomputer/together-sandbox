@@ -23,7 +23,7 @@ class TogetherSandbox:
     Example::
 
         sdk = TogetherSandbox(api_key="your-key")
-        async with await sdk.sandboxes.start("sandbox-id") as sb:
+        async with await sdk.sandboxes.create(snapshot_id="snapshot-id") as sb:
             await sb.files.read_file("/package.json")
 
     Args:

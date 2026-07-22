@@ -4,7 +4,7 @@ import {
   createConfig as createSandboxConfig,
 } from "./api-clients/sandbox/client/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
-import { Sandbox, type StartOptions } from "./Sandbox.js";
+import { Sandbox } from "./Sandbox.js";
 import {
   type SandboxInfo,
   type CreateSandboxParams,
@@ -28,7 +28,7 @@ function resolveConnectionDetails(sandbox: SandboxInfo): {
 
 /**
  * Wait for a sandbox to reach "running", wire up its client, and return a
- * connected {@link Sandbox}. Shared by `create` and `start`.
+ * connected {@link Sandbox}.
  */
 async function connectRunningSandbox(
   sandboxId: string,
@@ -139,30 +139,6 @@ export class SandboxesNamespace {
     };
 
     return fetchPage();
-  }
-
-  /**
-   * Start a VM for the given sandbox ID and return a {@link Sandbox}
-   * with a fully wired sandbox client.
-   */
-  async start(sandboxId: string, options?: StartOptions): Promise<Sandbox> {
-    const body =
-      options?.versionNumber !== undefined
-        ? { version_number: options.versionNumber }
-        : undefined;
-
-    await callApi(
-      "api.startSandbox",
-      () =>
-        api.startSandbox({
-          client: this._apiClient,
-          path: { id: sandboxId },
-          body,
-        }),
-      this._retryConfig,
-    );
-
-    return connectRunningSandbox(sandboxId, this._apiClient, this._retryConfig);
   }
 
   /**

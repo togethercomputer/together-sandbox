@@ -242,9 +242,10 @@ export class SnapshotsNamespace {
       // Create a memory snapshot from a sandbox
       params.onProgress?.({
         step: "memory-snapshot",
-        output: "Creating sandbox...",
+        output: "Creating and starting sandbox...",
       });
 
+      // Sandboxes autostart on creation, so no explicit start step is needed.
       const sandboxResult = await callApi(
         "api.snapshots.createSandboxForMemorySnapshot",
         () =>
@@ -252,24 +253,11 @@ export class SnapshotsNamespace {
             body: {
               snapshot_id: snapshotData.id,
               ephemeral: true,
+              autostart: true,
               millicpu: DEFAULT_MILLICPU,
               memory_bytes: DEFAULT_MEMORY_BYTES,
               disk_bytes: DEFAULT_DISK_BYTES,
             },
-          }),
-        this._retryConfig,
-      );
-
-      params.onProgress?.({
-        step: "memory-snapshot",
-        output: "Starting sandbox...",
-      });
-      await callApi(
-        "api.snapshots.startSandboxForMemorySnapshot",
-        () =>
-          api.startSandbox({
-            client: this._apiClient,
-            path: { id: sandboxResult.id },
           }),
         this._retryConfig,
       );
@@ -310,32 +298,15 @@ export class SnapshotsNamespace {
             `Try increasing memory_bytes or simplifying the snapshot's startup.`,
         );
       }
-      params.onProgress?.({
-        step: "memory-snapshot",
-        output: "Retrieving snapshot...",
-      });
-      const versionResult = await callApi(
-        "api.snapshots.getSandboxVersionForMemorySnapshot",
-        () =>
-          api.getSandboxVersionByNumber({
-            path: {
-              sandbox_id: sandboxResult.id,
-              number: stopResult.current_version_number,
-            },
-          }),
-        this._retryConfig,
-      );
-      const snapshot = await callApi(
-        "api.snapshots.getMemorySnapshot",
-        () =>
-          api.getSnapshot({
-            client: this._apiClient,
-            path: { id: versionResult.id },
-          }),
-        this._retryConfig,
-      );
+      // The snapshot produced by hibernation is recorded directly on the
+      // sandbox.
+      if (!stopResult.snapshot_id) {
+        throw new Error(
+          `Could not create memory snapshot — sandbox '${stopResult.id}' hibernated but no snapshot was recorded.`,
+        );
+      }
 
-      snapshotId = snapshot.id;
+      snapshotId = stopResult.snapshot_id;
     }
 
     // Create alias if needed
