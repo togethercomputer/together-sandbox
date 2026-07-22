@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import os
 import platform
-import time
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -389,10 +388,10 @@ class SnapshotsNamespace:
         )
         dockerfile_rel = str(dockerfile_path.relative_to(context_dir))
 
-        image_name = context_dir.name.lower().replace("_", "-")
-        image_tag = str(int(time.time()))
-
-        # The server derives the namespace from the auth token; pass name:tag only.
+        # Unique name/tag per build so concurrent builds can't collide on the
+        # same ref (the namespace is shared, derived from the auth token).
+        image_name = f"image-{uuid4()}".lower()
+        image_tag = str(uuid4()).lower()
         image_ref = f"{image_name}:{image_tag}"
 
         def _emit(step: str, output: str) -> None:
