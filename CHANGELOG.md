@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.2](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v3.0.1...together-sandbox-workspace-v3.0.2) (2026-07-23)
+
+
+### Bug Fixes
+
+* image name for image build to be unique ([35d1454](https://github.com/togethercomputer/together-sandbox/commit/35d145462f4b3bf3ffb9cd10b59b4be34952cde2))
+
 ## [3.0.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v3.0.0...together-sandbox-workspace-v3.0.1) (2026-07-21)
 
 
