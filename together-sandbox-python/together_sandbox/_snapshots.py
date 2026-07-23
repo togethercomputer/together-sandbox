@@ -42,6 +42,9 @@ from .api.models.create_snapshot_body import CreateSnapshotBody
 from .api.models.create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
 from .api.models.container_registry_credential import ContainerRegistryCredential
 from .api.models.snapshot import Snapshot
+from .api.types import UNSET
+
+from ._pagination import Page
 
 # ── Helpers ────────────────────────────────────────────────────────────
 from .docker import (
@@ -247,7 +250,12 @@ class SnapshotsNamespace:
 
     async def list(self, *, limit: int | None = None) -> Page[Snapshot]:
         """
-        List snapshots.
+        List snapshots, one page at a time.
+
+        Args:
+            limit: Maximum number of items to return (1–100, default 20).
+            cursor: A ``next_cursor`` value returned by a previous page.
+            project_id: Restrict results to a specific project.
 
         Returns a :class:`Page` that is async-iterable across all pages —
         iterate it directly to walk every snapshot, or use ``get_next_page()``
@@ -265,6 +273,8 @@ class SnapshotsNamespace:
         Example:
             >>> async for snapshot in await sdk.snapshots.list():
             ...     print(snapshot.id)
+            >>> if page.next_cursor:
+            ...     page = await sdk.snapshots.list(cursor=page.next_cursor)
         """
 
         async def fetch_page(cursor: str | None = None) -> Page[Snapshot]:

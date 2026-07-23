@@ -23,7 +23,7 @@ Catching errors::
 """
 
 from ._together_sandbox import TogetherSandbox
-from ._sandboxes import SandboxesNamespace
+from ._sandboxes import SandboxesNamespace, SandboxRecord
 from ._snapshots import (
     SnapshotsNamespace,
     CreateSnapshotParams,
@@ -33,6 +33,7 @@ from ._snapshots import (
     SnapshotProgress,
     Snapshot,
 )
+from ._pagination import Page
 from ._sandbox import Sandbox
 from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
 from together_sandbox.sandbox.models.exec_stdout_type import ExecStdoutType

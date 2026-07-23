@@ -416,6 +416,50 @@
             }
           }
         }
+      },
+      "ListSandboxesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sandbox"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cursor for the next page; `null` when there are no more items."
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ]
+      },
+      "ListSnapshotsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Snapshot"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cursor for the next page; `null` when there are no more items."
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ]
       }
     },
     "responses": {

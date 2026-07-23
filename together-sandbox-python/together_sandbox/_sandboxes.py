@@ -12,6 +12,10 @@ from .api.api.default.list_sandboxes import asyncio_detailed as list_sandboxes_a
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
+
+# Public alias for the raw sandbox metadata model returned by list/get endpoints.
+# Named separately from the ``Sandbox`` runtime class (a wired client).
+SandboxRecord = SandboxModel
 from .api.models.stop_sandbox_body import StopSandboxBody
 from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 from .api.models.create_sandbox_body import CreateSandboxBody
@@ -21,6 +25,7 @@ from .api.types import UNSET
 from ._utils import RetryConfig, _call_api, _resolve_connection
 from ._pagination import Page
 from ._lifecycle import describe_lifecycle_failure
+from ._pagination import Page
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
