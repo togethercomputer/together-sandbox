@@ -89,6 +89,7 @@ jobs:
         env:
           TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
           TOGETHER_SNAPSHOT_ID: ${{ needs.prepare.outputs.snapshot_id }}
+          TOGETHER_BASE_URL: https://api.bartender.codesandbox.stream
 
   e2e-typescript:
     needs: prepare
@@ -110,3 +111,4 @@ jobs:
         env:
           TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
           TOGETHER_SNAPSHOT_ID: ${{ needs.prepare.outputs.snapshot_id }}
+          TOGETHER_BASE_URL: https://api.bartender.codesandbox.stream
