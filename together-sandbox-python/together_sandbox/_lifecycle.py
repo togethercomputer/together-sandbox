@@ -20,19 +20,20 @@ _STOP_REASON_HINTS: dict[str, str] = {
         "memory_bytes when creating the sandbox."
     ),
     "crashed": (
-        "The VM crashed. Inspect sandbox logs and re-start, or re-create "
-        "from a known-good snapshot."
+        "The VM crashed. A stopped sandbox is terminal — create a new "
+        "sandbox from a known-good snapshot."
     ),
     "evicted": (
-        "Sandbox was evicted from its node. Usually transient — retry "
-        "sdk.sandboxes.start()."
+        "Sandbox was evicted from its node. A stopped sandbox is terminal — "
+        "create a new sandbox from a snapshot."
     ),
     "node_lost": (
-        "Sandbox's node was lost. Usually transient — retry " "sdk.sandboxes.start()."
+        "Sandbox's node was lost. A stopped sandbox is terminal — create a "
+        "new sandbox from a snapshot."
     ),
     "cluster_lost": (
-        "Sandbox's cluster was lost. Usually transient — retry "
-        "sdk.sandboxes.start()."
+        "Sandbox's cluster was lost. A stopped sandbox is terminal — create "
+        "a new sandbox from a snapshot."
     ),
 }
 
@@ -102,19 +103,24 @@ def describe_lifecycle_failure(
 
     # 4. Request never took effect
     if status == "created":
-        verb = "start" if expected == "running" else "stop"
-        method = "start" if expected == "running" else "shutdown"
+        if expected == "running":
+            return (
+                f"Sandbox '{sandbox_id}' is still in 'created' state — it "
+                f"never started.\n"
+                f"Hint: sandboxes autostart on creation; create a new sandbox "
+                f"(autostart is on by default)."
+            )
         return (
-            f"Sandbox '{sandbox_id}' is still in 'created' state — the {verb} "
+            f"Sandbox '{sandbox_id}' is still in 'created' state — the stop "
             f"request did not take effect.\n"
-            f"Hint: retry sdk.sandboxes.{method}('{sandbox_id}')."
+            f"Hint: retry sdk.sandboxes.shutdown('{sandbox_id}')."
         )
 
     # 5. Wrong terminal — reached the other end
     if expected == "running" and status == "stopped":
         hint = _STOP_REASON_HINTS.get(reason or "") or (
-            f"Retry sdk.sandboxes.start('{sandbox_id}'), or call "
-            f"sdk.sandboxes.get('{sandbox_id}') to inspect."
+            f"A stopped sandbox is terminal — create a new sandbox from a "
+            f"snapshot, or call sdk.sandboxes.get('{sandbox_id}') to inspect."
         )
         reason_bit = f" (stop_reason: '{reason}')" if reason else ""
         return (

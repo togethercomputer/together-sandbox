@@ -26,13 +26,13 @@ const STOP_REASON_HINTS: Record<string, string> = {
   oom_killed:
     "Sandbox was killed for exceeding its memory limit. Increase memoryBytes when creating the sandbox.",
   crashed:
-    "The VM crashed. Inspect sandbox logs and re-start, or re-create from a known-good snapshot.",
+    "The VM crashed. A stopped sandbox is terminal — create a new sandbox from a known-good snapshot.",
   evicted:
-    "Sandbox was evicted from its node. Usually transient — retry sdk.sandboxes.start().",
+    "Sandbox was evicted from its node. A stopped sandbox is terminal — create a new sandbox from a snapshot.",
   node_lost:
-    "Sandbox's node was lost. Usually transient — retry sdk.sandboxes.start().",
+    "Sandbox's node was lost. A stopped sandbox is terminal — create a new sandbox from a snapshot.",
   cluster_lost:
-    "Sandbox's cluster was lost. Usually transient — retry sdk.sandboxes.start().",
+    "Sandbox's cluster was lost. A stopped sandbox is terminal — create a new sandbox from a snapshot.",
 };
 
 function firstDefined<T>(...values: (T | null | undefined)[]): T | undefined {
@@ -98,11 +98,16 @@ export function describeLifecycleFailure(
 
   // 4. Request never took effect
   if (status === "created") {
-    const method = expected === "running" ? "start" : "shutdown";
-    const verb = expected === "running" ? "start" : "stop";
+    if (expected === "running") {
+      return (
+        `Sandbox '${id}' is still in 'created' state — it never started.\n` +
+        `Hint: sandboxes autostart on creation; create a new sandbox (autostart is on by default).`
+      );
+    }
+
     return (
-      `Sandbox '${id}' is still in 'created' state — the ${verb} request did not take effect.\n` +
-      `Hint: retry sdk.sandboxes.${method}('${id}').`
+      `Sandbox '${id}' is still in 'created' state — the stop request did not take effect.\n` +
+      `Hint: retry sdk.sandboxes.shutdown('${id}').`
     );
   }
 
@@ -110,7 +115,7 @@ export function describeLifecycleFailure(
   if (expected === "running" && status === "stopped") {
     const hint =
       (reason && STOP_REASON_HINTS[reason]) ??
-      `Retry sdk.sandboxes.start('${id}'), or call sdk.sandboxes.get('${id}') to inspect.`;
+      `A stopped sandbox is terminal — create a new sandbox from a snapshot, or call sdk.sandboxes.get('${id}') to inspect.`;
     return (
       `Sandbox '${id}' stopped instead of reaching 'running'` +
       `${reason ? ` (stop_reason: '${reason}')` : ""}.\nHint: ${hint}`

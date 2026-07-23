@@ -31,13 +31,11 @@
           "status",
           "ephemeral",
           "cluster_name",
-          "current_version_number",
-          "next_version_number",
+          "source_snapshot_id",
           "millicpu",
           "gpu",
           "memory_bytes",
           "disk_bytes",
-          "version_count",
           "agent_version",
           "agent_type",
           "agent_token",
@@ -80,11 +78,18 @@
           "cluster_name": {
             "type": "string"
           },
-          "current_version_number": {
-            "type": "integer"
+          "source_snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The snapshot the sandbox boots from."
           },
-          "next_version_number": {
-            "type": "integer"
+          "snapshot_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The snapshot created when the sandbox stopped."
           },
           "millicpu": {
             "type": "integer",
@@ -97,9 +102,6 @@
             "type": "integer"
           },
           "disk_bytes": {
-            "type": "integer"
-          },
-          "version_count": {
             "type": "integer"
           },
           "agent_version": {
@@ -175,6 +177,7 @@
             ],
             "enum": [
               "start_failed",
+              "out_of_capacity",
               "shutdown",
               "hibernated",
               "crashed",
@@ -270,37 +273,6 @@
             "format": "date-time"
           },
           "updated_at": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "SandboxVersion": {
-        "type": "object",
-        "required": [
-          "id",
-          "sandbox_id",
-          "number",
-          "snapshot_id",
-          "created_at"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "sandbox_id": {
-            "type": "string",
-            "description": "Short identifier (6\u20138 characters)."
-          },
-          "number": {
-            "type": "integer"
-          },
-          "snapshot_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "created_at": {
             "type": "string",
             "format": "date-time"
           }
@@ -703,6 +675,11 @@
                   "ephemeral": {
                     "type": "boolean"
                   },
+                  "autostart": {
+                    "type": "boolean",
+                    "description": "Whether to automatically start the sandbox once created.",
+                    "default": true
+                  },
                   "millicpu": {
                     "type": "integer",
                     "description": "CPU allocation in millicpu. Must be > 0 and a multiple of 250.",
@@ -915,77 +892,6 @@
         }
       }
     },
-    "/sandboxes/{id}/start": {
-      "post": {
-        "operationId": "startSandbox",
-        "summary": "Start a sandbox",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Sandbox ID (6\u20138 characters)."
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "version_number": {
-                    "type": "integer",
-                    "description": "Version to start. Uses the current version if not provided.",
-                    "minimum": 1
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Sandbox with updated status.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Sandbox"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "description": "Not authenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not authorized.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
     "/sandboxes/{id}/stop": {
       "post": {
         "operationId": "stopSandbox",
@@ -1086,250 +992,6 @@
                 }
               }
             }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "description": "Not authenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not authorized.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/sandboxes/{sandbox_id}/versions/current": {
-      "get": {
-        "operationId": "getCurrentSandboxVersion",
-        "summary": "Get the current version of a sandbox",
-        "parameters": [
-          {
-            "name": "sandbox_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Sandbox ID (6\u20138 characters)."
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Sandbox version.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SandboxVersion"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "description": "Not authenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not authorized.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/sandboxes/{sandbox_id}/versions/{number}": {
-      "parameters": [
-        {
-          "name": "sandbox_id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "description": "Sandbox ID (6\u20138 characters)."
-          }
-        },
-        {
-          "name": "number",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "integer",
-            "minimum": 1
-          }
-        }
-      ],
-      "get": {
-        "operationId": "getSandboxVersionByNumber",
-        "summary": "Get a sandbox version by sandbox ID and version number",
-        "responses": {
-          "200": {
-            "description": "Sandbox version.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SandboxVersion"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "description": "Not authenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not authorized.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      },
-      "delete": {
-        "operationId": "deleteSandboxVersionByNumber",
-        "summary": "Delete a sandbox version by sandbox ID and version number",
-        "responses": {
-          "204": {
-            "description": "Sandbox version deleted."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "description": "Not authenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not authorized.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/sandbox-versions/{id}": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      ],
-      "get": {
-        "operationId": "getSandboxVersion",
-        "summary": "Get a sandbox version by ID",
-        "responses": {
-          "200": {
-            "description": "Sandbox version.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SandboxVersion"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "description": "Not authenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not authorized.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      },
-      "delete": {
-        "operationId": "deleteSandboxVersion",
-        "summary": "Delete a sandbox version by ID",
-        "responses": {
-          "204": {
-            "description": "Sandbox version deleted."
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"

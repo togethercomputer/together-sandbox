@@ -4,7 +4,7 @@ import {
   createConfig as createSandboxConfig,
 } from "./api-clients/sandbox/client/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
-import { Sandbox, type StartOptions } from "./Sandbox.js";
+import { Sandbox } from "./Sandbox.js";
 import {
   type SandboxInfo,
   type CreateSandboxParams,
@@ -27,12 +27,41 @@ function resolveConnectionDetails(sandbox: SandboxInfo): {
 }
 
 /**
- * A sandbox record as returned by the management API list/get endpoints.
- *
- * Named separately from the {@link Sandbox} runtime class (a wired client) —
- * this is the raw metadata model.
+ * Wait for a sandbox to reach "running", wire up its client, and return a
+ * connected {@link Sandbox}.
  */
-export type SandboxRecord = api.Sandbox;
+async function connectRunningSandbox(
+  sandboxId: string,
+  apiClient: ApiClient,
+  retryConfig: RetryConfig | undefined,
+): Promise<Sandbox> {
+  const waitResult = await callApi(
+    "api.waitForSandbox",
+    () =>
+      api.waitForSandbox({
+        client: apiClient,
+        path: { id: sandboxId },
+      }),
+    retryConfig,
+  );
+
+  if (waitResult.status !== "running") {
+    throw new Error(describeLifecycleFailure(waitResult, "running"));
+  }
+
+  const finalData = camelCaseKeys(waitResult);
+  const { url, token } = resolveConnectionDetails(finalData);
+  const sandboxClient = createSandboxClient(
+    createSandboxConfig({
+      baseUrl: url,
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  );
+
+  sandboxClient.interceptors.error.use((error) => error);
+
+  return new Sandbox(finalData, sandboxClient, apiClient, retryConfig);
+}
 
 // Default sandbox resource allocation. Match the CLI/snapshot helper.
 export const DEFAULT_MILLICPU = 1000; // 1 vCPU
@@ -49,9 +78,9 @@ export class SandboxesNamespace {
   ) {}
 
   /**
-   * Create a new sandbox (does not start the VM).
+   * Create a sandbox and wait for it to be running, returning a connected {@link Sandbox}.
    */
-  async create(params: CreateSandboxParams): Promise<SandboxInfo> {
+  async create(params: CreateSandboxParams = {}): Promise<Sandbox> {
     const data = await callApi(
       "api.createSandbox",
       () =>
@@ -62,6 +91,7 @@ export class SandboxesNamespace {
             snapshot_id: params.snapshotId,
             snapshot_alias: params.snapshotAlias,
             ephemeral: params.ephemeral,
+            autostart: true,
             millicpu: params.millicpu ?? DEFAULT_MILLICPU,
             memory_bytes: params.memoryBytes ?? DEFAULT_MEMORY_BYTES,
             disk_bytes: params.diskBytes ?? DEFAULT_DISK_BYTES,
@@ -69,7 +99,8 @@ export class SandboxesNamespace {
         }),
       this._retryConfig,
     );
-    return camelCaseKeys(data);
+
+    return connectRunningSandbox(data.id, this._apiClient, this._retryConfig);
   }
 
   /**
@@ -130,61 +161,6 @@ export class SandboxesNamespace {
     );
 
     return camelCaseKeys(data);
-  }
-
-  /**
-   * Start a VM for the given sandbox ID and return a {@link Sandbox}
-   * with a fully wired sandbox client.
-   */
-  async start(sandboxId: string, options?: StartOptions): Promise<Sandbox> {
-    const body =
-      options?.versionNumber !== undefined
-        ? { version_number: options.versionNumber }
-        : undefined;
-
-    await callApi(
-      "api.startSandbox",
-      () =>
-        api.startSandbox({
-          client: this._apiClient,
-          path: { id: sandboxId },
-          body,
-        }),
-      this._retryConfig,
-    );
-
-    const waitResult = await callApi(
-      "api.waitForSandbox",
-      () =>
-        api.waitForSandbox({
-          client: this._apiClient,
-          path: { id: sandboxId },
-        }),
-      this._retryConfig,
-    );
-
-    if (waitResult.status !== "running") {
-      throw new Error(describeLifecycleFailure(waitResult, "running"));
-    }
-
-    const finalData = camelCaseKeys(waitResult);
-    const { url, token } = resolveConnectionDetails(finalData);
-    const sandboxClient = createSandboxClient(
-      createSandboxConfig({
-        baseUrl: url,
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-    );
-
-    // Add error interceptor to handle non-retryable errors
-    sandboxClient.interceptors.error.use((error) => error);
-
-    return new Sandbox(
-      finalData,
-      sandboxClient,
-      this._apiClient,
-      this._retryConfig,
-    );
   }
 
   /**

@@ -33,12 +33,8 @@ async def main():
         snapshot_id = result.snapshot_id
         print(f"Snapshot created: id={snapshot_id} alias={result.alias}")
 
-    print("Creating sandbox from snapshot...")
-    sandbox_model = await sdk.sandboxes.create(snapshot_id=snapshot_id)
-    print(f"Sandbox created: {sandbox_model.id}")
-
-    print("Starting sandbox...")
-    sandbox = await sdk.sandboxes.start(sandbox_model.id)
+    print("Creating sandbox from snapshot (it starts automatically)...")
+    sandbox = await sdk.sandboxes.create(snapshot_id=snapshot_id)
     print(f"Sandbox running: {sandbox.id}")
 
     try:

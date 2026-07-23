@@ -2,7 +2,7 @@
  * Unified Together Sandbox facade.
  *
  * This module provides {@link TogetherSandbox} — a thin wrapper over the two
- * generated SDK clients that handles the startSandbox → SandboxClient handoff
+ * generated SDK clients that handles the createSandbox → SandboxClient handoff
  * transparently.
  *
  * @example
@@ -10,7 +10,7 @@
  * import { TogetherSandbox } from "together-sandbox";
  *
  * const sdk = new TogetherSandbox({ apiKey: process.env.TOGETHER_API_KEY! });
- * const sandbox = await sdk.sandboxes.start("my-sandbox-id");
+ * const sandbox = await sdk.sandboxes.create({ snapshotId: "my-snapshot-id" });
  *
  * const file = await sandbox.files.read("/package.json");
  * await sandbox.shutdown();
@@ -42,7 +42,7 @@ import type { TogetherSandboxConfig } from "./types.js";
  * import { TogetherSandbox } from "together-sandbox";
  *
  * const sdk = new TogetherSandbox({ apiKey: process.env.TOGETHER_API_KEY! });
- * const sandbox = await sdk.sandboxes.start("your-sandbox-id");
+ * const sandbox = await sdk.sandboxes.create({ snapshotId: "your-snapshot-id" });
  *
  * const file = await sandbox.files.read("/package.json");
  * console.log(file.data);
@@ -51,7 +51,7 @@ import type { TogetherSandboxConfig } from "./types.js";
  * ```
  */
 export class TogetherSandbox {
-  /** Sandbox lifecycle operations (start, hibernate, shutdown). */
+  /** Sandbox lifecycle operations (create, hibernate, shutdown). */
   readonly sandboxes: SandboxesNamespace;
 
   /** Snapshot build and management operations. */

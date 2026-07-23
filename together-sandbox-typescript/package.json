@@ -1,6 +1,6 @@
 {
   "name": "together-sandbox",
-  "version": "3.0.0",
+  "version": "3.0.2",
   "description": "TypeScript SDK for Together Sandbox",
   "license": "MIT",
   "type": "commonjs",
@@ -52,12 +52,11 @@
     "@balena/dockerignore": "^1.0.2",
     "@hey-api/client-fetch": "^0.13.1",
     "eventsource": "^4.1.0",
-    "tar": "^6.2.1"
+    "tar": "^7.5.8"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.84.4",
     "@types/node": "^22.15.30",
-    "@types/tar": "^6.1.13",
     "tsup": "^8.0.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.9"

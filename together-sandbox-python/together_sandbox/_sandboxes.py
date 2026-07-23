@@ -5,7 +5,6 @@ from .api.client import AuthenticatedClient as ApiClient
 from ._sandbox import Sandbox
 
 # ── Management API endpoint functions (detailed variants) ─────────────────────
-from .api.api.default.start_sandbox import asyncio_detailed as start_sandbox_api
 from .api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandbox_api
 from .api.api.default.stop_sandbox import asyncio_detailed as stop_sandbox_api
 from .api.api.default.create_sandbox import asyncio_detailed as create_sandbox_api
@@ -20,7 +19,6 @@ SandboxRecord = SandboxModel
 from .api.models.stop_sandbox_body import StopSandboxBody
 from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
 from .api.models.create_sandbox_body import CreateSandboxBody
-from .api.models.start_sandbox_body import StartSandboxBody
 from .api.types import UNSET
 
 # ── Helpers ─────────────────────────────────────────────────────
@@ -38,6 +36,36 @@ DEFAULT_MEMORY_BYTES = 2048 * 1024 * 1024  # 2 GiB
 DEFAULT_DISK_BYTES = 10240 * 1024 * 1024  # 10 GiB
 
 
+async def _connect_running_sandbox(
+    sandbox_id: str,
+    api_client: ApiClient,
+    retry: RetryConfig | None,
+) -> Sandbox:
+    """Wait for a sandbox to reach 'running', wire up its client, and return it.
+
+    Used by :meth:`SandboxesNamespace.create`.
+    """
+    vm_info: SandboxModel = await _call_api(
+        "api.wait_for_sandbox",
+        lambda: wait_for_sandbox_api(sandbox_id, client=api_client),
+        retry,
+        context=f"for sandbox {sandbox_id!r}",
+    )
+
+    if vm_info.status != "running":
+        raise RuntimeError(describe_lifecycle_failure(vm_info, "running"))
+
+    url, token = _resolve_connection(vm_info)
+
+    sandbox_client = SandboxClient(
+        base_url=url,
+        token=token,
+        prefix="Bearer",
+    )
+
+    return Sandbox(vm_info, sandbox_client, api_client, retry=retry)
+
+
 class SandboxesNamespace:
     """Sandbox lifecycle operations accessed as ``sdk.sandboxes.*``."""
 
@@ -50,58 +78,6 @@ class SandboxesNamespace:
         self._api_client = api_client
         self._retry = retry
 
-    async def start(
-        self,
-        sandbox_id: str,
-        *,
-        version_number: int | None = None,
-    ) -> Sandbox:
-        """
-        Start the VM for the given sandbox and return a :class:`Sandbox`
-        with a fully wired sandbox client.
-
-        Args:
-            sandbox_id: The sandbox (VM) ID to start.
-            version_number: Optional version number to start. Uses the current
-                version if not provided.
-
-        Returns:
-            A ready-to-use :class:`Sandbox` with all sub-namespaces.
-        """
-        body = (
-            UNSET
-            if version_number is None
-            else StartSandboxBody(version_number=version_number)
-        )
-
-        await _call_api(
-            "api.start_sandbox",
-            lambda: start_sandbox_api(sandbox_id, client=self._api_client, body=body),
-            self._retry,
-            context=f"for sandbox {sandbox_id!r}",
-        )
-
-        vm_info: SandboxModel = await _call_api(
-            "api.wait_for_sandbox",
-            lambda: wait_for_sandbox_api(sandbox_id, client=self._api_client),
-            self._retry,
-            context=f"for sandbox {sandbox_id!r}",
-        )
-
-        if vm_info.status != "running":
-            raise RuntimeError(describe_lifecycle_failure(vm_info, "running"))
-
-        url, token = _resolve_connection(vm_info)
-
-        sandbox_client = SandboxClient(
-            base_url=url,
-            token=token,
-            prefix="Bearer",
-            # raise_on_unexpected_status omitted — _call_api owns error handling.
-        )
-
-        return Sandbox(vm_info, sandbox_client, self._api_client, retry=self._retry)
-
     async def create(
         self,
         *,
@@ -112,8 +88,8 @@ class SandboxesNamespace:
         snapshot_id: str | None = None,
         snapshot_alias: str | None = None,
         ephemeral: bool | None = None,
-    ) -> SandboxModel:
-        """Create a new sandbox (does not start the VM).
+    ) -> Sandbox:
+        """Create a sandbox and wait for it to be running.
 
         Args:
             millicpu: CPU allocation in millicores (e.g. 1000 = 1 vCPU).
@@ -123,21 +99,25 @@ class SandboxesNamespace:
             snapshot_id: Optional snapshot ID to create the sandbox from.
             snapshot_alias: Optional snapshot alias to create the sandbox from.
             ephemeral: Optional flag to mark the sandbox as ephemeral.
+
         """
         body = CreateSandboxBody(
             id=id if id is not None else UNSET,
             snapshot_id=snapshot_id if snapshot_id is not None else UNSET,
             snapshot_alias=snapshot_alias if snapshot_alias is not None else UNSET,
             ephemeral=ephemeral if ephemeral is not None else UNSET,
+            autostart=True,
             millicpu=millicpu,
             memory_bytes=memory_bytes,
             disk_bytes=disk_bytes,
         )
-        return await _call_api(
+        sandbox_model: SandboxModel = await _call_api(
             "api.create_sandbox",
             lambda: create_sandbox_api(client=self._api_client, body=body),
             self._retry,
         )
+
+        return await _connect_running_sandbox(sandbox_model.id, self._api_client, self._retry)
 
     async def list(
         self, *, limit: int | None = None, project_id: str | None = None

@@ -38,5 +38,5 @@ export type {
   SnapshotProgress,
   Snapshot,
 } from "./Snapshots.js";
-export type { StartOptions, WatchOptions } from "./Sandbox.js";
+export type { WatchOptions } from "./Sandbox.js";
 export { Page } from "./pagination.js";

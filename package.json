@@ -1,9 +1,15 @@
 {
   "name": "together-sandbox-workspace",
-  "version": "3.0.0",
+  "version": "3.0.2",
   "private": true,
   "workspaces": [
     "together-sandbox-typescript",
     "together-sandbox-cli"
-  ]
+  ],
+  "overrides": {
+    "handlebars": ">=4.7.9",
+    "lodash": ">=4.18.0",
+    "defu": ">=6.1.5",
+    "vite": ">=8.0.5"
+  }
 }

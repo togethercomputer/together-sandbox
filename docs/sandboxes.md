@@ -6,7 +6,7 @@ This document explains the core concepts behind Together Sandbox: what sandboxes
 
 ## What is a sandbox?
 
-A sandbox is a virtual machine that runs on Together's infrastructure. You can start one, run code inside it (via shell commands, file operations, and port forwarding), then stop it. By default, sandboxes persist between runs and can be hibernated to continue from where it left off. Sandboxes can optionally be created as **ephemeral**, in which case they cannot be hibernated and are automatically deleted when they stop.
+A sandbox is a virtual machine that runs on Together's infrastructure. You create one — it starts automatically — run code inside it (via shell commands, file operations, and port forwarding), then stop it. When a sandbox is hibernated its state is preserved as a snapshot; to continue from where it left off you create a new sandbox from that snapshot. Once stopped, a sandbox cannot be started again. Sandboxes can optionally be created as **ephemeral**, in which case they cannot be hibernated and are automatically deleted when they stop.
 
 Every sandbox is backed by a **snapshot**.
 
@@ -33,11 +33,6 @@ A sandbox moves through the following states:
                  create()
                     │
                     ▼
-               ┌─────────┐
-               │ created │
-               └────┬────┘
-                    │ start()
-                    ▼
               ┌──────────┐
               │ starting │  ← transitional
               └────┬─────┘
@@ -54,11 +49,11 @@ A sandbox moves through the following states:
                    │
                    ▼
               ┌─────────┐
-              │ stopped │
+              │ stopped │  ← terminal; create a new sandbox from a snapshot to continue
               └─────────┘
 ```
 
-`starting` and `stopping` are transient states — the SDK's `start()`, `hibernate()`, and `shutdown()` methods all block until the sandbox reaches a terminal state (`running` or `stopped`).
+Sandboxes autostart on creation. `starting` and `stopping` are transient states — `create()`, `hibernate()`, and `shutdown()` all block until the sandbox reaches a terminal state (`running` or `stopped`). Once a sandbox reaches `stopped` it is terminal — it cannot be started again. To continue from a stopped sandbox's state, create a new sandbox from its snapshot.
 
 **Note!** A `starting` sandbox can move to `stopping => stopped`. This happens when the sandbox was unable to start.
 
@@ -87,7 +82,7 @@ There are two ways to stop a running sandbox:
 await sandbox.hibernate();
 ```
 
-Hibernation suspends the VM and **preserves its full memory state** as a new snapshot. The next time the sandbox is started (`start_type: "resume"`), it resumes from exactly where it left off — running processes, open file descriptors, and all. Resume is fast because the OS does not need to boot.
+Hibernation suspends the VM and **preserves its full memory state** as a new snapshot. To continue, you create a new sandbox from that snapshot; it resumes from exactly where it left off — running processes, open file descriptors, and all. This resume is fast because the OS does not need to boot.
 
 Use hibernation when you want to pause a sandbox and come back to it later with its state intact.
 
@@ -99,34 +94,20 @@ Use hibernation when you want to pause a sandbox and come back to it later with 
 await sandbox.shutdown();
 ```
 
-Shutdown terminates the VM cleanly without preserving memory. The next start (`start_type: "cold_start"`) boots from the snapshot the sandbox was last based on, giving a clean slate. Cold starts are slower than resumes.
+Shutdown terminates the VM cleanly without preserving memory. A new sandbox created from the resulting snapshot boots from disk with a clean slate — no in-memory state is carried over. Cold starts are slower than resumes.
 
 Use shutdown when you want a clean restart or when ongoing state doesn't matter.
 
 ---
 
-## Sandbox versions
+## Source and result snapshots
 
-Each sandbox maintains a **version history** — a numbered sequence of snapshots that records the sandbox's state over time. Every time the sandbox is hibernated, a new version is created.
+Two fields on the sandbox model track the snapshots a sandbox is associated with:
 
-- `current_version_number` — the version the sandbox is currently at
-- `next_version_number` — the version number that will be assigned on the next state change
+- `source_snapshot_id` — the snapshot the sandbox booted from.
+- `snapshot_id` — the snapshot created when the sandbox stopped (via hibernate or shutdown). It is `null` while the sandbox is running.
 
-You can retrieve a specific version and its associated snapshot:
-
-```
-GET /sandboxes/{sandbox_id}/versions/{number}
-→ { id, sandbox_id, number, snapshot_id, created_at }
-```
-
-The `snapshot_id` from a version can then be used to create a new sandbox from that exact point in time — useful for branching or rollback. Or a version number can be used to start an existing sandbox on a specific version.
-
-You can also get the current version from a sandbox:
-
-```
-GET /sandboxes/{sandbox_id}/versions/current
-→ { id, sandbox_id, number, snapshot_id, created_at }
-```
+To continue from a stopped sandbox, create a new sandbox from its `snapshot_id`. This is how you "resume" work — useful for branching or rollback — since a stopped sandbox cannot be started again.
 
 ---
 
@@ -267,7 +248,7 @@ const sandbox = await sdk.sandboxes.create({
 
 ## Recovery
 
-If a sandbox crashes or is lost due to infrastructure issues, the platform may attempt automatic recovery. It will ensure the files of the sandbox are persisted and a new version and snapshot are created.
+If a sandbox crashes or is lost due to infrastructure issues, the platform may attempt automatic recovery. It will ensure the files of the sandbox are persisted and a new snapshot is created.
 
 The sandbox model exposes three fields tracking this:
 
@@ -301,7 +282,7 @@ Once a sandbox reaches the `running` state, two fields in the sandbox model unlo
 | `agent_url`   | Base URL for the in-VM HTTP/WebSocket API      |
 | `agent_token` | Bearer token required to authenticate requests |
 
-The SDK wraps these automatically — you don't need to use them directly. The `Sandbox` object returned by `sdk.sandboxes.start()` provides high-level methods for files, directories, shell commands (execs), and ports.
+The SDK wraps these automatically — you don't need to use them directly. The `Sandbox` object returned by `sdk.sandboxes.create()` provides high-level methods for files, directories, shell commands (execs), and ports.
 
 ---
 
@@ -310,7 +291,6 @@ The SDK wraps these automatically — you don't need to use them directly. The `
 | Operation                    | TypeScript                                     | Python                                                           |
 | ---------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
 | Create sandbox               | `sdk.sandboxes.create({ snapshotAlias: "…" })` | `sdk.sandboxes.create(snapshot_alias="…")`                       |
-| Start sandbox                | `sdk.sandboxes.start(id)`                      | `sdk.sandboxes.start(id)`                                        |
 | Hibernate sandbox            | `sandbox.hibernate()`                          | `sandbox.hibernate()`                                            |
 | Shut down sandbox            | `sandbox.shutdown()`                           | `sandbox.shutdown()`                                             |
 | List sandboxes               | `sdk.sandboxes.list()`                         | `sdk.sandboxes.list()`                                           |
