@@ -4,7 +4,9 @@ on:
   push:
     branches:
       - main
-      - fix-ci-tests
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -66,7 +68,8 @@ jobs:
           echo "snapshot_id=$SNAPSHOT_ID" >> "$GITHUB_OUTPUT"
           echo "::notice title=prepare::snapshot_id=$SNAPSHOT_ID"
         env:
-          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.STG_TOGETHER_API_KEY }}
+          TOGETHER_BASE_URL: https://api.bartender.codesandbox.stream
 
   e2e-python:
     needs: prepare
@@ -109,6 +112,6 @@ jobs:
         run: npm run test:e2e
         working-directory: together-sandbox-typescript
         env:
-          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.STG_TOGETHER_API_KEY }}
           TOGETHER_SNAPSHOT_ID: ${{ needs.prepare.outputs.snapshot_id }}
           TOGETHER_BASE_URL: https://api.bartender.codesandbox.stream
