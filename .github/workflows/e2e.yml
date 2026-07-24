@@ -87,7 +87,7 @@ jobs:
         run: pytest tests/e2e/ -v
         working-directory: together-sandbox-python
         env:
-          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.STG_TOGETHER_API_KEY }}
           TOGETHER_SNAPSHOT_ID: ${{ needs.prepare.outputs.snapshot_id }}
           TOGETHER_BASE_URL: https://api.bartender.codesandbox.stream
 
