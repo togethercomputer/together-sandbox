@@ -4,23 +4,15 @@ on:
   push:
     branches:
       - main
-  pull_request_target:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
   prepare:
-    if: github.event_name != 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     outputs:
       snapshot_id: ${{ steps.snapshot.outputs.snapshot_id }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          # For pull_request_target the default ref is the base branch; we need
-          # the PR head so we actually test the contributor's changes.
-          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -73,8 +65,8 @@ jobs:
           echo "snapshot_id=$SNAPSHOT_ID" >> "$GITHUB_OUTPUT"
           echo "::notice title=prepare::snapshot_id=$SNAPSHOT_ID"
         env:
-          TOGETHER_API_KEY: ${{ github.event_name == 'push' && secrets.TOGETHER_API_KEY || secrets.STG_TOGETHER_API_KEY }}
-          TOGETHER_BASE_URL: ${{ github.event_name == 'push' && 'https://api.bartender.codesandbox.io' || 'https://api.bartender.codesandbox.stream' }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          TOGETHER_BASE_URL: https://api.bartender.codesandbox.io
 
   e2e-python:
     needs: prepare
@@ -95,9 +87,9 @@ jobs:
         run: pytest tests/e2e/ -v
         working-directory: together-sandbox-python
         env:
-          TOGETHER_API_KEY: ${{ github.event_name == 'push' && secrets.TOGETHER_API_KEY || secrets.STG_TOGETHER_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
           TOGETHER_SNAPSHOT_ID: ${{ needs.prepare.outputs.snapshot_id }}
-          TOGETHER_BASE_URL: ${{ github.event_name == 'push' && 'https://api.bartender.codesandbox.io' || 'https://api.bartender.codesandbox.stream' }}
+          TOGETHER_BASE_URL: https://api.bartender.codesandbox.io
 
   e2e-typescript:
     needs: prepare
@@ -116,6 +108,6 @@ jobs:
         run: npm run test:e2e
         working-directory: together-sandbox-typescript
         env:
-          TOGETHER_API_KEY: ${{ github.event_name == 'push' && secrets.TOGETHER_API_KEY || secrets.STG_TOGETHER_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
           TOGETHER_SNAPSHOT_ID: ${{ needs.prepare.outputs.snapshot_id }}
-          TOGETHER_BASE_URL: ${{ github.event_name == 'push' && 'https://api.bartender.codesandbox.io' || 'https://api.bartender.codesandbox.stream' }}
+          TOGETHER_BASE_URL: https://api.bartender.codesandbox.io
