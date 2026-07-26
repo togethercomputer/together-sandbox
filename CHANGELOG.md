@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v3.0.2...together-sandbox-workspace-v3.1.0) (2026-07-24)
+
+
+### Features
+
+* add api client generated code to the repo ([1d3435d](https://github.com/togethercomputer/together-sandbox/commit/1d3435dba28f5c8fa56ef403d743a27851ea3eaf))
+
 ## [3.0.2](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v3.0.1...together-sandbox-workspace-v3.0.2) (2026-07-23)
 
 
