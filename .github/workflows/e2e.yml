@@ -4,18 +4,23 @@ on:
   push:
     branches:
       - main
-  pull_request:
+  pull_request_target:
     branches:
       - main
   workflow_dispatch:
 
 jobs:
   prepare:
+    if: github.event_name != 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     outputs:
       snapshot_id: ${{ steps.snapshot.outputs.snapshot_id }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # For pull_request_target the default ref is the base branch; we need
+          # the PR head so we actually test the contributor's changes.
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
