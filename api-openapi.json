@@ -23,6 +23,13 @@
       }
     },
     "schemas": {
+      "Tags": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "description": "User-defined key-value labels (both keys and values are strings)."
+      },
       "Sandbox": {
         "type": "object",
         "required": [
@@ -32,9 +39,9 @@
           "snapshot_id",
           "cpu",
           "memory_bytes",
-          "tags",
           "agent",
           "ttl",
+          "tags",
           "termination_policy",
           "status",
           "status_reason",
@@ -48,7 +55,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "The sandbox's unique identifier."
           },
           "organization_id": {
             "type": [
@@ -81,14 +89,8 @@
             "description": "CPU allocation in cores."
           },
           "memory_bytes": {
-            "type": "integer"
-          },
-          "tags": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Arbitrary key/value labels attached to the sandbox."
+            "type": "integer",
+            "description": "Memory allocation in bytes."
           },
           "agent": {
             "type": "object",
@@ -128,8 +130,11 @@
             ],
             "description": "Seconds after creation before the sandbox is automatically terminated. Null disables automatic termination.\n"
           },
+          "tags": {
+            "$ref": "#/components/schemas/Tags"
+          },
           "termination_policy": {
-            "description": "The termination snapshot policy, or null for an ephemeral sandbox (no snapshot is taken and it is deleted on termination).\n",
+            "description": "The termination policy, or null for an ephemeral sandbox (no snapshot is taken and it is deleted on termination).\n",
             "anyOf": [
               {
                 "$ref": "#/components/schemas/TerminationPolicy"
@@ -195,6 +200,44 @@
           }
         }
       },
+      "TerminationPolicy": {
+        "type": "object",
+        "description": "The policy applied when a sandbox terminates.",
+        "required": [
+          "snapshot"
+        ],
+        "properties": {
+          "snapshot": {
+            "$ref": "#/components/schemas/TerminationSnapshot"
+          }
+        }
+      },
+      "TerminationSnapshot": {
+        "type": "object",
+        "description": "The snapshot captured when a sandbox terminates.",
+        "properties": {
+          "memory": {
+            "type": "boolean",
+            "default": false,
+            "description": "When true both the filesystem and memory are snapshotted (hibernate); when false only the filesystem is snapshotted (stop).\n"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Aliases to apply to the produced snapshot."
+          },
+          "ttl": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Seconds after which the snapshot produced on termination expires. Must be > 0. Omit to keep the snapshot indefinitely.\n"
+          },
+          "tags": {
+            "$ref": "#/components/schemas/Tags"
+          }
+        }
+      },
       "Snapshot": {
         "type": "object",
         "required": [
@@ -227,22 +270,19 @@
             "type": "integer"
           },
           "tags": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Arbitrary key/value labels attached to the snapshot."
+            "$ref": "#/components/schemas/Tags"
           },
           "ttl": {
             "type": [
               "integer",
               "null"
             ],
-            "description": "Seconds after creation before the snapshot is automatically retired. Null disables automatic retirement.\n"
+            "minimum": 1,
+            "description": "Seconds after creation before the snapshot is automatically retired, or null if it is kept indefinitely.\n"
           },
           "memory": {
             "type": "boolean",
-            "description": "Whether the snapshot includes a memory snapshot in addition to the filesystem."
+            "description": "Whether the snapshot includes a memory snapshot."
           },
           "created_at": {
             "type": "string",
@@ -254,7 +294,7 @@
               "null"
             ],
             "format": "date-time",
-            "description": "When the snapshot was retired, or null if it is still active. A retired snapshot is deleted after a short retention window.\n"
+            "description": "When the snapshot was retired, or null if it is still active. A retired snapshot can no longer be used to create new sandboxes and is eventually deleted.\n"
           },
           "updated_at": {
             "type": "string",
@@ -388,48 +428,6 @@
                 }
               }
             }
-          }
-        }
-      },
-      "TerminationPolicy": {
-        "type": "object",
-        "description": "The snapshot policy applied when a sandbox terminates.",
-        "required": [
-          "snapshot"
-        ],
-        "properties": {
-          "snapshot": {
-            "$ref": "#/components/schemas/TerminationSnapshot"
-          }
-        }
-      },
-      "TerminationSnapshot": {
-        "type": "object",
-        "description": "The snapshot produced when a sandbox terminates.",
-        "properties": {
-          "memory": {
-            "type": "boolean",
-            "default": false,
-            "description": "Whether to include a memory snapshot in addition to the filesystem."
-          },
-          "aliases": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Aliases to apply to the produced snapshot."
-          },
-          "ttl": {
-            "type": "integer",
-            "minimum": 1,
-            "description": "Seconds after creation before the produced snapshot is automatically deleted."
-          },
-          "tags": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Arbitrary key/value labels to attach to the produced snapshot."
           }
         }
       }
@@ -576,6 +574,38 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "statuses[]",
+            "in": "query",
+            "description": "Filter by status; matches sandboxes in any of the given statuses.",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "starting",
+                  "running",
+                  "terminating",
+                  "terminated",
+                  "failed_to_start",
+                  "recovering",
+                  "unrecovered"
+                ]
+              }
+            }
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "description": "Filter by tags; matches sandboxes whose tags contain all given pairs.",
+            "style": "deepObject",
+            "explode": true,
+            "schema": {
+              "$ref": "#/components/schemas/Tags"
+            }
           }
         ],
         "responses": {
@@ -623,10 +653,6 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "cpu",
-                  "memory_bytes"
-                ],
                 "properties": {
                   "snapshot_id": {
                     "type": "string",
@@ -639,34 +665,29 @@
                   },
                   "cpu": {
                     "type": "number",
-                    "description": "CPU allocation in cores. Must be > 0 and a multiple of 0.25.",
-                    "minimum": 0.25,
-                    "multipleOf": 0.25
+                    "description": "CPU allocation in cores. Defaults to 1 when omitted.\n",
+                    "minimum": 0.1,
+                    "maximum": 16,
+                    "default": 1
                   },
                   "memory_bytes": {
                     "type": "integer",
-                    "description": "Memory allocation in bytes. Must be > 0.",
-                    "minimum": 1
-                  },
-                  "tags": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "string"
-                    },
-                    "description": "Arbitrary key/value labels to attach to the sandbox."
+                    "description": "Memory allocation in bytes. Must be between 1 GB and 8 GB per requested CPU. Defaults to 2 GB when omitted.\n",
+                    "minimum": 200000000,
+                    "maximum": 32000000000,
+                    "default": 2000000000
                   },
                   "ttl": {
                     "type": "integer",
                     "description": "Seconds after creation before the sandbox is automatically terminated. Must be > 0. Omit to disable automatic termination.\n",
                     "minimum": 1
                   },
-                  "termination_policy": {
-                    "description": "The termination snapshot policy. Omit for an ephemeral sandbox (no snapshot, deleted on termination).\n",
-                    "$ref": "#/components/schemas/TerminationPolicy"
+                  "tags": {
+                    "$ref": "#/components/schemas/Tags"
                   },
-                  "cluster_name": {
-                    "type": "string",
-                    "description": "Name of the cluster to launch the sandbox in."
+                  "termination_policy": {
+                    "description": "The termination policy. Omit for an ephemeral sandbox (no snapshot, deleted on termination).\n",
+                    "$ref": "#/components/schemas/TerminationPolicy"
                   }
                 }
               }
@@ -725,7 +746,8 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "format": "uuid"
               },
               "maxItems": 100
             },
@@ -783,7 +805,7 @@
           "schema": {
             "type": "string",
             "format": "uuid",
-            "description": "Sandbox ID."
+            "description": "The sandbox's unique identifier."
           }
         }
       ],
@@ -793,6 +815,85 @@
         "responses": {
           "200": {
             "description": "Sandbox.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sandbox"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "description": "Not authenticated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/sandboxes/{id}/terminate": {
+      "post": {
+        "operationId": "terminateSandbox",
+        "summary": "Terminate a sandbox",
+        "description": "Terminates a sandbox. After this operation the sandbox cannot be used again.\n",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The sandbox's unique identifier."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "snapshot": {
+                    "description": "What this teardown snapshots, overriding the snapshot the sandbox's stored termination policy would take. Omit to keep the stored policy; null makes the teardown ephemeral (no snapshot).\n",
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/TerminationSnapshot"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sandbox with updated status.",
             "content": {
               "application/json": {
                 "schema": {
@@ -841,9 +942,9 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid",
-              "description": "Sandbox ID."
-            }
+              "format": "uuid"
+            },
+            "description": "The sandbox's unique identifier."
           }
         ],
         "responses": {
@@ -914,6 +1015,16 @@
             "description": "Snapshot ID returned as `next_cursor` from a previous page.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "description": "Filter by tags; matches snapshots whose tags contain all given pairs.",
+            "style": "deepObject",
+            "explode": true,
+            "schema": {
+              "$ref": "#/components/schemas/Tags"
             }
           },
           {
@@ -993,11 +1104,7 @@
                     "description": "Seconds after creation before the snapshot is automatically deleted. Omit to keep the snapshot indefinitely.\n"
                   },
                   "tags": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "string"
-                    },
-                    "description": "Arbitrary key/value labels to attach to the snapshot."
+                    "$ref": "#/components/schemas/Tags"
                   }
                 }
               }
@@ -1165,7 +1272,7 @@
       "post": {
         "operationId": "retireSnapshot",
         "summary": "Retire a snapshot",
-        "description": "Retires the snapshot (a soft delete). The snapshot is deleted after a short retention window, provided no sandbox still references it.\n",
+        "description": "Retires the snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and it is eventually deleted, provided no sandbox still references it.\n",
         "parameters": [
           {
             "name": "id",
@@ -1331,6 +1438,7 @@
       "post": {
         "operationId": "aliasSnapshot",
         "summary": "Assign an alias to a snapshot",
+        "description": "Points the alias at the snapshot. If an alias of the same name already exists in the project, it is repointed at this snapshot (an upsert).\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -1400,85 +1508,6 @@
         "responses": {
           "204": {
             "description": "Alias deleted."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "description": "Not authenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not authorized.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/sandboxes/{id}/terminate": {
-      "post": {
-        "operationId": "terminateSandbox",
-        "summary": "Terminate a sandbox",
-        "description": "Terminates a sandbox. After this operation the sandbox cannot be used again.\n",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Sandbox ID."
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "snapshot": {
-                    "description": "What this teardown snapshots, overriding the snapshot the sandbox's stored termination policy would take. Omit to keep the stored policy; null makes the teardown ephemeral (no snapshot).\n",
-                    "anyOf": [
-                      {
-                        "$ref": "#/components/schemas/TerminationSnapshot"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Sandbox with updated status.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Sandbox"
-                }
-              }
-            }
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"

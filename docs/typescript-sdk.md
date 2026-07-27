@@ -74,11 +74,10 @@ Resource params (`cpu`, `memoryBytes`) default to **1 vCPU / 2 GiB memory** if o
 | --------------- | --------- | -------- | -------------------------------------------------------------------------------------- |
 | `snapshotId`    | `string`  | \*       | ID of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.         |
 | `snapshotAlias` | `string`  | \*       | Alias of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.      |
-| `cpu`           | `number`  | No       | CPU allocation in cores (must be > 0 and a multiple of 0.25). Default: `1` (1 vCPU).   |
-| `memoryBytes`   | `number`  | No       | Memory allocation in bytes. Default: `2 * 1024 * 1024 * 1024` (2 GiB).                 |
+| `cpu`           | `number`  | No       | CPU allocation in cores (0.1–16). Default: `1` (1 vCPU).                               |
+| `memoryBytes`   | `number`  | No       | Memory allocation in bytes (1–8 GB per CPU). Default: `2 * 1024 * 1024 * 1024` (2 GiB). |
 | `ttl`           | `number`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
 | `tags`          | `object`  | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
-| `clusterName`   | `string`  | No       | Name of the cluster to launch the sandbox in.                                          |
 | `terminationPolicy` | `object` | No    | Termination policy `{ snapshot: { memory: boolean, aliases?: string[], ttl?: number, tags?: Record<string, string> } }`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
 Sandboxes start automatically on creation, so there is no separate start step. A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshotAlias: "sandbox:<id>"`).
@@ -205,8 +204,13 @@ const snapshot = await sdk.snapshots.getByAlias("my-app@v1");
 
 List snapshots. Returns a `Page` that is async-iterable across all pages —
 iterate it directly to walk every snapshot, or use `getNextPage()` /
-`nextCursor` for manual page-by-page control. `options.limit` sets the page
-size (1–100, default 20).
+`nextCursor` for manual page-by-page control.
+
+| Option           | Type                     | Description                                                             |
+| ---------------- | ------------------------ | ------------------------------------------------------------------------- |
+| `limit`          | `number`                 | Page size (1–100, default 20).                                          |
+| `excludeRetired` | `boolean`                | When true, retired snapshots are excluded. Default false.               |
+| `tags`           | `Record<string, string>` | Matches snapshots whose tags contain all the given pairs.               |
 
 ```typescript
 // Iterate every snapshot across all pages
@@ -220,18 +224,38 @@ while (page.hasNextPage()) {
   console.log(page.data, page.nextCursor);
   page = await page.getNextPage();
 }
+
+// Only live snapshots for one service
+const live = await sdk.snapshots.list({
+  excludeRetired: true,
+  tags: { service: "api" },
+});
 ```
 
 #### `sdk.sandboxes.list(options?): Promise<Page<SandboxInfo>>`
 
 List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
-`options.limit` sets the page size (1–100, default 20); `options.projectId`
-filters to a single project.
+
+| Option      | Type                     | Description                                                  |
+| ----------- | ------------------------ | -------------------------------------------------------------- |
+| `limit`     | `number`                 | Page size (1–100, default 20).                               |
+| `projectId` | `string`                 | Filter to a single project.                                  |
+| `statuses`  | `SandboxStatus[]`        | Matches sandboxes in any of the given statuses.              |
+| `tags`      | `Record<string, string>` | Matches sandboxes whose tags contain all the given pairs.    |
+
+`SandboxStatus` is one of `starting`, `running`, `terminating`, `terminated`,
+`failed_to_start`, `recovering`, `unrecovered`.
 
 ```typescript
 for await (const sandbox of await sdk.sandboxes.list()) {
   console.log(sandbox.id);
 }
+
+// Running sandboxes for one team
+const running = await sdk.sandboxes.list({
+  statuses: ["running"],
+  tags: { team: "platform" },
+});
 ```
 
 #### `sdk.snapshots.alias(snapshotId, alias): Promise<void>`
@@ -244,7 +268,7 @@ await sdk.snapshots.alias("snapshot-id", "my-app@v2");
 
 #### `sdk.snapshots.retire(id): Promise<Snapshot>`
 
-Retire a snapshot by ID and return the retired snapshot. Retiring is a soft delete: the snapshot is marked retired and later hard-deleted after a retention window, but only if no sandbox still references it.
+Retire a snapshot by ID and return the retired snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and it is eventually deleted, but only once no sandbox still references it.
 
 ```typescript
 const retired = await sdk.snapshots.retire("snapshot-id");

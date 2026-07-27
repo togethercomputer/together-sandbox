@@ -69,7 +69,7 @@ async with TogetherSandbox() as sdk:
 
 Sandbox lifecycle namespace.
 
-#### `sdk.sandboxes.create(*, cpu=1.0, memory_bytes=2*1024**3, snapshot_id=None, snapshot_alias=None, ttl=None, tags=None, termination_policy=None, cluster_name=None) -> Sandbox`
+#### `sdk.sandboxes.create(*, cpu=1.0, memory_bytes=2*1024**3, snapshot_id=None, snapshot_alias=None, ttl=None, tags=None, termination_policy=None) -> Sandbox`
 
 Creates a new sandbox from a snapshot, starts the VM, and returns a connected [`Sandbox`](#sandbox) instance. This is the primary way to get a running sandbox — no separate `start()` call is needed.
 
@@ -83,11 +83,10 @@ Resource params (`cpu`, `memory_bytes`) default to **1 vCPU / 2 GiB memory** if 
 | ---------------- | -------------- | -------- | -------------------------------------------------------------------------------------- |
 | `snapshot_id`    | `str \| None`  | \*       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.       |
 | `snapshot_alias` | `str \| None`  | \*       | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.    |
-| `cpu`            | `float`        | No       | CPU allocation in cores (must be > 0 and a multiple of 0.25). Default: `1.0` (1 vCPU). |
-| `memory_bytes`   | `int`          | No       | Memory allocation in bytes. Default: `2 * 1024 ** 3` (2 GiB).                          |
+| `cpu`            | `float`        | No       | CPU allocation in cores (0.1–16). Default: `1.0` (1 vCPU).                             |
+| `memory_bytes`   | `int`          | No       | Memory allocation in bytes (1–8 GB per CPU). Default: `2 * 1024 ** 3` (2 GiB).         |
 | `ttl`            | `int \| None`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
 | `tags`           | `dict \| None` | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
-| `cluster_name`   | `str \| None`  | No       | Name of the cluster to launch the sandbox in.                                          |
 | `termination_policy` | `dict \| None` | No   | Termination policy `{"snapshot": {"memory": bool, "aliases": [...], "ttl": int, "tags": {...}}}`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
 Sandboxes start automatically on creation, so there is no separate start step. A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshot_alias="sandbox:<id>"`).
@@ -210,12 +209,17 @@ Fetch snapshot metadata by alias.
 snapshot = await sdk.snapshots.get_by_alias("my-app@v1")
 ```
 
-#### `sdk.snapshots.list(*, limit=None) -> Page[Snapshot]`
+#### `sdk.snapshots.list(*, limit=None, exclude_retired=None, tags=None) -> Page[Snapshot]`
 
 List snapshots. Returns a `Page` that is async-iterable across all pages —
 iterate it directly to walk every snapshot, or use `get_next_page()` /
-`next_cursor` for manual page-by-page control. `limit` sets the page size
-(1–100, default 20).
+`next_cursor` for manual page-by-page control.
+
+| Parameter         | Type                  | Description                                               |
+| ----------------- | --------------------- | ----------------------------------------------------------- |
+| `limit`           | `int \| None`         | Page size (1–100, default 20).                            |
+| `exclude_retired` | `bool \| None`        | When true, retired snapshots are excluded. Default false. |
+| `tags`            | `dict \| None`        | Matches snapshots whose tags contain all the given pairs. |
 
 ```python
 # Iterate every snapshot across all pages
@@ -227,17 +231,31 @@ page = await sdk.snapshots.list(limit=50)
 while page.has_next_page():
     print(page.data, page.next_cursor)
     page = await page.get_next_page()
+
+# Only live snapshots for one service
+live = await sdk.snapshots.list(exclude_retired=True, tags={"service": "api"})
 ```
 
-#### `sdk.sandboxes.list(*, limit=None, project_id=None) -> Page[Sandbox]`
+#### `sdk.sandboxes.list(*, limit=None, project_id=None, statuses=None, tags=None) -> Page[Sandbox]`
 
-List sandboxes. Returns a `Page` (same shape as `snapshots.list()`). `limit`
-sets the page size (1–100, default 20); `project_id` filters to a single
-project.
+List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
+
+| Parameter    | Type                  | Description                                              |
+| ------------ | --------------------- | ---------------------------------------------------------- |
+| `limit`      | `int \| None`         | Page size (1–100, default 20).                           |
+| `project_id` | `str \| None`         | Filter to a single project.                              |
+| `statuses`   | `list[str] \| None`   | Matches sandboxes in any of the given statuses.          |
+| `tags`       | `dict \| None`        | Matches sandboxes whose tags contain all the given pairs. |
+
+A status is one of `starting`, `running`, `terminating`, `terminated`,
+`failed_to_start`, `recovering`, `unrecovered`.
 
 ```python
 async for sandbox in await sdk.sandboxes.list():
     print(sandbox.id)
+
+# Running sandboxes for one team
+running = await sdk.sandboxes.list(statuses=["running"], tags={"team": "platform"})
 ```
 
 #### `sdk.snapshots.alias(snapshot_id, alias) -> None`
@@ -250,7 +268,7 @@ await sdk.snapshots.alias("snapshot-id", "my-app@v2")
 
 #### `sdk.snapshots.retire_by_id(id) -> Snapshot`
 
-Retire a snapshot by ID and return the retired snapshot. Retiring is a soft delete: the snapshot is marked retired and later hard-deleted (garbage collected) after a retention window, but only if no sandbox still references it.
+Retire a snapshot by ID and return the retired snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and it is eventually deleted, but only once no sandbox still references it.
 
 ```python
 retired = await sdk.snapshots.retire_by_id("snapshot-id")

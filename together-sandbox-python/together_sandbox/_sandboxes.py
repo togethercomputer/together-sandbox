@@ -14,7 +14,8 @@ from .api.api.default.list_sandboxes import asyncio_detailed as list_sandboxes_a
 from .api.models.sandbox import Sandbox as SandboxModel
 from .api.models.terminate_sandbox_body import TerminateSandboxBody
 from .api.models.create_sandbox_body import CreateSandboxBody
-from .api.models.create_sandbox_body_tags import CreateSandboxBodyTags
+from .api.models.tags import Tags
+from .api.models.list_sandboxes_statuses_item import ListSandboxesStatusesItem
 from .api.types import UNSET, Unset
 
 # ── Helpers ─────────────────────────────────────────────────────
@@ -24,6 +25,7 @@ from ._utils import (
     _resolve_connection,
     build_termination_policy,
     build_termination_snapshot,
+    deep_object_tags,
 )
 from ._pagination import Page
 from ._lifecycle import describe_lifecycle_failure
@@ -88,13 +90,13 @@ class SandboxesNamespace:
         ttl: int | None = None,
         tags: dict[str, str] | None = None,
         termination_policy: dict | None = None,
-        cluster_name: str | None = None,
     ) -> Sandbox:
         """Create a sandbox and wait for it to be running.
 
         Args:
-            cpu: CPU allocation in cores (e.g. 1 = 1 vCPU). Must be a multiple of 0.25.
-            memory_bytes: Memory allocation in bytes.
+            cpu: CPU allocation in cores (e.g. 1 = 1 vCPU). Must be between 0.1 and 16.
+            memory_bytes: Memory allocation in bytes. Must be between 1 GB and
+                8 GB per requested CPU.
             snapshot_id: Optional snapshot ID to create the sandbox from.
             snapshot_alias: Optional snapshot alias to create the sandbox from.
             ttl: Optional seconds after creation before the sandbox is
@@ -103,7 +105,6 @@ class SandboxesNamespace:
             termination_policy: The termination snapshot policy, e.g.
                 ``{"snapshot": {"memory": False, "aliases": ["prod"]}}``.
                 Omit for an ephemeral sandbox (no snapshot, deleted on termination).
-            cluster_name: Optional name of the cluster to launch the sandbox in.
 
         """
         body = CreateSandboxBody(
@@ -112,9 +113,8 @@ class SandboxesNamespace:
             cpu=cpu,
             memory_bytes=memory_bytes,
             ttl=ttl if ttl is not None else UNSET,
-            tags=CreateSandboxBodyTags.from_dict(tags) if tags is not None else UNSET,
+            tags=Tags.from_dict(tags) if tags is not None else UNSET,
             termination_policy=build_termination_policy(termination_policy),
-            cluster_name=cluster_name if cluster_name is not None else UNSET,
         )
         sandbox_model: SandboxModel = await _call_api(
             "api.create_sandbox",
@@ -125,7 +125,12 @@ class SandboxesNamespace:
         return await _connect_running_sandbox(sandbox_model.id, self._api_client, self._retry)
 
     async def list(
-        self, *, limit: int | None = None, project_id: str | None = None
+        self,
+        *,
+        limit: int | None = None,
+        project_id: str | None = None,
+        statuses: list[str] | None = None,
+        tags: dict[str, str] | None = None,
     ) -> Page[SandboxModel]:
         """List sandboxes.
 
@@ -136,12 +141,16 @@ class SandboxesNamespace:
         Args:
             limit: Max items per page (1–100, default 20).
             project_id: Filter to a single project.
+            statuses: Filter by status; matches sandboxes in any of the given
+                statuses.
+            tags: Filter by tags; matches sandboxes whose tags contain all the
+                given pairs.
 
         Returns:
             Page[Sandbox]: First page of sandboxes.
 
         Example:
-            >>> async for sandbox in await sdk.sandboxes.list():
+            >>> async for sandbox in await sdk.sandboxes.list(statuses=["running"]):
             ...     print(sandbox.id)
         """
 
@@ -153,6 +162,12 @@ class SandboxesNamespace:
                     limit=limit if limit is not None else UNSET,
                     cursor=cursor if cursor is not None else UNSET,
                     project_id=project_id if project_id is not None else UNSET,
+                    statuses=(
+                        [ListSandboxesStatusesItem(s) for s in statuses]
+                        if statuses is not None
+                        else UNSET
+                    ),
+                    tags=deep_object_tags(tags),
                 ),
                 self._retry,
             )

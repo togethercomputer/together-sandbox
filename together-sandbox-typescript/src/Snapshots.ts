@@ -143,10 +143,13 @@ export class SnapshotsNamespace {
    * @param options.limit Max items per page (1–100, default 20).
    * @param options.excludeRetired When true, retired snapshots are excluded
    *   (default false — retired snapshots are included).
+   * @param options.tags Filter by tags; matches snapshots whose tags contain
+   *   all the given pairs.
    */
   async list(options?: {
     limit?: number;
     excludeRetired?: boolean;
+    tags?: Record<string, string>;
   }): Promise<Page<Snapshot>> {
     const fetchPage = async (cursor?: string): Promise<Page<Snapshot>> => {
       const result = await callApi(
@@ -158,6 +161,7 @@ export class SnapshotsNamespace {
               limit: options?.limit,
               cursor,
               exclude_retired: options?.excludeRetired,
+              tags: options?.tags,
             },
           }),
         this._retryConfig,
@@ -184,9 +188,9 @@ export class SnapshotsNamespace {
   /**
    * Retire a snapshot by id and return the retired snapshot.
    *
-   * Retiring is a soft delete: the snapshot is marked retired and later
-   * hard-deleted after a retention window, but only if no sandbox still
-   * references it.
+   * Once retired, the snapshot can no longer be used to create new sandboxes,
+   * and it is eventually deleted, but only once no sandbox still references
+   * it.
    */
   async retire(id: string): Promise<Snapshot> {
     const result = await callApi(

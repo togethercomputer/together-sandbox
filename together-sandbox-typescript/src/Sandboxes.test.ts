@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock all generated api-client modules before any other import so the module
 // graph resolves without the actual generated files (which may not exist in CI).
-vi.mock("./api-clients/api/index.js", () => ({}));
+vi.mock("./api-clients/api/index.js", () => ({ listSandboxes: vi.fn() }));
 vi.mock("./api-clients/api/client/index.js", () => ({}));
 vi.mock("./api-clients/sandbox/client/index.js", () => ({
   createClient: vi.fn(() => ({
@@ -28,6 +28,7 @@ vi.mock("./utils.js", async (importOriginal) => {
 
 import { SandboxesNamespace } from "./Sandboxes.js";
 import { callApi } from "./utils.js";
+import * as api from "./api-clients/api/index.js";
 import type { Client as ApiClient } from "./api-clients/api/client/index.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -128,5 +129,47 @@ describe("SandboxesNamespace.create", () => {
 
     const ns = new SandboxesNamespace(makeApiClient());
     await expect(ns.create()).rejects.toThrow();
+  });
+});
+
+// ─── SandboxesNamespace.list ──────────────────────────────────────────────────
+
+describe("SandboxesNamespace.list", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Run the thunk callApi is given so the query reaching the generated
+    // client can be inspected.
+    mockCallApi.mockImplementation((_op, thunk) => (thunk as () => never)());
+    vi.mocked(api.listSandboxes).mockResolvedValue({
+      data: [],
+      next_cursor: null,
+    } as never);
+  });
+
+  it("passes the status and tag filters through to the query", async () => {
+    const ns = new SandboxesNamespace(makeApiClient());
+    await ns.list({
+      limit: 50,
+      projectId: "proj-1",
+      statuses: ["running", "starting"],
+      tags: { team: "platform" },
+    });
+
+    expect(vi.mocked(api.listSandboxes).mock.calls[0][0]?.query).toEqual({
+      limit: 50,
+      cursor: undefined,
+      project_id: "proj-1",
+      "statuses[]": ["running", "starting"],
+      tags: { team: "platform" },
+    });
+  });
+
+  it("leaves the filters unset when no options are given", async () => {
+    const ns = new SandboxesNamespace(makeApiClient());
+    await ns.list();
+
+    const query = vi.mocked(api.listSandboxes).mock.calls[0][0]?.query;
+    expect(query?.["statuses[]"]).toBeUndefined();
+    expect(query?.tags).toBeUndefined();
   });
 });

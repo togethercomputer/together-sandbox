@@ -33,6 +33,11 @@ export interface TogetherSandboxConfig {
 export type SandboxInfo = CamelCasedProperties<SandboxModel>;
 
 /**
+ * The lifecycle status of a sandbox.
+ */
+export type SandboxStatus = SandboxModel["status"];
+
+/**
  * The termination snapshot policy. Omit `terminationPolicy` entirely for an
  * ephemeral sandbox (no snapshot; deleted on termination).
  */
@@ -68,9 +73,9 @@ export type CreateSandboxParams = Omit<
   RawCreateSandboxParams,
   "cpu" | "memoryBytes" | "terminationPolicy"
 > & {
-  /** CPU allocation in cores. Must be > 0 and a multiple of 0.25. Default: 1 (1 vCPU). */
+  /** CPU allocation in cores. Must be between 0.1 and 16. Default: 1 (1 vCPU). */
   cpu?: number;
-  /** Memory allocation in bytes. Default: 2 GiB. */
+  /** Memory allocation in bytes. Must be between 1 GB and 8 GB per CPU. Default: 2 GiB. */
   memoryBytes?: number;
   /** Termination snapshot policy. Omit for an ephemeral sandbox. */
   terminationPolicy?: TerminationPolicyParams;

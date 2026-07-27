@@ -13,7 +13,7 @@ import httpx
 from .api.models import Error as ApiError
 from .api.models.termination_policy import TerminationPolicy
 from .api.models.termination_snapshot import TerminationSnapshot
-from .api.models.termination_snapshot_tags import TerminationSnapshotTags
+from .api.models.tags import Tags
 from .api.types import UNSET, Response, Unset
 from .errors import HttpError
 from .sandbox.models.error import Error as SandboxError
@@ -37,10 +37,21 @@ def build_termination_snapshot(snapshot: dict | None | Unset = UNSET):
         memory=snapshot.get("memory", UNSET),
         aliases=snapshot.get("aliases", UNSET),
         ttl=snapshot.get("ttl", UNSET),
-        tags=(
-            TerminationSnapshotTags.from_dict(tags) if tags is not None else UNSET
-        ),
+        tags=(Tags.from_dict(tags) if tags is not None else UNSET),
     )
+
+
+def deep_object_tags(tags: dict[str, str] | None):
+    """Build the ``Tags`` query model for a `tags` filter.
+
+    The `tags` query parameter is a deepObject, so `{"env": "prod"}` has to go
+    over the wire as ``tags[env]=prod``. The generated client merges the model
+    straight into the query string instead of bracketing the keys itself, so
+    the brackets are applied here.
+    """
+    if tags is None:
+        return UNSET
+    return Tags.from_dict({f"tags[{key}]": value for key, value in tags.items()})
 
 
 def build_termination_policy(termination_policy: dict | None):

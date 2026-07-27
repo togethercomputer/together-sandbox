@@ -263,7 +263,7 @@ When creating a sandbox, you can configure its CPU and memory:
 
 | Parameter     | Default      | Notes                        |
 | ------------- | ------------ | ---------------------------- |
-| `cpu`         | `1` (1 vCPU) | Cores; must be a multiple of 0.25 |
+| `cpu`         | `1` (1 vCPU) | Cores; 0.1–16                     |
 | `memoryBytes` | `2147483648` | 2 GiB                        |
 
 ```typescript

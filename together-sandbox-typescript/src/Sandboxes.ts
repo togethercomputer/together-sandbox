@@ -7,6 +7,7 @@ import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { Sandbox } from "./Sandbox.js";
 import {
   type SandboxInfo,
+  type SandboxStatus,
   type CreateSandboxParams,
   type TerminationSnapshotParams,
   type RetryConfig,
@@ -99,7 +100,6 @@ export class SandboxesNamespace {
             ttl: params.ttl,
             tags: params.tags,
             termination_policy: terminationPolicyBody(params.terminationPolicy) ?? undefined,
-            cluster_name: params.clusterName,
           },
         }),
       this._retryConfig,
@@ -117,10 +117,16 @@ export class SandboxesNamespace {
    *
    * @param options.limit Max items per page (1–100, default 20).
    * @param options.projectId Filter to a single project.
+   * @param options.statuses Filter by status; matches sandboxes in any of the
+   *   given statuses.
+   * @param options.tags Filter by tags; matches sandboxes whose tags contain
+   *   all the given pairs.
    */
   async list(options?: {
     limit?: number;
     projectId?: string;
+    statuses?: SandboxStatus[];
+    tags?: Record<string, string>;
   }): Promise<Page<SandboxInfo>> {
     const fetchPage = async (cursor?: string): Promise<Page<SandboxInfo>> => {
       const result = await callApi(
@@ -132,6 +138,8 @@ export class SandboxesNamespace {
               limit: options?.limit,
               cursor,
               project_id: options?.projectId,
+              "statuses[]": options?.statuses,
+              tags: options?.tags,
             },
           }),
         this._retryConfig,

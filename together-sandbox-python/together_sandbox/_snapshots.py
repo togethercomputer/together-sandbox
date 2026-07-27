@@ -16,6 +16,7 @@ from ._utils import (
     RetryContext,
     _call_api,
     _with_retry,
+    deep_object_tags,
 )
 from ._configuration import get_inferred_base_url, is_local_environment
 from ._pagination import Page
@@ -38,7 +39,7 @@ from .api.api.default.retire_snapshot import asyncio_detailed as retire_snapshot
 from .api.models.alias_snapshot_body import AliasSnapshotBody
 from .api.models.create_snapshot_body import CreateSnapshotBody
 from .api.models.create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
-from .api.models.create_snapshot_body_tags import CreateSnapshotBodyTags
+from .api.models.tags import Tags
 from .api.models.container_registry_credential import ContainerRegistryCredential
 from .api.models.snapshot import Snapshot
 
@@ -174,9 +175,7 @@ class SnapshotsNamespace:
                     architecture=result["architecture"],
                     ttl=params.ttl if params.ttl is not None else UNSET,
                     tags=(
-                        CreateSnapshotBodyTags.from_dict(params.tags)
-                        if params.tags is not None
-                        else UNSET
+                        Tags.from_dict(params.tags) if params.tags is not None else UNSET
                     ),
                 ),
             ),
@@ -257,7 +256,11 @@ class SnapshotsNamespace:
         )
 
     async def list(
-        self, *, limit: int | None = None, exclude_retired: bool | None = None
+        self,
+        *,
+        limit: int | None = None,
+        exclude_retired: bool | None = None,
+        tags: dict[str, str] | None = None,
     ) -> Page[Snapshot]:
         """
         List snapshots.
@@ -270,6 +273,8 @@ class SnapshotsNamespace:
             limit: Max items per page (1–100, default 20).
             exclude_retired: When true, retired snapshots are excluded
                 (default false — retired snapshots are included).
+            tags: Filter by tags; matches snapshots whose tags contain all the
+                given pairs.
 
         Returns:
             Page[Snapshot]: First page of snapshots.
@@ -292,6 +297,7 @@ class SnapshotsNamespace:
                     exclude_retired=(
                         exclude_retired if exclude_retired is not None else UNSET
                     ),
+                    tags=deep_object_tags(tags),
                 ),
                 self._retry,
             )
@@ -303,9 +309,9 @@ class SnapshotsNamespace:
         """
         Retire a snapshot by id and return the retired snapshot.
 
-        Retiring is a soft delete: the snapshot is marked retired and later
-        hard-deleted (garbage collected) after a retention window, but only if
-        no sandbox still references it.
+        Once retired, the snapshot can no longer be used to create new
+        sandboxes, and it is eventually deleted, but only once no sandbox
+        still references it.
 
         Args:
             id: Snapshot id
