@@ -1,7 +1,6 @@
 from http import HTTPStatus
 from typing import Any, cast
 from urllib.parse import quote
-from uuid import UUID
 
 import httpx
 
@@ -12,13 +11,13 @@ from ...types import Response
 
 
 def _get_kwargs(
-    id: UUID,
+    alias: str,
 ) -> dict[str, Any]:
 
     _kwargs: dict[str, Any] = {
         "method": "delete",
-        "url": "/snapshot-aliases/{id}".format(
-            id=quote(str(id), safe=""),
+        "url": "/snapshot-aliases/{alias}".format(
+            alias=quote(str(alias), safe=""),
         ),
     }
 
@@ -70,14 +69,16 @@ def _build_response(
 
 
 def sync_detailed(
-    id: UUID,
+    alias: str,
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[Any | Error]:
-    """Delete a snapshot alias by ID
+    """Delete a snapshot alias
+
+     Deletes the alias in the caller's project. Idempotent: succeeds whether or not the alias exists.
 
     Args:
-        id (UUID):
+        alias (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -88,7 +89,7 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        id=id,
+        alias=alias,
     )
 
     response = client.get_httpx_client().request(
@@ -99,14 +100,16 @@ def sync_detailed(
 
 
 def sync(
-    id: UUID,
+    alias: str,
     *,
     client: AuthenticatedClient | Client,
 ) -> Any | Error | None:
-    """Delete a snapshot alias by ID
+    """Delete a snapshot alias
+
+     Deletes the alias in the caller's project. Idempotent: succeeds whether or not the alias exists.
 
     Args:
-        id (UUID):
+        alias (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -117,20 +120,22 @@ def sync(
     """
 
     return sync_detailed(
-        id=id,
+        alias=alias,
         client=client,
     ).parsed
 
 
 async def asyncio_detailed(
-    id: UUID,
+    alias: str,
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[Any | Error]:
-    """Delete a snapshot alias by ID
+    """Delete a snapshot alias
+
+     Deletes the alias in the caller's project. Idempotent: succeeds whether or not the alias exists.
 
     Args:
-        id (UUID):
+        alias (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -141,7 +146,7 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        id=id,
+        alias=alias,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -150,14 +155,16 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    id: UUID,
+    alias: str,
     *,
     client: AuthenticatedClient | Client,
 ) -> Any | Error | None:
-    """Delete a snapshot alias by ID
+    """Delete a snapshot alias
+
+     Deletes the alias in the caller's project. Idempotent: succeeds whether or not the alias exists.
 
     Args:
-        id (UUID):
+        alias (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -169,7 +176,7 @@ async def asyncio(
 
     return (
         await asyncio_detailed(
-            id=id,
+            alias=alias,
             client=client,
         )
     ).parsed

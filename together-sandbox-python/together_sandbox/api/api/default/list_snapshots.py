@@ -15,6 +15,7 @@ def _get_kwargs(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    exclude_retired: bool | Unset = False,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -24,6 +25,8 @@ def _get_kwargs(
     params["limit"] = limit
 
     params["cursor"] = cursor
+
+    params["exclude_retired"] = exclude_retired
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -82,6 +85,7 @@ def sync_detailed(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    exclude_retired: bool | Unset = False,
 ) -> Response[Error | SnapshotPage]:
     """List snapshots
 
@@ -89,6 +93,7 @@ def sync_detailed(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        exclude_retired (bool | Unset):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -102,6 +107,7 @@ def sync_detailed(
         project_id=project_id,
         limit=limit,
         cursor=cursor,
+        exclude_retired=exclude_retired,
     )
 
     response = client.get_httpx_client().request(
@@ -117,6 +123,7 @@ def sync(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    exclude_retired: bool | Unset = False,
 ) -> Error | SnapshotPage | None:
     """List snapshots
 
@@ -124,6 +131,7 @@ def sync(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        exclude_retired (bool | Unset):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -138,6 +146,7 @@ def sync(
         project_id=project_id,
         limit=limit,
         cursor=cursor,
+        exclude_retired=exclude_retired,
     ).parsed
 
 
@@ -147,6 +156,7 @@ async def asyncio_detailed(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    exclude_retired: bool | Unset = False,
 ) -> Response[Error | SnapshotPage]:
     """List snapshots
 
@@ -154,6 +164,7 @@ async def asyncio_detailed(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        exclude_retired (bool | Unset):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -167,6 +178,7 @@ async def asyncio_detailed(
         project_id=project_id,
         limit=limit,
         cursor=cursor,
+        exclude_retired=exclude_retired,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -180,6 +192,7 @@ async def asyncio(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    exclude_retired: bool | Unset = False,
 ) -> Error | SnapshotPage | None:
     """List snapshots
 
@@ -187,6 +200,7 @@ async def asyncio(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        exclude_retired (bool | Unset):  Default: False.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -202,5 +216,6 @@ async def asyncio(
             project_id=project_id,
             limit=limit,
             cursor=cursor,
+            exclude_retired=exclude_retired,
         )
     ).parsed

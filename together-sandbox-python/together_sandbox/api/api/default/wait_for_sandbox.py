@@ -1,6 +1,7 @@
 from http import HTTPStatus
 from typing import Any
 from urllib.parse import quote
+from uuid import UUID
 
 import httpx
 
@@ -12,7 +13,7 @@ from ...types import Response
 
 
 def _get_kwargs(
-    id: str,
+    id: UUID,
 ) -> dict[str, Any]:
 
     _kwargs: dict[str, Any] = {
@@ -71,14 +72,14 @@ def _build_response(
 
 
 def sync_detailed(
-    id: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[Error | Sandbox]:
     """Wait for a sandbox to reach a terminal status
 
     Args:
-        id (str): Sandbox ID (6–8 characters).
+        id (UUID): Sandbox ID.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -100,14 +101,14 @@ def sync_detailed(
 
 
 def sync(
-    id: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
 ) -> Error | Sandbox | None:
     """Wait for a sandbox to reach a terminal status
 
     Args:
-        id (str): Sandbox ID (6–8 characters).
+        id (UUID): Sandbox ID.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -124,14 +125,14 @@ def sync(
 
 
 async def asyncio_detailed(
-    id: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[Error | Sandbox]:
     """Wait for a sandbox to reach a terminal status
 
     Args:
-        id (str): Sandbox ID (6–8 characters).
+        id (UUID): Sandbox ID.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -151,14 +152,14 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    id: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
 ) -> Error | Sandbox | None:
     """Wait for a sandbox to reach a terminal status
 
     Args:
-        id (str): Sandbox ID (6–8 characters).
+        id (UUID): Sandbox ID.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

@@ -7,6 +7,7 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+from dateutil.parser import isoparse
 
 T = TypeVar("T", bound="SnapshotAlias")
 
@@ -15,40 +16,30 @@ T = TypeVar("T", bound="SnapshotAlias")
 class SnapshotAlias:
     """
     Attributes:
-        id (UUID):
         snapshot_id (UUID):
         alias (str):
         created_at (datetime.datetime):
-        updated_at (datetime.datetime):
     """
 
-    id: UUID
     snapshot_id: UUID
     alias: str
     created_at: datetime.datetime
-    updated_at: datetime.datetime
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        id = str(self.id)
-
         snapshot_id = str(self.snapshot_id)
 
         alias = self.alias
 
         created_at = self.created_at.isoformat()
 
-        updated_at = self.updated_at.isoformat()
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "id": id,
                 "snapshot_id": snapshot_id,
                 "alias": alias,
                 "created_at": created_at,
-                "updated_at": updated_at,
             }
         )
 
@@ -57,22 +48,16 @@ class SnapshotAlias:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        id = UUID(d.pop("id"))
-
         snapshot_id = UUID(d.pop("snapshot_id"))
 
         alias = d.pop("alias")
 
-        created_at = datetime.datetime.fromisoformat(d.pop("created_at"))
-
-        updated_at = datetime.datetime.fromisoformat(d.pop("updated_at"))
+        created_at = isoparse(d.pop("created_at"))
 
         snapshot_alias = cls(
-            id=id,
             snapshot_id=snapshot_id,
             alias=alias,
             created_at=created_at,
-            updated_at=updated_at,
         )
 
         snapshot_alias.additional_properties = d

@@ -6,6 +6,7 @@ from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+from dateutil.parser import isoparse
 
 from ..models.exec_stdout_type import ExecStdoutType
 from ..types import UNSET, Unset
@@ -74,7 +75,7 @@ class ExecStdout:
         if isinstance(_timestamp, Unset):
             timestamp = UNSET
         else:
-            timestamp = datetime.datetime.fromisoformat(_timestamp)
+            timestamp = isoparse(_timestamp)
 
         exit_code = d.pop("exitCode", UNSET)
 

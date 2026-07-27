@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
+
+if TYPE_CHECKING:
+    from ..models.create_sandbox_body_tags import CreateSandboxBodyTags
+    from ..models.termination_policy import TerminationPolicy
+
 
 T = TypeVar("T", bound="CreateSandboxBody")
 
@@ -16,34 +21,31 @@ T = TypeVar("T", bound="CreateSandboxBody")
 class CreateSandboxBody:
     """
     Attributes:
-        millicpu (int): CPU allocation in millicpu. Must be > 0 and a multiple of 250.
+        cpu (float): CPU allocation in cores. Must be > 0 and a multiple of 0.25.
         memory_bytes (int): Memory allocation in bytes. Must be > 0.
-        disk_bytes (int): Disk allocation in bytes. Must be > 0.
-        id (str | Unset): Sandbox ID (6–8 characters). Generated if not provided.
         snapshot_id (UUID | Unset): ID of the snapshot to use. One of snapshot_id or snapshot_alias is required.
         snapshot_alias (str | Unset): Alias of the snapshot to use. One of snapshot_id or snapshot_alias is required.
-        ephemeral (bool | Unset):
-        autostart (bool | Unset): Whether to automatically start the sandbox once created. Default: True.
+        tags (CreateSandboxBodyTags | Unset): Arbitrary key/value labels to attach to the sandbox.
+        ttl (int | Unset): Seconds after creation before the sandbox is automatically terminated. Must be > 0. Omit to
+            disable automatic termination.
+        termination_policy (TerminationPolicy | Unset): The snapshot policy applied when a sandbox terminates.
+        cluster_name (str | Unset): Name of the cluster to launch the sandbox in.
     """
 
-    millicpu: int
+    cpu: float
     memory_bytes: int
-    disk_bytes: int
-    id: str | Unset = UNSET
     snapshot_id: UUID | Unset = UNSET
     snapshot_alias: str | Unset = UNSET
-    ephemeral: bool | Unset = UNSET
-    autostart: bool | Unset = True
+    tags: CreateSandboxBodyTags | Unset = UNSET
+    ttl: int | Unset = UNSET
+    termination_policy: TerminationPolicy | Unset = UNSET
+    cluster_name: str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        millicpu = self.millicpu
+        cpu = self.cpu
 
         memory_bytes = self.memory_bytes
-
-        disk_bytes = self.disk_bytes
-
-        id = self.id
 
         snapshot_id: str | Unset = UNSET
         if not isinstance(self.snapshot_id, Unset):
@@ -51,42 +53,50 @@ class CreateSandboxBody:
 
         snapshot_alias = self.snapshot_alias
 
-        ephemeral = self.ephemeral
+        tags: dict[str, Any] | Unset = UNSET
+        if not isinstance(self.tags, Unset):
+            tags = self.tags.to_dict()
 
-        autostart = self.autostart
+        ttl = self.ttl
+
+        termination_policy: dict[str, Any] | Unset = UNSET
+        if not isinstance(self.termination_policy, Unset):
+            termination_policy = self.termination_policy.to_dict()
+
+        cluster_name = self.cluster_name
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "millicpu": millicpu,
+                "cpu": cpu,
                 "memory_bytes": memory_bytes,
-                "disk_bytes": disk_bytes,
             }
         )
-        if id is not UNSET:
-            field_dict["id"] = id
         if snapshot_id is not UNSET:
             field_dict["snapshot_id"] = snapshot_id
         if snapshot_alias is not UNSET:
             field_dict["snapshot_alias"] = snapshot_alias
-        if ephemeral is not UNSET:
-            field_dict["ephemeral"] = ephemeral
-        if autostart is not UNSET:
-            field_dict["autostart"] = autostart
+        if tags is not UNSET:
+            field_dict["tags"] = tags
+        if ttl is not UNSET:
+            field_dict["ttl"] = ttl
+        if termination_policy is not UNSET:
+            field_dict["termination_policy"] = termination_policy
+        if cluster_name is not UNSET:
+            field_dict["cluster_name"] = cluster_name
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.create_sandbox_body_tags import CreateSandboxBodyTags
+        from ..models.termination_policy import TerminationPolicy
+
         d = dict(src_dict)
-        millicpu = d.pop("millicpu")
+        cpu = d.pop("cpu")
 
         memory_bytes = d.pop("memory_bytes")
-
-        disk_bytes = d.pop("disk_bytes")
-
-        id = d.pop("id", UNSET)
 
         _snapshot_id = d.pop("snapshot_id", UNSET)
         snapshot_id: UUID | Unset
@@ -97,19 +107,33 @@ class CreateSandboxBody:
 
         snapshot_alias = d.pop("snapshot_alias", UNSET)
 
-        ephemeral = d.pop("ephemeral", UNSET)
+        _tags = d.pop("tags", UNSET)
+        tags: CreateSandboxBodyTags | Unset
+        if isinstance(_tags, Unset):
+            tags = UNSET
+        else:
+            tags = CreateSandboxBodyTags.from_dict(_tags)
 
-        autostart = d.pop("autostart", UNSET)
+        ttl = d.pop("ttl", UNSET)
+
+        _termination_policy = d.pop("termination_policy", UNSET)
+        termination_policy: TerminationPolicy | Unset
+        if isinstance(_termination_policy, Unset):
+            termination_policy = UNSET
+        else:
+            termination_policy = TerminationPolicy.from_dict(_termination_policy)
+
+        cluster_name = d.pop("cluster_name", UNSET)
 
         create_sandbox_body = cls(
-            millicpu=millicpu,
+            cpu=cpu,
             memory_bytes=memory_bytes,
-            disk_bytes=disk_bytes,
-            id=id,
             snapshot_id=snapshot_id,
             snapshot_alias=snapshot_alias,
-            ephemeral=ephemeral,
-            autostart=autostart,
+            tags=tags,
+            ttl=ttl,
+            termination_policy=termination_policy,
+            cluster_name=cluster_name,
         )
 
         create_sandbox_body.additional_properties = d
