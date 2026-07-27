@@ -577,7 +577,7 @@ class Sandbox:
         """The VM/sandbox ID."""
         if not self._vm_info.id:
             raise RuntimeError("Sandbox has no ID")
-        return self._vm_info.id
+        return str(self._vm_info.id)
 
     @property
     def vm_info(self) -> SandboxModel:
