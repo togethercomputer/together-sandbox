@@ -7,13 +7,13 @@ from types import TracebackType
 from .api.client import AuthenticatedClient as ApiClient
 
 # ── Management API endpoint functions (detailed variants) ─────────────────────
-from .api.api.default.stop_sandbox import asyncio_detailed as stop_sandbox_api
+from .api.api.default.terminate_sandbox import asyncio_detailed as terminate_sandbox_api
 from .api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
-from .api.models.stop_sandbox_body import StopSandboxBody
-from .api.models.stop_sandbox_body_stop_type import StopSandboxBodyStopType
+from .api.models.terminate_sandbox_body import TerminateSandboxBody
+from .api.types import UNSET
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -60,7 +60,7 @@ from .sandbox.types import UNSET, File, Unset
 from ._streaming import stream_sse_json
 
 # ── Utils ─────────────────────────────────────────────────────
-from ._utils import RetryConfig, _call_api
+from ._utils import RetryConfig, _call_api, build_termination_policy
 from ._lifecycle import describe_lifecycle_failure
 
 
@@ -581,7 +581,7 @@ class Sandbox:
 
     @property
     def vm_info(self) -> SandboxModel:
-        """Raw sandbox model (id, agent_url, agent_token, etc.)."""
+        """Raw sandbox model (id, agent, etc.)."""
         return self._vm_info
 
     # ── Sandbox sub-namespace delegation ──────────────────────────────────────
@@ -608,14 +608,29 @@ class Sandbox:
 
     # ── Lifecycle methods ─────────────────────────────────────────────────────
 
-    async def hibernate(self) -> None:
-        """Suspend (hibernate) this VM."""
+    async def terminate(
+        self,
+        *,
+        termination_policy: dict | None = None,
+        ttl: int | None = None,
+    ) -> None:
+        """Terminate this VM. After this the sandbox is terminal and cannot be used again.
+
+        Args:
+            termination_policy: Overrides the stored termination snapshot policy
+                for this teardown, e.g. ``{"snapshot": {"memory": True}}``.
+                Omit to use the stored policy.
+            ttl: Optionally overwrite the stored auto-termination TTL before teardown.
+        """
         await _call_api(
-            "api.stop_sandbox",
-            lambda: stop_sandbox_api(
+            "api.terminate_sandbox",
+            lambda: terminate_sandbox_api(
                 self.id,
                 client=self._api_client,
-                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.HIBERNATE),
+                body=TerminateSandboxBody(
+                    termination_policy=build_termination_policy(termination_policy),
+                    ttl=ttl if ttl is not None else UNSET,
+                ),
             ),
             self._retry,
             context=f"for sandbox {self.id!r}",
@@ -626,29 +641,16 @@ class Sandbox:
             self._retry,
             context=f"for sandbox {self.id!r}",
         )
-        if vm_info.status != "stopped":
-            raise RuntimeError(describe_lifecycle_failure(vm_info, "stopped"))
+        if vm_info.status != "terminated":
+            raise RuntimeError(describe_lifecycle_failure(vm_info, "terminated"))
+
+    async def hibernate(self) -> None:
+        """Suspend (hibernate) this VM — a terminate that snapshots filesystem and memory."""
+        await self.terminate(termination_policy={"snapshot": {"memory": True}})
 
     async def shutdown(self) -> None:
-        """Shut down this VM."""
-        await _call_api(
-            "api.stop_sandbox",
-            lambda: stop_sandbox_api(
-                self.id,
-                client=self._api_client,
-                body=StopSandboxBody(stop_type=StopSandboxBodyStopType.SHUTDOWN),
-            ),
-            self._retry,
-            context=f"for sandbox {self.id!r}",
-        )
-        vm_info: SandboxModel = await _call_api(
-            "api.wait_for_sandbox",
-            lambda: wait_for_sandbox_api(self.id, client=self._api_client),
-            self._retry,
-            context=f"for sandbox {self.id!r}",
-        )
-        if vm_info.status != "stopped":
-            raise RuntimeError(describe_lifecycle_failure(vm_info, "stopped"))
+        """Shut down this VM — a terminate that snapshots the filesystem."""
+        await self.terminate(termination_policy={"snapshot": {"memory": False}})
 
     async def close(self) -> None:
         """Close the underlying sandbox client connection."""
@@ -678,7 +680,7 @@ class Sandbox:
         base_url: str | None = None,
         snapshot_id: str | None = None,
         snapshot_alias: str | None = None,
-        ephemeral: bool | None = None,
+        termination_policy: dict | None = None,
     ) -> "Sandbox":
         """
         Create a sandbox in a single call (classmethod factory).
@@ -693,8 +695,24 @@ class Sandbox:
         return await sdk.sandboxes.create(
             snapshot_id=snapshot_id,
             snapshot_alias=snapshot_alias,
-            ephemeral=ephemeral,
+            termination_policy=termination_policy,
         )
+
+    @classmethod
+    async def terminate(
+        cls,
+        sandbox_id: str,
+        *,
+        termination_policy: dict | None = None,
+        ttl: int | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+    ) -> None:
+        """Terminate a sandbox by ID without a running Sandbox instance."""
+        from ._together_sandbox import TogetherSandbox
+
+        sdk = TogetherSandbox(api_key=api_key, base_url=base_url)
+        await sdk.sandboxes.terminate(sandbox_id, termination_policy=termination_policy, ttl=ttl)
 
     @classmethod
     async def hibernate(

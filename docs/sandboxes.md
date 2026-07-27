@@ -6,7 +6,7 @@ This document explains the core concepts behind Together Sandbox: what sandboxes
 
 ## What is a sandbox?
 
-A sandbox is a virtual machine that runs on Together's infrastructure. You create one — it starts automatically — run code inside it (via shell commands, file operations, and port forwarding), then stop it. When a sandbox is hibernated its state is preserved as a snapshot; to continue from where it left off you create a new sandbox from that snapshot. Once stopped, a sandbox cannot be started again. Sandboxes can optionally be created as **ephemeral**, in which case they cannot be hibernated and are automatically deleted when they stop.
+A sandbox is a virtual machine that runs on Together's infrastructure. You create one — it starts automatically — run code inside it (via shell commands, file operations, and port forwarding), then terminate it. When a sandbox is hibernated its state is preserved as a snapshot; to continue from where it left off you create a new sandbox from that snapshot. Once terminated, a sandbox cannot be used again. Sandboxes can optionally be created as **ephemeral**, in which case they cannot be hibernated and are automatically deleted when they terminate.
 
 Every sandbox is backed by a **snapshot**.
 
@@ -16,7 +16,7 @@ Every sandbox is backed by a **snapshot**.
 
 A snapshot is a compressed, immutable disk image stored in Together's registry. It defines the filesystem (and optionally the in-memory state) that a sandbox starts from.
 
-Snapshots are created from Docker images — either by building from a Dockerfile or by referencing an existing image. Once registered, a snapshot can be used to start any number of sandboxes. They are also automatically generated when you stop a sandbox.
+Snapshots are created from Docker images — either by building from a Dockerfile or by referencing an existing image. Once registered, a snapshot can be used to start any number of sandboxes. They are also automatically generated when you terminate a sandbox.
 
 Snapshots can be addressed by:
 
@@ -41,40 +41,63 @@ A sandbox moves through the following states:
               ┌─────────┐
               │ running │  ◄─── you interact with the sandbox here
               └────┬────┘
-                   │ hibernate() or shutdown()
+                   │ terminate(), hibernate() or shutdown()
                    ▼
-              ┌──────────┐
-              │ stopping │  ← transitional
-              └────┬─────┘
+              ┌─────────────┐
+              │ terminating │  ← transitional
+              └──────┬──────┘
                    │
                    ▼
-              ┌─────────┐
-              │ stopped │  ← terminal; create a new sandbox from a snapshot to continue
-              └─────────┘
+              ┌────────────┐
+              │ terminated │  ← terminal; create a new sandbox from a snapshot to continue
+              └────────────┘
 ```
 
-Sandboxes autostart on creation. `starting` and `stopping` are transient states — `create()`, `hibernate()`, and `shutdown()` all block until the sandbox reaches a terminal state (`running` or `stopped`). Once a sandbox reaches `stopped` it is terminal — it cannot be started again. To continue from a stopped sandbox's state, create a new sandbox from its snapshot.
+Sandboxes autostart on creation. `starting` and `terminating` are transient states — `create()`, `terminate()`, `hibernate()`, and `shutdown()` all block until the sandbox reaches a terminal state (`running` or `terminated`). Once a sandbox reaches `terminated` it cannot be used again. To continue from a terminated sandbox's state, create a new sandbox from the snapshot it produced.
 
-**Note!** A `starting` sandbox can move to `stopping => stopped`. This happens when the sandbox was unable to start.
+**Note!** A `starting` sandbox that cannot start moves to `failed_to_start` (terminal). If a running sandbox crashes it is auto-recovered (`recovering`); if recovery fails it ends in `unrecovered`.
 
-### Stop reasons
+The `status_reason` field always records why the sandbox is in its current status — including while `starting` (`cold_start_requested`) and `running` (`cold_started` / `restored`).
 
-When a sandbox reaches the `stopped` state, the `stop_reason` field records why:
+### Failed-to-start reasons
 
-| Reason         | Description                                               |
-| -------------- | --------------------------------------------------------- |
-| `shutdown`     | Explicitly shut down (no memory preservation)             |
-| `hibernated`   | Explicitly hibernated (memory preserved as a snapshot)    |
-| `start_failed` | The sandbox failed to reach the `running` state           |
-| `crashed`      | The VM process exited unexpectedly                        |
-| `oom_killed`   | The sandbox ran out of memory                             |
-| `evicted`      | Removed by the cluster scheduler (e.g. resource pressure) |
+When a sandbox reaches the `failed_to_start` state, `status_reason` records why:
+
+| Reason             | Description                                        |
+| ------------------ | -------------------------------------------------- |
+| `out_of_capacity`  | No capacity was available to start the sandbox     |
+| `internal_error`   | The sandbox failed to reach the `running` state    |
+
+### Termination reasons
+
+When a sandbox reaches the `terminated` state, the `status_reason` field records why:
+
+| Reason                  | Description                                               |
+| ----------------------- | --------------------------------------------------------- |
+| `termination_requested` | A client called the terminate API                         |
+| `autoterminated`        | The sandbox was terminated automatically (its TTL elapsed)|
+| `crashed`               | The VM process exited unexpectedly                        |
+| `oom_killed`            | The sandbox ran out of memory                             |
+| `evicted`               | Removed by the cluster scheduler (e.g. resource pressure) |
+| `node_lost`             | The node running the sandbox became unavailable           |
+| `cluster_lost`          | The cluster running the sandbox became unavailable        |
+
+`status_reason` no longer indicates whether a memory snapshot was captured. To
+tell whether teardown preserved in-memory state, inspect the produced snapshot
+(aliased `sandbox:<sandboxId>`): its `memory` field is `true` when a memory
+snapshot was captured and `false` otherwise.
 
 ---
 
-## Hibernation vs. shutdown
+## Terminating: hibernate vs. shutdown
 
-There are two ways to stop a running sandbox:
+Terminating a sandbox tears it down for good. `terminate()` takes a
+`snapshot` object `{ memory, aliases, ttl, tags }` selecting what to snapshot
+first — `memory: false` snapshots the disk only, `memory: true` snapshots disk +
+memory — plus which aliases and tags to apply to the produced snapshot; omit it
+to use the policy the sandbox was created with, or pass `null` to make the
+teardown ephemeral (no snapshot). `shutdown()` and `hibernate()` are convenience
+wrappers for the two common snapshot modes:
 
 ### Hibernate
 
@@ -102,12 +125,12 @@ Use shutdown when you want a clean restart or when ongoing state doesn't matter.
 
 ## Source and result snapshots
 
-Two fields on the sandbox model track the snapshots a sandbox is associated with:
+- `snapshot_id` — the snapshot the sandbox booted from (set at creation).
+- The snapshot created when the sandbox terminates (via hibernate or shutdown)
+  is **not** stored on the sandbox model. It is aliased as `sandbox:<sandbox id>`,
+  so you can create a new sandbox from it with `snapshotAlias: "sandbox:<id>"`.
 
-- `source_snapshot_id` — the snapshot the sandbox booted from.
-- `snapshot_id` — the snapshot created when the sandbox stopped (via hibernate or shutdown). It is `null` while the sandbox is running.
-
-To continue from a stopped sandbox, create a new sandbox from its `snapshot_id`. This is how you "resume" work — useful for branching or rollback — since a stopped sandbox cannot be started again.
+To continue from a terminated sandbox, create a new sandbox from its produced snapshot (`snapshotAlias: "sandbox:<id>"`). This is how you "resume" work — useful for branching or rollback — since a terminated sandbox cannot be used again.
 
 ---
 
@@ -172,16 +195,18 @@ Pass `memorySnapshot: true` (TypeScript) or `memory_snapshot=True` (Python) to `
 
 ### Snapshot properties
 
-| Field                      | Type      | Description                                             |
-| -------------------------- | --------- | ------------------------------------------------------- |
-| `id`                       | `string`  | UUID; the permanent identifier                          |
-| `project_id`               | `string`  | Owning project                                          |
-| `byte_size`                | `integer` | Compressed size on disk                                 |
-| `protected`                | `boolean` | Protected snapshots cannot be deleted                   |
-| `optimized`                | `boolean` | Whether the snapshot has been optimized for fast starts |
-| `includes_memory_snapshot` | `boolean` | Whether this snapshot includes in-memory state          |
-| `created_at`               | `string`  | ISO-8601 creation timestamp                             |
-| `optimized_at`             | `string`  | ISO-8601 timestamp of last optimization, or `null`      |
+| Field                      | Type             | Description                                                       |
+| -------------------------- | ---------------- | ---------------------------------------------------------------- |
+| `id`                       | `string`         | UUID; the permanent identifier                                   |
+| `organization_id`          | `string \| null` | Owning organization                                              |
+| `project_id`               | `string`         | Owning project                                                   |
+| `byte_size`                | `integer`        | Compressed size on disk                                          |
+| `tags`                     | `object`         | Arbitrary key/value labels                                       |
+| `ttl`                      | `integer \| null`| Seconds before automatic retirement, or `null` to disable        |
+| `memory`                   | `boolean`        | Whether this snapshot includes in-memory state                   |
+| `retired_at`               | `string \| null` | ISO-8601 timestamp of when the snapshot was retired, or `null` if active |
+| `created_at`               | `string`         | ISO-8601 creation timestamp                                      |
+| `updated_at`               | `string`         | ISO-8601 last-update timestamp                                   |
 
 ---
 
@@ -198,8 +223,8 @@ await sdk.snapshots.alias(snapshotId, "my-app@v1");
 // Retrieve a snapshot by alias
 const snapshot = await sdk.snapshots.getByAlias("my-app@v1");
 
-// Delete an alias (does not delete the snapshot)
-await sdk.snapshots.deleteByAlias("my-app@v1");
+// Retire a snapshot by id (returns the retired snapshot)
+const retired = await sdk.snapshots.retire(snapshot.id);
 ```
 
 When creating a sandbox, you can reference a snapshot by alias instead of UUID:
@@ -212,35 +237,40 @@ const sandbox = await sdk.sandboxes.create({ snapshotAlias: "my-app@v1" });
 
 ## Ephemeral sandboxes
 
-An **ephemeral** sandbox is one that is automatically deleted when it stops. Use ephemeral sandboxes for short-lived tasks where you don't need to persist anything or restart the sandbox later.
+An **ephemeral** sandbox is one that takes no snapshot and is automatically deleted when it terminates. Use ephemeral sandboxes for short-lived tasks where you don't need to persist anything or restart the sandbox later. A sandbox is ephemeral when it is created **without** a `terminationPolicy`:
+
+```typescript
+// Ephemeral: no `terminationPolicy` → no snapshot, deleted on termination.
+const sandbox = await sdk.sandboxes.create({
+  snapshotAlias: "my-app@v1",
+});
+```
+
+To keep a snapshot instead, pass `terminationPolicy` at creation:
 
 ```typescript
 const sandbox = await sdk.sandboxes.create({
   snapshotAlias: "my-app@v1",
-  ephemeral: true,
+  terminationPolicy: { snapshot: { memory: false, aliases: ["my-app@v2"] } },
 });
 ```
-
-Ephemeral sandboxes have one important restriction: **they cannot be hibernated**. Calling `hibernate()` on an ephemeral sandbox returns an error. Only `shutdown()` is supported.
 
 ---
 
 ## Resource allocation
 
-When creating a sandbox, you can configure its CPU, memory, and disk:
+When creating a sandbox, you can configure its CPU and memory:
 
-| Parameter     | Default         | Notes                     |
-| ------------- | --------------- | ------------------------- |
-| `millicpu`    | `1000` (1 vCPU) | Must be a multiple of 250 |
-| `memoryBytes` | `2147483648`    | 2 GiB                     |
-| `diskBytes`   | `10737418240`   | 10 GiB                    |
+| Parameter     | Default      | Notes                        |
+| ------------- | ------------ | ---------------------------- |
+| `cpu`         | `1` (1 vCPU) | Cores; must be a multiple of 0.25 |
+| `memoryBytes` | `2147483648` | 2 GiB                        |
 
 ```typescript
 const sandbox = await sdk.sandboxes.create({
   snapshotAlias: "my-app@v1",
-  millicpu: 2000, // 2 vCPUs
+  cpu: 2, // 2 vCPUs
   memoryBytes: 4 * 1024 ** 3, // 4 GiB
-  diskBytes: 20 * 1024 ** 3, // 20 GiB
 });
 ```
 
@@ -275,12 +305,12 @@ const sandbox = await sdk.sandboxes.create({
 
 ## Connecting to a running sandbox
 
-Once a sandbox reaches the `running` state, two fields in the sandbox model unlock access to the in-VM API:
+Once a sandbox reaches the `running` state, two fields under the sandbox model's `agent` object unlock access to the in-VM API:
 
 | Field         | Description                                    |
 | ------------- | ---------------------------------------------- |
-| `agent_url`   | Base URL for the in-VM HTTP/WebSocket API      |
-| `agent_token` | Bearer token required to authenticate requests |
+| `agent.url`   | Base URL for the in-VM HTTP/WebSocket API      |
+| `agent.token` | Bearer token required to authenticate requests |
 
 The SDK wraps these automatically — you don't need to use them directly. The `Sandbox` object returned by `sdk.sandboxes.create()` provides high-level methods for files, directories, shell commands (execs), and ports.
 
@@ -291,6 +321,7 @@ The SDK wraps these automatically — you don't need to use them directly. The `
 | Operation                    | TypeScript                                     | Python                                                           |
 | ---------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
 | Create sandbox               | `sdk.sandboxes.create({ snapshotAlias: "…" })` | `sdk.sandboxes.create(snapshot_alias="…")`                       |
+| Terminate sandbox            | `sandbox.terminate()`                          | `sandbox.terminate()`                                            |
 | Hibernate sandbox            | `sandbox.hibernate()`                          | `sandbox.hibernate()`                                            |
 | Shut down sandbox            | `sandbox.shutdown()`                           | `sandbox.shutdown()`                                             |
 | List sandboxes               | `sdk.sandboxes.list()`                         | `sdk.sandboxes.list()`                                           |
@@ -299,7 +330,7 @@ The SDK wraps these automatically — you don't need to use them directly. The `
 | Assign alias                 | `sdk.snapshots.alias(id, "my-app@v1")`         | `sdk.snapshots.alias(id, "my-app@v1")`                           |
 | Get snapshot by alias        | `sdk.snapshots.getByAlias("my-app@v1")`        | `sdk.snapshots.get_by_alias("my-app@v1")`                        |
 | List snapshots               | `sdk.snapshots.list()`                         | `sdk.snapshots.list()`                                           |
-| Delete snapshot              | `sdk.snapshots.deleteById(id)`                 | `sdk.snapshots.delete_by_id(id)`                                 |
+| Retire snapshot              | `sdk.snapshots.retire(id)`                     | `sdk.snapshots.retire_by_id(id)`                                 |
 
 > **Note:** `sandboxes.list()` and `snapshots.list()` are cursor-paginated. They
 > return a `Page` you can iterate directly (`for await … of` / `async for …`) to

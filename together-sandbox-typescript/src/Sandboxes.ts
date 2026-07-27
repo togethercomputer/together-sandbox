@@ -8,9 +8,15 @@ import { Sandbox } from "./Sandbox.js";
 import {
   type SandboxInfo,
   type CreateSandboxParams,
+  type TerminationSnapshotParams,
   type RetryConfig,
 } from "./types.js";
-import { camelCaseKeys, callApi } from "./utils.js";
+import {
+  camelCaseKeys,
+  callApi,
+  terminationPolicyBody,
+  terminationSnapshotBody,
+} from "./utils.js";
 import { describeLifecycleFailure } from "./lifecycle.js";
 import { Page } from "./pagination.js";
 
@@ -21,9 +27,9 @@ function resolveConnectionDetails(sandbox: SandboxInfo): {
   url: string;
   token: string;
 } {
-  if (!sandbox.agentUrl || !sandbox.agentToken)
+  if (!sandbox.agent?.url || !sandbox.agent?.token)
     throw new Error("Sandbox has no agent connection details");
-  return { url: sandbox.agentUrl, token: sandbox.agentToken };
+  return { url: sandbox.agent.url, token: sandbox.agent.token };
 }
 
 /**
@@ -64,9 +70,8 @@ async function connectRunningSandbox(
 }
 
 // Default sandbox resource allocation. Match the CLI/snapshot helper.
-export const DEFAULT_MILLICPU = 1000; // 1 vCPU
+export const DEFAULT_CPU = 1; // 1 vCPU (cores)
 export const DEFAULT_MEMORY_BYTES = 2048 * 1024 * 1024; // 2 GiB
-export const DEFAULT_DISK_BYTES = 10240 * 1024 * 1024; // 10 GiB
 
 /**
  * Sandbox lifecycle operations, accessed as `sdk.sandboxes.*`.
@@ -87,14 +92,14 @@ export class SandboxesNamespace {
         api.createSandbox({
           client: this._apiClient,
           body: {
-            id: params.id,
             snapshot_id: params.snapshotId,
             snapshot_alias: params.snapshotAlias,
-            ephemeral: params.ephemeral,
-            autostart: true,
-            millicpu: params.millicpu ?? DEFAULT_MILLICPU,
+            cpu: params.cpu ?? DEFAULT_CPU,
             memory_bytes: params.memoryBytes ?? DEFAULT_MEMORY_BYTES,
-            disk_bytes: params.diskBytes ?? DEFAULT_DISK_BYTES,
+            ttl: params.ttl,
+            tags: params.tags,
+            termination_policy: terminationPolicyBody(params.terminationPolicy) ?? undefined,
+            cluster_name: params.clusterName,
           },
         }),
       this._retryConfig,
@@ -142,16 +147,29 @@ export class SandboxesNamespace {
   }
 
   /**
-   * Hibernate (suspend) a VM by sandbox ID.
+   * Terminate a VM by sandbox ID. After this the sandbox is terminal and cannot
+   * be used again.
+   *
+   * `snapshot` overrides what the sandbox's stored termination policy would
+   * snapshot for this teardown (omit to use the stored policy; `null` to make
+   * it ephemeral). The produced snapshot is aliased as `sandbox:<sandbox id>`
+   * plus any `snapshot.aliases`.
    */
-  async hibernate(sandboxId: string): Promise<void> {
+  async terminate(
+    sandboxId: string,
+    options: {
+      snapshot?: TerminationSnapshotParams | null;
+    } = {},
+  ): Promise<void> {
     await callApi(
-      "api.stopSandbox",
+      "api.terminateSandbox",
       () =>
-        api.stopSandbox({
+        api.terminateSandbox({
           client: this._apiClient,
           path: { id: sandboxId },
-          body: { stop_type: "hibernate" },
+          body: {
+            snapshot: terminationSnapshotBody(options.snapshot),
+          },
         }),
       this._retryConfig,
     );
@@ -165,37 +183,27 @@ export class SandboxesNamespace {
       this._retryConfig,
     );
 
-    if (waitResult.status !== "stopped") {
-      throw new Error(describeLifecycleFailure(waitResult, "stopped"));
+    if (waitResult.status !== "terminated") {
+      throw new Error(describeLifecycleFailure(waitResult, "terminated"));
     }
   }
 
   /**
-   * Shut down a VM by sandbox ID.
+   * Hibernate (suspend) a VM by sandbox ID — a terminate that snapshots both
+   * the filesystem and memory.
+   */
+  async hibernate(sandboxId: string): Promise<void> {
+    await this.terminate(sandboxId, {
+      snapshot: { memory: true },
+    });
+  }
+
+  /**
+   * Shut down a VM by sandbox ID — a terminate that snapshots the filesystem.
    */
   async shutdown(sandboxId: string): Promise<void> {
-    await callApi(
-      "api.stopSandbox",
-      () =>
-        api.stopSandbox({
-          client: this._apiClient,
-          path: { id: sandboxId },
-          body: { stop_type: "shutdown" },
-        }),
-      this._retryConfig,
-    );
-    const waitResult = await callApi(
-      "api.waitForSandbox",
-      () =>
-        api.waitForSandbox({
-          client: this._apiClient,
-          path: { id: sandboxId },
-        }),
-      this._retryConfig,
-    );
-
-    if (waitResult.status !== "stopped") {
-      throw new Error(describeLifecycleFailure(waitResult, "stopped"));
-    }
+    await this.terminate(sandboxId, {
+      snapshot: { memory: false },
+    });
   }
 }

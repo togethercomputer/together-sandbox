@@ -1,4 +1,4 @@
-"""Lifecycle helper — turns a non-running / non-stopped sandbox state into a
+"""Lifecycle helper — turns a non-running / non-terminated sandbox state into a
 single actionable error message.
 
 Mirrors ``together-sandbox-typescript/src/lifecycle.ts``.
@@ -8,31 +8,35 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-# stop_reason → recovery hint when expecting "running" but ended up "stopped".
-_STOP_REASON_HINTS: dict[str, str] = {
-    "start_failed": (
-        "Sandbox failed to start. Common causes: image not found, snapshot "
-        "corrupted, or cluster at capacity. Try re-creating from a "
-        "known-good snapshot."
+# status_reason → hint when expecting "running" but ended up terminal.
+_STATUS_REASON_HINTS: dict[str, str] = {
+    "internal_error": (
+        "Sandbox failed to start due to an internal error. Common causes: "
+        "image not found or snapshot corrupted. Try re-creating from a "
+        "known-good snapshot; if it persists, report it."
+    ),
+    "out_of_capacity": (
+        "Sandbox could not be scheduled — the cluster is out of capacity. "
+        "Retry shortly, or try a different cluster."
     ),
     "oom_killed": (
         "Sandbox was killed for exceeding its memory limit. Increase "
         "memory_bytes when creating the sandbox."
     ),
     "crashed": (
-        "The VM crashed. A stopped sandbox is terminal — create a new "
+        "The VM crashed. A terminated sandbox is terminal — create a new "
         "sandbox from a known-good snapshot."
     ),
     "evicted": (
-        "Sandbox was evicted from its node. A stopped sandbox is terminal — "
+        "Sandbox was evicted from its node. A terminated sandbox is terminal — "
         "create a new sandbox from a snapshot."
     ),
     "node_lost": (
-        "Sandbox's node was lost. A stopped sandbox is terminal — create a "
+        "Sandbox's node was lost. A terminated sandbox is terminal — create a "
         "new sandbox from a snapshot."
     ),
     "cluster_lost": (
-        "Sandbox's cluster was lost. A stopped sandbox is terminal — create "
+        "Sandbox's cluster was lost. A terminated sandbox is terminal — create "
         "a new sandbox from a snapshot."
     ),
 }
@@ -47,52 +51,50 @@ def _unwrap(value: Any) -> Any:
 
 def describe_lifecycle_failure(
     sandbox: Any,
-    expected: Literal["running", "stopped"],
+    expected: Literal["running", "terminated"],
 ) -> str:
     """Return a human-readable explanation + hint for why ``sandbox`` did not
     reach ``expected``.
 
     Order of precedence:
-      1. ``recovery_status == "unrecoverable"`` — overrides everything.
-      2. ``recovery_status == "pending"``       — auto-recovery in progress.
-      3. ``status`` in ``starting | stopping`` — wait endpoint returned early.
-      4. ``status == "created"``               — request never took effect.
-      5. Wrong terminal (``stopped`` ↔ ``running``) — use ``stop_reason``.
+      1. ``status == "unrecovered"``            — crash recovery failed.
+      2. ``status == "recovering"``             — auto-recovery in progress.
+      3. ``status`` in ``starting | terminating`` — wait endpoint returned early.
+      4. ``status == "failed_to_start"``        — never started; use ``status_reason``.
+      5. Wrong terminal (``terminated`` ↔ ``running``) — use ``status_reason``.
       6. Fallthrough.
 
     The ``sandbox`` argument is duck-typed: any object with the attributes
-    ``id``, ``status``, ``stop_reason``, ``recovery_status`` will work.
-    Enum-valued fields are unwrapped to their underlying ``.value``.
+    ``id``, ``status``, ``status_reason`` will work. Enum-valued fields are
+    unwrapped to their underlying ``.value``.
     """
     sandbox_id = getattr(sandbox, "id", None) or "<unknown>"
     status = _unwrap(getattr(sandbox, "status", None)) or "<unknown>"
-    reason = _unwrap(getattr(sandbox, "stop_reason", None))
-    recovery = _unwrap(getattr(sandbox, "recovery_status", None))
+    reason = _unwrap(getattr(sandbox, "status_reason", None))
 
-    # 1. Unrecoverable — terminal, biggest signal
-    if recovery == "unrecoverable":
-        reason_bit = f", stop_reason: '{reason}'" if reason else ""
+    # 1. Unrecovered — crash recovery failed; terminal, biggest signal
+    if status == "unrecovered":
+        reason_bit = f", status_reason: '{reason}'" if reason else ""
         return (
-            f"Sandbox '{sandbox_id}' is marked unrecoverable "
-            f"(status: '{status}'{reason_bit}).\n"
+            f"Sandbox '{sandbox_id}' could not be recovered "
+            f"(status: 'unrecovered'{reason_bit}).\n"
             f"Hint: this sandbox cannot be recovered — create a new sandbox "
             f"from a snapshot."
         )
 
-    # 2. Pending recovery — wait, do not retry blindly
-    if recovery == "pending":
-        reason_bit = f", stop_reason: '{reason}'" if reason else ""
+    # 2. Recovering — wait, do not retry blindly
+    if status == "recovering":
+        reason_bit = f", status_reason: '{reason}'" if reason else ""
         return (
             f"Sandbox '{sandbox_id}' is currently being auto-recovered "
-            f"(status: '{status}', recovery_status: 'pending'{reason_bit}).\n"
+            f"(status: 'recovering'{reason_bit}).\n"
             f"Hint: recovery is in progress — wait a few seconds then retry "
-            f"sdk.sandboxes.get('{sandbox_id}'). If recovery succeeds the "
-            f"sandbox will return to 'running' on its own; if it becomes "
-            f"'unrecoverable' you'll need to create a new sandbox."
+            f"sdk.sandboxes.get('{sandbox_id}'). If it becomes 'unrecovered' "
+            f"you'll need to create a new sandbox."
         )
 
     # 3. Transient — wait returned without reaching a terminal status
-    if status in ("starting", "stopping"):
+    if status in ("starting", "terminating"):
         return (
             f"Sandbox '{sandbox_id}' is still in transient state '{status}' "
             f"after wait returned.\n"
@@ -101,47 +103,42 @@ def describe_lifecycle_failure(
             f"to check progress; report if it persists."
         )
 
-    # 4. Request never took effect
-    if status == "created":
-        if expected == "running":
-            return (
-                f"Sandbox '{sandbox_id}' is still in 'created' state — it "
-                f"never started.\n"
-                f"Hint: sandboxes autostart on creation; create a new sandbox "
-                f"(autostart is on by default)."
-            )
+    # 4. Failed to start — never reached running
+    if expected == "running" and status == "failed_to_start":
+        hint = _STATUS_REASON_HINTS.get(reason or "") or (
+            "The sandbox never started — create a new sandbox from a "
+            "known-good snapshot."
+        )
+        reason_bit = f" (status_reason: '{reason}')" if reason else ""
         return (
-            f"Sandbox '{sandbox_id}' is still in 'created' state — the stop "
-            f"request did not take effect.\n"
-            f"Hint: retry sdk.sandboxes.shutdown('{sandbox_id}')."
+            f"Sandbox '{sandbox_id}' failed to start{reason_bit}.\n"
+            f"Hint: {hint}"
         )
 
     # 5. Wrong terminal — reached the other end
-    if expected == "running" and status == "stopped":
-        hint = _STOP_REASON_HINTS.get(reason or "") or (
-            f"A stopped sandbox is terminal — create a new sandbox from a "
+    if expected == "running" and status == "terminated":
+        hint = _STATUS_REASON_HINTS.get(reason or "") or (
+            f"A terminated sandbox is terminal — create a new sandbox from a "
             f"snapshot, or call sdk.sandboxes.get('{sandbox_id}') to inspect."
         )
-        reason_bit = f" (stop_reason: '{reason}')" if reason else ""
+        reason_bit = f" (status_reason: '{reason}')" if reason else ""
         return (
-            f"Sandbox '{sandbox_id}' stopped instead of reaching 'running'"
+            f"Sandbox '{sandbox_id}' terminated instead of reaching 'running'"
             f"{reason_bit}.\nHint: {hint}"
         )
 
-    if expected == "stopped" and status == "running":
+    if expected == "terminated" and status == "running":
         return (
-            f"Sandbox '{sandbox_id}' is still running — the stop request did "
-            f"not take effect.\n"
-            f"Hint: retry sdk.sandboxes.shutdown('{sandbox_id}'); report if "
+            f"Sandbox '{sandbox_id}' is still running — the terminate request "
+            f"did not take effect.\n"
+            f"Hint: retry sdk.sandboxes.terminate('{sandbox_id}'); report if "
             f"it persists."
         )
 
     # 6. Fallthrough — genuinely unexpected combination
     extras: list[str] = []
     if reason:
-        extras.append(f"stop_reason: '{reason}'")
-    if recovery:
-        extras.append(f"recovery_status: '{recovery}'")
+        extras.append(f"status_reason: '{reason}'")
     extras_str = (", " + ", ".join(extras)) if extras else ""
     return (
         f"Sandbox '{sandbox_id}' reached unexpected status '{status}' "

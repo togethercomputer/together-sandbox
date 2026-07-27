@@ -11,10 +11,50 @@ from typing import Any, Awaitable, Callable, Literal, TypeVar
 import httpx
 
 from .api.models import Error as ApiError
-from .api.types import Response
+from .api.models.termination_policy import TerminationPolicy
+from .api.models.termination_snapshot import TerminationSnapshot
+from .api.models.termination_snapshot_tags import TerminationSnapshotTags
+from .api.types import UNSET, Response, Unset
 from .errors import HttpError
 from .sandbox.models.error import Error as SandboxError
 from .api.models.sandbox import Sandbox as SandboxModel
+
+
+def build_termination_snapshot(snapshot: dict | None | Unset = UNSET):
+    """Build a ``TerminationSnapshot`` request model from a plain dict.
+
+    ``snapshot`` is the flat shape
+    ``{"memory": bool, "aliases": [...], "ttl": int, "tags": {...}}``. Pass
+    ``UNSET`` (the default) to leave it unset, or ``None`` to send an explicit
+    null (an ephemeral teardown that takes no snapshot).
+    """
+    if isinstance(snapshot, Unset):
+        return UNSET
+    if snapshot is None:
+        return None
+    tags = snapshot.get("tags")
+    return TerminationSnapshot(
+        memory=snapshot.get("memory", UNSET),
+        aliases=snapshot.get("aliases", UNSET),
+        ttl=snapshot.get("ttl", UNSET),
+        tags=(
+            TerminationSnapshotTags.from_dict(tags) if tags is not None else UNSET
+        ),
+    )
+
+
+def build_termination_policy(termination_policy: dict | None):
+    """Build the ``TerminationPolicy`` request model from a plain dict.
+
+    ``termination_policy`` is the nested shape
+    ``{"snapshot": {"memory": bool, "aliases": [...], "ttl": int, "tags": {...}}}``,
+    or None to leave it unset (ephemeral on create). Used by ``create``.
+    """
+    if termination_policy is None:
+        return UNSET
+    return TerminationPolicy(
+        snapshot=build_termination_snapshot(termination_policy.get("snapshot", {}))
+    )
 
 # ─── ANSI / encoding helpers ─────────────────────────────────────────────────
 
@@ -372,7 +412,7 @@ def _hint_for(
                     "unresponsive — call sdk.sandboxes.get(id) to check status."
                 )
             return (
-                "Could not reach the sandbox agent. The VM may have stopped — "
+                "Could not reach the sandbox agent. The VM may have terminated — "
                 "call sdk.sandboxes.get(id) to check status."
             )
         if is_timeout:
@@ -425,6 +465,7 @@ def _resolve_connection(sandbox: SandboxModel) -> tuple[str, str]:
     """
     Extract the agent connection details from the Sandbox model.
     """
-    if not sandbox.agent_url or not sandbox.agent_token:
+    agent = sandbox.agent
+    if not agent or not agent.url or not agent.token:
         raise RuntimeError("Sandbox has no agent connection details")
-    return sandbox.agent_url, sandbox.agent_token
+    return agent.url, agent.token

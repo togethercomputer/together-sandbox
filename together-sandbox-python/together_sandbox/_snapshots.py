@@ -32,15 +32,13 @@ from .api.api.default.issue_container_registry_credential import (
 )
 from .api.api.default.get_snapshot import asyncio_detailed as get_snapshot_api
 from .api.api.default.list_snapshots import asyncio_detailed as list_snapshots_api
-from .api.api.default.delete_snapshot import asyncio_detailed as delete_snapshot_api
-from .api.api.default.delete_snapshot_by_alias import (
-    asyncio_detailed as delete_snapshot_by_alias_api,
-)
+from .api.api.default.retire_snapshot import asyncio_detailed as retire_snapshot_api
 
 # ── Snapshot API models ───────────────────────────────────────────────────────
 from .api.models.alias_snapshot_body import AliasSnapshotBody
 from .api.models.create_snapshot_body import CreateSnapshotBody
 from .api.models.create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
+from .api.models.create_snapshot_body_tags import CreateSnapshotBodyTags
 from .api.models.container_registry_credential import ContainerRegistryCredential
 from .api.models.snapshot import Snapshot
 
@@ -79,6 +77,9 @@ class CreateContextSnapshotParams:
     alias: str | None = None
     on_progress: Callable[[SnapshotProgress], None] | None = None
     memory_snapshot: bool | None = None
+    # Seconds after creation before the snapshot is automatically retired.
+    ttl: int | None = None
+    tags: dict[str, str] | None = None
 
 
 @dataclass
@@ -87,6 +88,9 @@ class CreateImageSnapshotParams:
     alias: str | None = None
     on_progress: Callable[[SnapshotProgress], None] | None = None
     memory_snapshot: bool | None = None
+    # Seconds after creation before the snapshot is automatically retired.
+    ttl: int | None = None
+    tags: dict[str, str] | None = None
 
 
 CreateSnapshotParams = CreateContextSnapshotParams | CreateImageSnapshotParams
@@ -168,6 +172,12 @@ class SnapshotsNamespace:
                 body=CreateSnapshotBody(
                     image=result["image"],
                     architecture=result["architecture"],
+                    ttl=params.ttl if params.ttl is not None else UNSET,
+                    tags=(
+                        CreateSnapshotBodyTags.from_dict(params.tags)
+                        if params.tags is not None
+                        else UNSET
+                    ),
                 ),
             ),
             self._retry,
@@ -246,7 +256,9 @@ class SnapshotsNamespace:
             context=f"for alias {alias!r}",
         )
 
-    async def list(self, *, limit: int | None = None) -> Page[Snapshot]:
+    async def list(
+        self, *, limit: int | None = None, exclude_retired: bool | None = None
+    ) -> Page[Snapshot]:
         """
         List snapshots.
 
@@ -256,6 +268,8 @@ class SnapshotsNamespace:
 
         Args:
             limit: Max items per page (1–100, default 20).
+            exclude_retired: When true, retired snapshots are excluded
+                (default false — retired snapshots are included).
 
         Returns:
             Page[Snapshot]: First page of snapshots.
@@ -275,6 +289,9 @@ class SnapshotsNamespace:
                     client=self._api_client,
                     limit=limit if limit is not None else UNSET,
                     cursor=cursor if cursor is not None else UNSET,
+                    exclude_retired=(
+                        exclude_retired if exclude_retired is not None else UNSET
+                    ),
                 ),
                 self._retry,
             )
@@ -282,44 +299,28 @@ class SnapshotsNamespace:
 
         return await fetch_page()
 
-    async def delete_by_id(self, id: str) -> None:
+    async def retire_by_id(self, id: str) -> Snapshot:
         """
-        Delete a snapshot by id.
+        Retire a snapshot by id and return the retired snapshot.
+
+        Retiring is a soft delete: the snapshot is marked retired and later
+        hard-deleted (garbage collected) after a retention window, but only if
+        no sandbox still references it.
 
         Args:
             id: Snapshot id
 
+        Returns:
+            Snapshot: The retired snapshot.
+
         Raises:
             RuntimeError: If the API request fails
         """
-        await _call_api(
-            "api.delete_snapshot",
-            lambda: delete_snapshot_api(UUID(id), client=self._api_client),
+        return await _call_api(
+            "api.retire_snapshot",
+            lambda: retire_snapshot_api(UUID(id), client=self._api_client),
             self._retry,
             context=f"for snapshot {id!r}",
-        )
-
-    async def delete_by_alias(self, alias: str) -> None:
-        """
-        Delete a snapshot by alias.
-
-        Args:
-            alias: Snapshot alias
-
-        Raises:
-            RuntimeError: If the API request fails
-        """
-        # Remove leading '@' if present (for consistency with API)
-        clean_alias = alias.lstrip("@")
-
-        await _call_api(
-            "api.delete_snapshot_by_alias",
-            lambda: delete_snapshot_by_alias_api(
-                clean_alias,
-                client=self._api_client,
-            ),
-            self._retry,
-            context=f"for snapshot {alias!r}",
         )
 
     # ─── Private helpers ──────────────────────────────────────────────────────

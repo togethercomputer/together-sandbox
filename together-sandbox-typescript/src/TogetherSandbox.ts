@@ -51,7 +51,7 @@ import type { TogetherSandboxConfig } from "./types.js";
  * ```
  */
 export class TogetherSandbox {
-  /** Sandbox lifecycle operations (create, hibernate, shutdown). */
+  /** Sandbox lifecycle operations (create, terminate, shutdown, hibernate). */
   readonly sandboxes: SandboxesNamespace;
 
   /** Snapshot build and management operations. */
@@ -69,7 +69,7 @@ export class TogetherSandbox {
     const baseUrl = config?.baseUrl ?? getInferredBaseUrl();
     const apiClient = createApiClient(
       createApiConfig({
-        baseUrl: `${baseUrl}/api/v1`,
+        baseUrl: `${baseUrl}/v1`,
         headers: { Authorization: `Bearer ${apiKey}` },
       }),
     );

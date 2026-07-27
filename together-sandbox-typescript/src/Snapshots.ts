@@ -17,9 +17,8 @@ import { RemoteImageBuilderClient } from "./RemoteImageBuilder.js";
 import { randomUUID } from "crypto";
 import type { RetryConfig } from "./types.js";
 import {
-  DEFAULT_DISK_BYTES,
+  DEFAULT_CPU,
   DEFAULT_MEMORY_BYTES,
-  DEFAULT_MILLICPU,
 } from "./Sandboxes.js";
 
 export type SnapshotProgress = { output: string } & (
@@ -42,6 +41,10 @@ export type CreateContextSnapshotParams = {
   dockerfile?: string;
   alias?: string;
   onProgress?: (event: SnapshotProgress) => void;
+  /** Arbitrary key/value labels to attach to the snapshot. */
+  tags?: Record<string, string>;
+  /** Seconds after creation before the snapshot is automatically retired. */
+  ttl?: number;
   /** @internal */
   memorySnapshot?: boolean;
 };
@@ -50,6 +53,10 @@ export type CreateImageSnapshotParams = {
   image: string;
   alias?: string;
   onProgress?: (event: SnapshotProgress) => void;
+  /** Arbitrary key/value labels to attach to the snapshot. */
+  tags?: Record<string, string>;
+  /** Seconds after creation before the snapshot is automatically retired. */
+  ttl?: number;
   /** @internal */
   memorySnapshot?: boolean;
 };
@@ -134,15 +141,24 @@ export class SnapshotsNamespace {
    * manual page-by-page control.
    *
    * @param options.limit Max items per page (1–100, default 20).
+   * @param options.excludeRetired When true, retired snapshots are excluded
+   *   (default false — retired snapshots are included).
    */
-  async list(options?: { limit?: number }): Promise<Page<Snapshot>> {
+  async list(options?: {
+    limit?: number;
+    excludeRetired?: boolean;
+  }): Promise<Page<Snapshot>> {
     const fetchPage = async (cursor?: string): Promise<Page<Snapshot>> => {
       const result = await callApi(
         "api.snapshots.list",
         () =>
           api.listSnapshots({
             client: this._apiClient,
-            query: { limit: options?.limit, cursor },
+            query: {
+              limit: options?.limit,
+              cursor,
+              exclude_retired: options?.excludeRetired,
+            },
           }),
         this._retryConfig,
       );
@@ -165,31 +181,25 @@ export class SnapshotsNamespace {
     );
   }
 
-  async deleteById(id: string): Promise<void> {
-    await callApi(
-      "api.snapshots.deleteById",
+  /**
+   * Retire a snapshot by id and return the retired snapshot.
+   *
+   * Retiring is a soft delete: the snapshot is marked retired and later
+   * hard-deleted after a retention window, but only if no sandbox still
+   * references it.
+   */
+  async retire(id: string): Promise<Snapshot> {
+    const result = await callApi(
+      "api.snapshots.retire",
       () =>
-        api.deleteSnapshot({
+        api.retireSnapshot({
           client: this._apiClient,
           path: { id },
         }),
       this._retryConfig,
     );
-  }
 
-  async deleteByAlias(alias: string): Promise<void> {
-    // Ensure consistency with API
-    const cleanAlias = alias.startsWith("@") ? alias.slice(1) : alias;
-
-    await callApi(
-      "api.snapshots.deleteByAlias",
-      () =>
-        api.deleteSnapshotByAlias({
-          client: this._apiClient,
-          path: { alias: cleanAlias },
-        }),
-      this._retryConfig,
-    );
+    return result;
   }
 
   /**
@@ -231,7 +241,12 @@ export class SnapshotsNamespace {
       () =>
         api.createSnapshot({
           client: this._apiClient,
-          body: { image: result.image, architecture: result.architecture },
+          body: {
+            image: result.image,
+            architecture: result.architecture,
+            ttl: params.ttl,
+            tags: params.tags,
+          },
         }),
       this._retryConfig,
     );
@@ -252,11 +267,8 @@ export class SnapshotsNamespace {
           api.createSandbox({
             body: {
               snapshot_id: snapshotData.id,
-              ephemeral: true,
-              autostart: true,
-              millicpu: DEFAULT_MILLICPU,
+              cpu: DEFAULT_CPU,
               memory_bytes: DEFAULT_MEMORY_BYTES,
-              disk_bytes: DEFAULT_DISK_BYTES,
             },
           }),
         this._retryConfig,
@@ -272,41 +284,50 @@ export class SnapshotsNamespace {
         step: "memory-snapshot",
         output: "Hibernating sandbox...",
       });
-      const stopResult = await callApi(
-        "api.snapshots.stopSandboxForMemorySnapshot",
+      await callApi(
+        "api.snapshots.terminateSandboxForMemorySnapshot",
         () =>
-          api.stopSandbox({
+          api.terminateSandbox({
             client: this._apiClient,
             path: { id: sandboxResult.id },
-            body: { stop_type: "hibernate" },
+            body: { snapshot: { memory: true } },
           }),
         this._retryConfig,
       );
 
-      // First check the general lifecycle — the sandbox should be stopped at
-      // this point. Surfaces stop_reason / recovery_status hints when the VM
-      // ended up in an unexpected state (crashed, evicted, still starting…).
-      if (stopResult.status !== "stopped") {
-        throw new Error(describeLifecycleFailure(stopResult, "stopped"));
+      // Wait for the sandbox to reach its terminal state. Surfaces
+      // status_reason hints when the VM ended up in an unexpected state
+      // (crashed, evicted, still starting…).
+      const terminateResult = await callApi(
+        "api.waitForSandbox",
+        () =>
+          api.waitForSandbox({
+            client: this._apiClient,
+            path: { id: sandboxResult.id },
+          }),
+        this._retryConfig,
+      );
+
+      if (terminateResult.status !== "terminated") {
+        throw new Error(describeLifecycleFailure(terminateResult, "terminated"));
       }
-      // Then the hibernate-specific guard: the VM stopped, but for the wrong
-      // reason (e.g. crashed during the wait window before hibernation completed).
-      if (stopResult.stop_reason !== "hibernated") {
+
+      // The snapshot produced by termination is aliased as `sandbox:<id>`.
+      const produced = await this.getByAlias(`sandbox:${sandboxResult.id}`);
+
+      // The hibernate-specific guard: the VM terminated, but no memory snapshot
+      // was captured (e.g. it crashed during the wait window before hibernation
+      // completed). The produced snapshot's `memory` field is the source of
+      // truth for whether in-memory state was preserved.
+      if (produced.memory !== true) {
         throw new Error(
-          `Could not create memory snapshot — sandbox '${stopResult.id}' stopped with reason '${stopResult.stop_reason ?? "<unknown>"}' instead of being hibernated.\n` +
+          `Could not create memory snapshot — sandbox '${terminateResult.id}' terminated without capturing a memory snapshot (reason: '${terminateResult.status_reason ?? "<unknown>"}').\n` +
             `Hint: this can happen if the VM crashed during the initialization window. ` +
             `Try increasing memory_bytes or simplifying the snapshot's startup.`,
         );
       }
-      // The snapshot produced by hibernation is recorded directly on the
-      // sandbox.
-      if (!stopResult.snapshot_id) {
-        throw new Error(
-          `Could not create memory snapshot — sandbox '${stopResult.id}' hibernated but no snapshot was recorded.`,
-        );
-      }
 
-      snapshotId = stopResult.snapshot_id;
+      snapshotId = produced.id;
     }
 
     // Create alias if needed

@@ -69,7 +69,7 @@ async with TogetherSandbox() as sdk:
 
 Sandbox lifecycle namespace.
 
-#### `sdk.sandboxes.create(*, millicpu=1000, memory_bytes=2*1024**3, disk_bytes=10*1024**3, id=None, snapshot_id=None, snapshot_alias=None, ephemeral=None) -> Sandbox`
+#### `sdk.sandboxes.create(*, cpu=1.0, memory_bytes=2*1024**3, snapshot_id=None, snapshot_alias=None, ttl=None, tags=None, termination_policy=None, cluster_name=None) -> Sandbox`
 
 Creates a new sandbox from a snapshot, starts the VM, and returns a connected [`Sandbox`](#sandbox) instance. This is the primary way to get a running sandbox — no separate `start()` call is needed.
 
@@ -77,23 +77,32 @@ Creates a new sandbox from a snapshot, starts the VM, and returns a connected [`
 sandbox = await sdk.sandboxes.create(snapshot_alias="my-app@v1")
 ```
 
-Resource params (`millicpu`, `memory_bytes`, `disk_bytes`) default to **1 vCPU / 2 GiB memory / 10 GiB disk** if omitted.
+Resource params (`cpu`, `memory_bytes`) default to **1 vCPU / 2 GiB memory** if omitted.
 
-| Parameter        | Type           | Required | Description                                                                                 |
-| ---------------- | -------------- | -------- | ------------------------------------------------------------------------------------------- |
-| `snapshot_id`    | `str \| None`  | \*       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.            |
-| `snapshot_alias` | `str \| None`  | \*       | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.         |
-| `millicpu`       | `int`          | No       | CPU allocation in millicpu (must be ≥ 250 and a multiple of 250). Default: `1000` (1 vCPU). |
-| `memory_bytes`   | `int`          | No       | Memory allocation in bytes. Default: `2 * 1024 ** 3` (2 GiB).                               |
-| `disk_bytes`     | `int`          | No       | Disk allocation in bytes. Default: `10 * 1024 ** 3` (10 GiB).                               |
-| `id`             | `str \| None`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                                     |
-| `ephemeral`      | `bool \| None` | No       | Mark the sandbox as ephemeral.                                                              |
+| Parameter        | Type           | Required | Description                                                                            |
+| ---------------- | -------------- | -------- | -------------------------------------------------------------------------------------- |
+| `snapshot_id`    | `str \| None`  | \*       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.       |
+| `snapshot_alias` | `str \| None`  | \*       | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.    |
+| `cpu`            | `float`        | No       | CPU allocation in cores (must be > 0 and a multiple of 0.25). Default: `1.0` (1 vCPU). |
+| `memory_bytes`   | `int`          | No       | Memory allocation in bytes. Default: `2 * 1024 ** 3` (2 GiB).                          |
+| `ttl`            | `int \| None`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
+| `tags`           | `dict \| None` | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
+| `cluster_name`   | `str \| None`  | No       | Name of the cluster to launch the sandbox in.                                          |
+| `termination_policy` | `dict \| None` | No   | Termination policy `{"snapshot": {"memory": bool, "aliases": [...], "ttl": int, "tags": {...}}}`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
-Sandboxes autostart on creation, so there is no separate start step. A stopped sandbox is terminal and cannot be started again — to continue from its state, create a new sandbox from its snapshot (`snapshot_id`).
+Sandboxes start automatically on creation, so there is no separate start step. A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshot_alias="sandbox:<id>"`).
+
+#### `sdk.sandboxes.terminate(sandbox_id, *, snapshot=UNSET): Coroutine[None]`
+
+Terminates a VM by sandbox ID. `snapshot` (`{"memory": ..., "aliases": [...], "ttl": ..., "tags": {...}}`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `None` for an ephemeral teardown (no snapshot).
+
+```python
+await sdk.sandboxes.terminate("your-sandbox-id", snapshot={"memory": False})
+```
 
 #### `sdk.sandboxes.hibernate(sandbox_id): Coroutine[None]`
 
-Suspends (hibernates) a VM by sandbox ID.
+Suspends (hibernates) a VM by sandbox ID — a terminate that snapshots filesystem and memory.
 
 ```python
 await sdk.sandboxes.hibernate("your-sandbox-id")
@@ -128,6 +137,7 @@ result = await sdk.snapshots.create(CreateContextSnapshotParams(
     context="./my-app",
     dockerfile="./my-app/Dockerfile.prod",  # optional
     alias="my-app@v1",                      # optional
+    ttl=86400,                              # optional — auto-retire after N seconds
     on_progress=lambda e: print(e.output),
 ))
 
@@ -146,6 +156,7 @@ sandbox = await sdk.sandboxes.create(snapshot_id=result.snapshot_id)
 | `context`     | `str`                                        | Path to the Docker build context directory.                                                                 |
 | `dockerfile`  | `str \| None`                                | Path to a Dockerfile. Defaults to `Dockerfile` inside `context`.                                            |
 | `alias`       | `str \| None`                                | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the context directory name. |
+| `ttl`         | `int \| None`                                | Seconds after creation before the snapshot is automatically retired. Omit to keep it indefinitely.          |
 | `on_progress` | `Callable[[SnapshotProgress], None] \| None` | Optional progress callback. Receives a `SnapshotProgress` at each stage.                                    |
 
 **From a public Docker image:**
@@ -237,20 +248,12 @@ Assign (or update) an alias on an existing snapshot.
 await sdk.snapshots.alias("snapshot-id", "my-app@v2")
 ```
 
-#### `sdk.snapshots.delete_by_id(id) -> None`
+#### `sdk.snapshots.retire_by_id(id) -> Snapshot`
 
-Delete a snapshot by ID.
-
-```python
-await sdk.snapshots.delete_by_id("snapshot-id")
-```
-
-#### `sdk.snapshots.delete_by_alias(alias) -> None`
-
-Delete a snapshot by alias. A leading `@` is stripped automatically.
+Retire a snapshot by ID and return the retired snapshot. Retiring is a soft delete: the snapshot is marked retired and later hard-deleted (garbage collected) after a retention window, but only if no sandbox still references it.
 
 ```python
-await sdk.snapshots.delete_by_alias("my-app@v1")
+retired = await sdk.snapshots.retire_by_id("snapshot-id")
 ```
 
 ---
@@ -269,7 +272,7 @@ async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
 | Property  | Type           | Description                                 |
 | --------- | -------------- | ------------------------------------------- |
 | `id`      | `str`          | The sandbox/VM ID.                          |
-| `vm_info` | `SandboxModel` | Raw VM start response (id, agent_url, etc.) |
+| `vm_info` | `SandboxModel` | Raw VM start response (id, agent, etc.) |
 
 ---
 

@@ -68,23 +68,34 @@ const sandbox = await sdk.sandboxes.create({
 });
 ```
 
-Resource params (`millicpu`, `memoryBytes`, `diskBytes`) default to **1 vCPU / 2 GiB memory / 10 GiB disk** if omitted.
+Resource params (`cpu`, `memoryBytes`) default to **1 vCPU / 2 GiB memory** if omitted.
 
-| Property        | Type      | Required | Description                                                                                 |
-| --------------- | --------- | -------- | ------------------------------------------------------------------------------------------- |
-| `snapshotId`    | `string`  | \*       | ID of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.              |
-| `snapshotAlias` | `string`  | \*       | Alias of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.           |
-| `millicpu`      | `number`  | No       | CPU allocation in millicpu (must be ≥ 250 and a multiple of 250). Default: `1000` (1 vCPU). |
-| `memoryBytes`   | `number`  | No       | Memory allocation in bytes. Default: `2 * 1024 * 1024 * 1024` (2 GiB).                      |
-| `diskBytes`     | `number`  | No       | Disk allocation in bytes. Default: `10 * 1024 * 1024 * 1024` (10 GiB).                      |
-| `id`            | `string`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                                     |
-| `ephemeral`     | `boolean` | No       | Mark the sandbox as ephemeral.                                                              |
+| Property        | Type      | Required | Description                                                                            |
+| --------------- | --------- | -------- | -------------------------------------------------------------------------------------- |
+| `snapshotId`    | `string`  | \*       | ID of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.         |
+| `snapshotAlias` | `string`  | \*       | Alias of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.      |
+| `cpu`           | `number`  | No       | CPU allocation in cores (must be > 0 and a multiple of 0.25). Default: `1` (1 vCPU).   |
+| `memoryBytes`   | `number`  | No       | Memory allocation in bytes. Default: `2 * 1024 * 1024 * 1024` (2 GiB).                 |
+| `ttl`           | `number`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
+| `tags`          | `object`  | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
+| `clusterName`   | `string`  | No       | Name of the cluster to launch the sandbox in.                                          |
+| `terminationPolicy` | `object` | No    | Termination policy `{ snapshot: { memory: boolean, aliases?: string[], ttl?: number, tags?: Record<string, string> } }`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
-Sandboxes autostart on creation, so there is no separate start step. A stopped sandbox is terminal and cannot be started again — to continue from its state, create a new sandbox from its snapshot (`snapshotId`).
+Sandboxes start automatically on creation, so there is no separate start step. A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshotAlias: "sandbox:<id>"`).
+
+#### `sdk.sandboxes.terminate(sandboxId, options?): Promise<void>`
+
+Terminates a VM by sandbox ID. `options.snapshot` (`{ memory, aliases, ttl, tags }`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `null` for an ephemeral teardown (no snapshot).
+
+```typescript
+await sdk.sandboxes.terminate("your-sandbox-id", {
+  snapshot: { memory: false },
+});
+```
 
 #### `sdk.sandboxes.hibernate(sandboxId): Promise<void>`
 
-Suspends (hibernates) a VM by sandbox ID.
+Suspends (hibernates) a VM by sandbox ID — a terminate that snapshots filesystem and memory.
 
 ```typescript
 await sdk.sandboxes.hibernate("your-sandbox-id");
@@ -117,6 +128,7 @@ const result = await sdk.snapshots.create({
   context: "./my-app",
   dockerfile: "./my-app/Dockerfile.prod", // optional
   alias: "my-app@v1", // optional
+  ttl: 86400, // optional — auto-retire the snapshot after N seconds
   onProgress: (event) => console.log(event.output),
 });
 
@@ -230,20 +242,12 @@ Assign (or update) an alias on an existing snapshot.
 await sdk.snapshots.alias("snapshot-id", "my-app@v2");
 ```
 
-#### `sdk.snapshots.deleteById(id): Promise<void>`
+#### `sdk.snapshots.retire(id): Promise<Snapshot>`
 
-Delete a snapshot by ID.
-
-```typescript
-await sdk.snapshots.deleteById("snapshot-id");
-```
-
-#### `sdk.snapshots.deleteByAlias(alias): Promise<void>`
-
-Delete a snapshot by alias. A leading `@` is stripped automatically.
+Retire a snapshot by ID and return the retired snapshot. Retiring is a soft delete: the snapshot is marked retired and later hard-deleted after a retention window, but only if no sandbox still references it.
 
 ```typescript
-await sdk.snapshots.deleteByAlias("my-app@v1");
+const retired = await sdk.snapshots.retire("snapshot-id");
 ```
 
 ---

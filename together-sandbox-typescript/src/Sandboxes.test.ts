@@ -42,18 +42,19 @@ function makeRawSandbox(overrides: Record<string, unknown> = {}) {
   return {
     id: "abc123",
     status: "running",
-    agent_url: "https://agent.example.com",
-    agent_token: "tok-xyz",
+    organization_id: "org-1",
     project_id: "proj-1",
-    ephemeral: false,
-    source_snapshot_id: "11111111-1111-1111-1111-111111111111",
-    snapshot_id: null,
-    millicpu: 1000,
-    gpu: null,
+    snapshot_id: "11111111-1111-1111-1111-111111111111",
+    cpu: 1,
     memory_bytes: 2147483648,
-    disk_bytes: 10737418240,
-    agent_version: "1.0.0",
-    agent_type: "default",
+    tags: {},
+    ttl: null,
+    termination_policy: null,
+    agent: {
+      version: "1.0.0",
+      token: "tok-xyz",
+      url: "https://agent.example.com",
+    },
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
     ...overrides,
@@ -67,7 +68,7 @@ describe("SandboxesNamespace.create", () => {
     vi.clearAllMocks();
   });
 
-  it("sends autostart: true to the create API", async () => {
+  it("calls the createSandbox API then waits for the sandbox", async () => {
     const createdRaw = makeRawSandbox({ id: "abc123", status: "starting" });
     const runningRaw = makeRawSandbox({ id: "abc123", status: "running" });
 
@@ -80,6 +81,7 @@ describe("SandboxesNamespace.create", () => {
     await ns.create({ snapshotId: "snap-1" });
 
     expect(mockCallApi.mock.calls[0][0]).toBe("api.createSandbox");
+    expect(mockCallApi.mock.calls[1][0]).toBe("api.waitForSandbox");
   });
 
   it("calls waitForSandbox with the ID from createSandbox", async () => {
@@ -114,7 +116,11 @@ describe("SandboxesNamespace.create", () => {
 
   it("throws if waitForSandbox resolves to a non-running status", async () => {
     const createdRaw = makeRawSandbox({ id: "abc123", status: "starting" });
-    const failedRaw = makeRawSandbox({ id: "abc123", status: "start_failed" });
+    const failedRaw = makeRawSandbox({
+      id: "abc123",
+      status: "failed_to_start",
+      status_reason: "internal_error",
+    });
 
     mockCallApi
       .mockResolvedValueOnce(createdRaw)
