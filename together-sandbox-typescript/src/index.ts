@@ -26,7 +26,11 @@ export type {
 } from "./types.js";
 
 // Public camelCase types and facade classes
-export type { SandboxInfo, CreateSandboxParams } from "./types.js";
+export type {
+  SandboxInfo,
+  SandboxStatus,
+  CreateSandboxParams,
+} from "./types.js";
 export { Sandbox } from "./Sandbox.js";
 export { HttpError } from "./errors.js";
 export type {

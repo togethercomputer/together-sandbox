@@ -1,46 +1,47 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from typing_extensions import Self
 
-from ..models.create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.tags import Tags
 
 
-T = TypeVar("T", bound="CreateSnapshotBody")
+T = TypeVar("T", bound="TerminationSnapshot")
 
 
 @_attrs_define
-class CreateSnapshotBody:
-    """
+class TerminationSnapshot:
+    """The snapshot captured when a sandbox terminates.
+
     Attributes:
-        image (str): Container image reference. Parsed as `[registry/][repository/]name[:tag]`, using Docker Hub and
-            `latest` as defaults when omitted.
-        architecture (CreateSnapshotBodyArchitecture | Unset): Expected image architecture.
-        ttl (int | Unset): Seconds after creation before the snapshot is automatically deleted. Omit to keep the
-            snapshot indefinitely.
+        memory (bool | Unset): When true both the filesystem and memory are snapshotted (hibernate); when false only the
+            filesystem is snapshotted (stop).
+             Default: False.
+        aliases (list[str] | Unset): Aliases to apply to the produced snapshot.
+        ttl (int | Unset): Seconds after which the snapshot produced on termination expires. Must be > 0. Omit to keep
+            the snapshot indefinitely.
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
     """
 
-    image: str
-    architecture: CreateSnapshotBodyArchitecture | Unset = UNSET
+    memory: bool | Unset = False
+    aliases: list[str] | Unset = UNSET
     ttl: int | Unset = UNSET
     tags: Tags | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        image = self.image
+        memory = self.memory
 
-        architecture: str | Unset = UNSET
-        if not isinstance(self.architecture, Unset):
-            architecture = self.architecture.value
+        aliases: list[str] | Unset = UNSET
+        if not isinstance(self.aliases, Unset):
+            aliases = self.aliases
 
         ttl = self.ttl
 
@@ -50,13 +51,11 @@ class CreateSnapshotBody:
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update(
-            {
-                "image": image,
-            }
-        )
-        if architecture is not UNSET:
-            field_dict["architecture"] = architecture
+        field_dict.update({})
+        if memory is not UNSET:
+            field_dict["memory"] = memory
+        if aliases is not UNSET:
+            field_dict["aliases"] = aliases
         if ttl is not UNSET:
             field_dict["ttl"] = ttl
         if tags is not UNSET:
@@ -69,14 +68,9 @@ class CreateSnapshotBody:
         from ..models.tags import Tags
 
         d = dict(src_dict)
-        image = d.pop("image")
+        memory = d.pop("memory", UNSET)
 
-        _architecture = d.pop("architecture", UNSET)
-        architecture: CreateSnapshotBodyArchitecture | Unset
-        if isinstance(_architecture, Unset):
-            architecture = UNSET
-        else:
-            architecture = CreateSnapshotBodyArchitecture(_architecture)
+        aliases = cast(list[str], d.pop("aliases", UNSET))
 
         ttl = d.pop("ttl", UNSET)
 
@@ -87,15 +81,15 @@ class CreateSnapshotBody:
         else:
             tags = Tags.from_dict(_tags)
 
-        create_snapshot_body = cls(
-            image=image,
-            architecture=architecture,
+        termination_snapshot = cls(
+            memory=memory,
+            aliases=aliases,
             ttl=ttl,
             tags=tags,
         )
 
-        create_snapshot_body.additional_properties = d
-        return create_snapshot_body
+        termination_snapshot.additional_properties = d
+        return termination_snapshot
 
     @property
     def additional_keys(self) -> list[str]:

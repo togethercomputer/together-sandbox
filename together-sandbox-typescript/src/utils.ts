@@ -1,8 +1,50 @@
-import type { RetryConfig, RetryContext } from "./types";
+import type {
+  TerminationPolicyParams,
+  TerminationSnapshotParams,
+  RetryConfig,
+  RetryContext,
+} from "./types";
 import { HttpError, isApiErrorShape, isSandboxErrorShape } from "./errors.js";
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Convert a {@link TerminationSnapshotParams} to the flat `snapshot` request
+ * body shape used by `terminate`. `undefined`/`null` pass through unchanged
+ * (omit to keep the stored policy vs. `null` to make the teardown ephemeral).
+ */
+export function terminationSnapshotBody(
+  snapshot?: TerminationSnapshotParams | null,
+): {
+  memory?: boolean;
+  aliases?: string[];
+  ttl?: number;
+  tags?: Record<string, string>;
+} | null | undefined {
+  if (snapshot == null) return snapshot;
+  const { memory, aliases, ttl, tags } = snapshot;
+  return { memory, aliases, ttl, tags };
+}
+
+/**
+ * Convert a {@link TerminationPolicyParams} to the nested `termination_policy`
+ * request body shape used at creation. `undefined`/`null` pass through
+ * unchanged (omit for an ephemeral sandbox).
+ */
+export function terminationPolicyBody(
+  terminationPolicy?: TerminationPolicyParams | null,
+): {
+  snapshot: {
+    memory?: boolean;
+    aliases?: string[];
+    ttl?: number;
+    tags?: Record<string, string>;
+  };
+} | null | undefined {
+  if (terminationPolicy == null) return terminationPolicy;
+  return { snapshot: terminationSnapshotBody(terminationPolicy.snapshot)! };
 }
 
 // ─── Retry Configuration ─────────────────────────────────────────────────────
@@ -267,7 +309,7 @@ function hintFor(
     if (target === "sandbox") {
       return opts.isTimeout
         ? "Sandbox did not respond in time. The VM may be unresponsive — call sdk.sandboxes.get(id) to check status."
-        : "Could not reach the sandbox agent. The VM may have stopped — call sdk.sandboxes.get(id) to check status.";
+        : "Could not reach the sandbox agent. The VM may have terminated — call sdk.sandboxes.get(id) to check status.";
     }
     return opts.isTimeout
       ? "Request to the Together management API timed out. The service may be slow or temporarily unreachable."

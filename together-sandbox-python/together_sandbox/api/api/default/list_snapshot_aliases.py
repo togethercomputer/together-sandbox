@@ -13,13 +13,13 @@ from ...types import Response
 
 
 def _get_kwargs(
-    id: UUID,
+    snapshot_id: UUID,
 ) -> dict[str, Any]:
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/snapshot-aliases/{id}".format(
-            id=quote(str(id), safe=""),
+        "url": "/snapshots/{snapshot_id}/aliases".format(
+            snapshot_id=quote(str(snapshot_id), safe=""),
         ),
     }
 
@@ -28,9 +28,14 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Error | SnapshotAlias | None:
+) -> Error | list[SnapshotAlias] | None:
     if response.status_code == 200:
-        response_200 = SnapshotAlias.from_dict(response.json())
+        response_200 = []
+        _response_200 = response.json()
+        for response_200_item_data in _response_200:
+            response_200_item = SnapshotAlias.from_dict(response_200_item_data)
+
+            response_200.append(response_200_item)
 
         return response_200
 
@@ -62,7 +67,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Error | SnapshotAlias]:
+) -> Response[Error | list[SnapshotAlias]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -72,25 +77,25 @@ def _build_response(
 
 
 def sync_detailed(
-    id: UUID,
+    snapshot_id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Error | SnapshotAlias]:
-    """Get a snapshot alias by ID
+) -> Response[Error | list[SnapshotAlias]]:
+    """List a snapshot's aliases
 
     Args:
-        id (UUID):
+        snapshot_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Error | SnapshotAlias]
+        Response[Error | list[SnapshotAlias]]
     """
 
     kwargs = _get_kwargs(
-        id=id,
+        snapshot_id=snapshot_id,
     )
 
     response = client.get_httpx_client().request(
@@ -101,49 +106,49 @@ def sync_detailed(
 
 
 def sync(
-    id: UUID,
+    snapshot_id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Error | SnapshotAlias | None:
-    """Get a snapshot alias by ID
+) -> Error | list[SnapshotAlias] | None:
+    """List a snapshot's aliases
 
     Args:
-        id (UUID):
+        snapshot_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Error | SnapshotAlias
+        Error | list[SnapshotAlias]
     """
 
     return sync_detailed(
-        id=id,
+        snapshot_id=snapshot_id,
         client=client,
     ).parsed
 
 
 async def asyncio_detailed(
-    id: UUID,
+    snapshot_id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Error | SnapshotAlias]:
-    """Get a snapshot alias by ID
+) -> Response[Error | list[SnapshotAlias]]:
+    """List a snapshot's aliases
 
     Args:
-        id (UUID):
+        snapshot_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Error | SnapshotAlias]
+        Response[Error | list[SnapshotAlias]]
     """
 
     kwargs = _get_kwargs(
-        id=id,
+        snapshot_id=snapshot_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -152,26 +157,26 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    id: UUID,
+    snapshot_id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Error | SnapshotAlias | None:
-    """Get a snapshot alias by ID
+) -> Error | list[SnapshotAlias] | None:
+    """List a snapshot's aliases
 
     Args:
-        id (UUID):
+        snapshot_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Error | SnapshotAlias
+        Error | list[SnapshotAlias]
     """
 
     return (
         await asyncio_detailed(
-            id=id,
+            snapshot_id=snapshot_id,
             client=client,
         )
     ).parsed

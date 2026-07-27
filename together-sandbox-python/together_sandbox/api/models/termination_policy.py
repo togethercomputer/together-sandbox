@@ -8,33 +8,31 @@ from attrs import field as _attrs_field
 from typing_extensions import Self
 
 if TYPE_CHECKING:
-    from ..models.task_item import TaskItem
+    from ..models.termination_snapshot import TerminationSnapshot
 
 
-T = TypeVar("T", bound="TaskListResponse")
+T = TypeVar("T", bound="TerminationPolicy")
 
 
 @_attrs_define
-class TaskListResponse:
-    """
+class TerminationPolicy:
+    """The policy applied when a sandbox terminates.
+
     Attributes:
-        tasks (list[TaskItem]):
+        snapshot (TerminationSnapshot): The snapshot captured when a sandbox terminates.
     """
 
-    tasks: list[TaskItem]
+    snapshot: TerminationSnapshot
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        tasks = []
-        for tasks_item_data in self.tasks:
-            tasks_item = tasks_item_data.to_dict()
-            tasks.append(tasks_item)
+        snapshot = self.snapshot.to_dict()
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "tasks": tasks,
+                "snapshot": snapshot,
             }
         )
 
@@ -42,22 +40,17 @@ class TaskListResponse:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.task_item import TaskItem
+        from ..models.termination_snapshot import TerminationSnapshot
 
         d = dict(src_dict)
-        tasks = []
-        _tasks = d.pop("tasks")
-        for tasks_item_data in _tasks:
-            tasks_item = TaskItem.from_dict(tasks_item_data)
+        snapshot = TerminationSnapshot.from_dict(d.pop("snapshot"))
 
-            tasks.append(tasks_item)
-
-        task_list_response = cls(
-            tasks=tasks,
+        termination_policy = cls(
+            snapshot=snapshot,
         )
 
-        task_list_response.additional_properties = d
-        return task_list_response
+        termination_policy.additional_properties = d
+        return termination_policy
 
     @property
     def additional_keys(self) -> list[str]:

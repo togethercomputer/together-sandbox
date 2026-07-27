@@ -1,22 +1,24 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
+from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error import Error
+from ...models.snapshot import Snapshot
 from ...types import Response
 
 
 def _get_kwargs(
-    id: str,
+    id: UUID,
 ) -> dict[str, Any]:
 
     _kwargs: dict[str, Any] = {
-        "method": "delete",
-        "url": "/sandboxes/{id}".format(
+        "method": "post",
+        "url": "/snapshots/{id}/retire".format(
             id=quote(str(id), safe=""),
         ),
     }
@@ -26,10 +28,11 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Any | Error | None:
-    if response.status_code == 204:
-        response_204 = cast(Any, None)
-        return response_204
+) -> Error | Snapshot | None:
+    if response.status_code == 200:
+        response_200 = Snapshot.from_dict(response.json())
+
+        return response_200
 
     if response.status_code == 400:
         response_400 = Error.from_dict(response.json())
@@ -59,7 +62,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Any | Error]:
+) -> Response[Error | Snapshot]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -69,21 +72,24 @@ def _build_response(
 
 
 def sync_detailed(
-    id: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | Error]:
-    """Delete a sandbox
+) -> Response[Error | Snapshot]:
+    """Retire a snapshot
+
+     Retires the snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and
+    it is eventually deleted, provided no sandbox still references it.
 
     Args:
-        id (str): Sandbox ID (6–8 characters).
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Error]
+        Response[Error | Snapshot]
     """
 
     kwargs = _get_kwargs(
@@ -98,21 +104,24 @@ def sync_detailed(
 
 
 def sync(
-    id: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Any | Error | None:
-    """Delete a sandbox
+) -> Error | Snapshot | None:
+    """Retire a snapshot
+
+     Retires the snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and
+    it is eventually deleted, provided no sandbox still references it.
 
     Args:
-        id (str): Sandbox ID (6–8 characters).
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Error
+        Error | Snapshot
     """
 
     return sync_detailed(
@@ -122,21 +131,24 @@ def sync(
 
 
 async def asyncio_detailed(
-    id: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | Error]:
-    """Delete a sandbox
+) -> Response[Error | Snapshot]:
+    """Retire a snapshot
+
+     Retires the snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and
+    it is eventually deleted, provided no sandbox still references it.
 
     Args:
-        id (str): Sandbox ID (6–8 characters).
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Error]
+        Response[Error | Snapshot]
     """
 
     kwargs = _get_kwargs(
@@ -149,21 +161,24 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    id: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Any | Error | None:
-    """Delete a sandbox
+) -> Error | Snapshot | None:
+    """Retire a snapshot
+
+     Retires the snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and
+    it is eventually deleted, provided no sandbox still references it.
 
     Args:
-        id (str): Sandbox ID (6–8 characters).
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Error
+        Error | Snapshot
     """
 
     return (

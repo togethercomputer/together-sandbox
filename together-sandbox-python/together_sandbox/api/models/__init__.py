@@ -9,30 +9,19 @@ from .create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
 from .error import Error
 from .error_errors_item import ErrorErrorsItem
 from .error_errors_item_details import ErrorErrorsItemDetails
+from .list_sandboxes_statuses_item import ListSandboxesStatusesItem
 from .sandbox import Sandbox
+from .sandbox_agent import SandboxAgent
 from .sandbox_page import SandboxPage
-from .sandbox_recovery_status_type_1 import SandboxRecoveryStatusType1
-from .sandbox_recovery_status_type_2_type_1 import SandboxRecoveryStatusType2Type1
-from .sandbox_recovery_status_type_3_type_1 import SandboxRecoveryStatusType3Type1
-from .sandbox_requested_stop_type_type_1 import SandboxRequestedStopTypeType1
-from .sandbox_requested_stop_type_type_2_type_1 import (
-    SandboxRequestedStopTypeType2Type1,
-)
-from .sandbox_requested_stop_type_type_3_type_1 import (
-    SandboxRequestedStopTypeType3Type1,
-)
-from .sandbox_start_type_type_1 import SandboxStartTypeType1
-from .sandbox_start_type_type_2_type_1 import SandboxStartTypeType2Type1
-from .sandbox_start_type_type_3_type_1 import SandboxStartTypeType3Type1
 from .sandbox_status import SandboxStatus
-from .sandbox_stop_reason_type_1 import SandboxStopReasonType1
-from .sandbox_stop_reason_type_2_type_1 import SandboxStopReasonType2Type1
-from .sandbox_stop_reason_type_3_type_1 import SandboxStopReasonType3Type1
+from .sandbox_status_reason import SandboxStatusReason
 from .snapshot import Snapshot
 from .snapshot_alias import SnapshotAlias
 from .snapshot_page import SnapshotPage
-from .stop_sandbox_body import StopSandboxBody
-from .stop_sandbox_body_stop_type import StopSandboxBodyStopType
+from .tags import Tags
+from .terminate_sandbox_body import TerminateSandboxBody
+from .termination_policy import TerminationPolicy
+from .termination_snapshot import TerminationSnapshot
 
 __all__ = (
     "AliasSnapshotBody",
@@ -44,24 +33,17 @@ __all__ = (
     "Error",
     "ErrorErrorsItem",
     "ErrorErrorsItemDetails",
+    "ListSandboxesStatusesItem",
     "Sandbox",
+    "SandboxAgent",
     "SandboxPage",
-    "SandboxRecoveryStatusType1",
-    "SandboxRecoveryStatusType2Type1",
-    "SandboxRecoveryStatusType3Type1",
-    "SandboxRequestedStopTypeType1",
-    "SandboxRequestedStopTypeType2Type1",
-    "SandboxRequestedStopTypeType3Type1",
-    "SandboxStartTypeType1",
-    "SandboxStartTypeType2Type1",
-    "SandboxStartTypeType3Type1",
     "SandboxStatus",
-    "SandboxStopReasonType1",
-    "SandboxStopReasonType2Type1",
-    "SandboxStopReasonType3Type1",
+    "SandboxStatusReason",
     "Snapshot",
     "SnapshotAlias",
     "SnapshotPage",
-    "StopSandboxBody",
-    "StopSandboxBodyStopType",
+    "Tags",
+    "TerminateSandboxBody",
+    "TerminationPolicy",
+    "TerminationSnapshot",
 )

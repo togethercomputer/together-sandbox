@@ -1,35 +1,48 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
+from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error import Error
-from ...types import Response
+from ...models.sandbox import Sandbox
+from ...models.terminate_sandbox_body import TerminateSandboxBody
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
-    alias: str,
+    id: UUID,
+    *,
+    body: TerminateSandboxBody | Unset = UNSET,
 ) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
-        "method": "delete",
-        "url": "/snapshots/@{alias}".format(
-            alias=quote(str(alias), safe=""),
+        "method": "post",
+        "url": "/sandboxes/{id}/terminate".format(
+            id=quote(str(id), safe=""),
         ),
     }
 
+    if not isinstance(body, Unset):
+        _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Any | Error | None:
-    if response.status_code == 204:
-        response_204 = cast(Any, None)
-        return response_204
+) -> Error | Sandbox | None:
+    if response.status_code == 200:
+        response_200 = Sandbox.from_dict(response.json())
+
+        return response_200
 
     if response.status_code == 400:
         response_400 = Error.from_dict(response.json())
@@ -59,7 +72,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Any | Error]:
+) -> Response[Error | Sandbox]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -69,25 +82,30 @@ def _build_response(
 
 
 def sync_detailed(
-    alias: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | Error]:
-    """Delete a snapshot by alias
+    body: TerminateSandboxBody | Unset = UNSET,
+) -> Response[Error | Sandbox]:
+    """Terminate a sandbox
+
+     Terminates a sandbox. After this operation the sandbox cannot be used again.
 
     Args:
-        alias (str):
+        id (UUID):
+        body (TerminateSandboxBody | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Error]
+        Response[Error | Sandbox]
     """
 
     kwargs = _get_kwargs(
-        alias=alias,
+        id=id,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -98,49 +116,59 @@ def sync_detailed(
 
 
 def sync(
-    alias: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Any | Error | None:
-    """Delete a snapshot by alias
+    body: TerminateSandboxBody | Unset = UNSET,
+) -> Error | Sandbox | None:
+    """Terminate a sandbox
+
+     Terminates a sandbox. After this operation the sandbox cannot be used again.
 
     Args:
-        alias (str):
+        id (UUID):
+        body (TerminateSandboxBody | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Error
+        Error | Sandbox
     """
 
     return sync_detailed(
-        alias=alias,
+        id=id,
         client=client,
+        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
-    alias: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | Error]:
-    """Delete a snapshot by alias
+    body: TerminateSandboxBody | Unset = UNSET,
+) -> Response[Error | Sandbox]:
+    """Terminate a sandbox
+
+     Terminates a sandbox. After this operation the sandbox cannot be used again.
 
     Args:
-        alias (str):
+        id (UUID):
+        body (TerminateSandboxBody | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Error]
+        Response[Error | Sandbox]
     """
 
     kwargs = _get_kwargs(
-        alias=alias,
+        id=id,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -149,26 +177,31 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    alias: str,
+    id: UUID,
     *,
     client: AuthenticatedClient | Client,
-) -> Any | Error | None:
-    """Delete a snapshot by alias
+    body: TerminateSandboxBody | Unset = UNSET,
+) -> Error | Sandbox | None:
+    """Terminate a sandbox
+
+     Terminates a sandbox. After this operation the sandbox cannot be used again.
 
     Args:
-        alias (str):
+        id (UUID):
+        body (TerminateSandboxBody | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Error
+        Error | Sandbox
     """
 
     return (
         await asyncio_detailed(
-            alias=alias,
+            id=id,
             client=client,
+            body=body,
         )
     ).parsed

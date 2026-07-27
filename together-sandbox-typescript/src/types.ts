@@ -33,20 +33,52 @@ export interface TogetherSandboxConfig {
 export type SandboxInfo = CamelCasedProperties<SandboxModel>;
 
 /**
+ * The lifecycle status of a sandbox.
+ */
+export type SandboxStatus = SandboxModel["status"];
+
+/**
+ * The termination snapshot policy. Omit `terminationPolicy` entirely for an
+ * ephemeral sandbox (no snapshot; deleted on termination).
+ */
+export interface TerminationPolicyParams {
+  /** The snapshot produced when the sandbox terminates. */
+  snapshot: TerminationSnapshotParams;
+}
+
+/**
+ * What a teardown snapshots. Passed directly to `terminate()` (and used as the
+ * `snapshot` inside a {@link TerminationPolicyParams} at creation).
+ */
+export interface TerminationSnapshotParams {
+  /**
+   * Whether to include a memory snapshot in addition to the filesystem.
+   * `true` snapshots both (a hibernate); `false` snapshots only the filesystem.
+   */
+  memory: boolean;
+  /** Aliases to apply to the produced snapshot. */
+  aliases?: string[];
+  /** Seconds after creation before the produced snapshot is automatically deleted. */
+  ttl?: number;
+  /** Arbitrary key/value labels to attach to the produced snapshot. */
+  tags?: Record<string, string>;
+}
+
+/**
  * Public camelCase version of the create sandbox request parameters.
  */
 type RawCreateSandboxParams = CamelCasedProperties<CreateSandboxData["body"]>;
 
 export type CreateSandboxParams = Omit<
   RawCreateSandboxParams,
-  "millicpu" | "memoryBytes" | "diskBytes"
+  "cpu" | "memoryBytes" | "terminationPolicy"
 > & {
-  /** CPU allocation in millicpu. Must be ≥ 250 and a multiple of 250. Default: 1000 (1 vCPU). */
-  millicpu?: number;
-  /** Memory allocation in bytes. Default: 2 GiB. */
+  /** CPU allocation in cores. Must be between 0.1 and 16. Default: 1 (1 vCPU). */
+  cpu?: number;
+  /** Memory allocation in bytes. Must be between 1 GB and 8 GB per CPU. Default: 2 GiB. */
   memoryBytes?: number;
-  /** Disk allocation in bytes. Default: 10 GiB. */
-  diskBytes?: number;
+  /** Termination snapshot policy. Omit for an ephemeral sandbox. */
+  terminationPolicy?: TerminationPolicyParams;
 };
 
 export interface RetryContext {

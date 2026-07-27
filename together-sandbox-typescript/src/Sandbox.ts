@@ -3,13 +3,14 @@ import * as sandboxApi from "./api-clients/sandbox/index.js";
 import { type Client as SandboxApiClient } from "./api-clients/sandbox/client/index.js";
 import type {
   CreateSandboxParams,
+  TerminationSnapshotParams,
   RetryConfig,
   SandboxInfo,
   TogetherSandboxConfig,
 } from "./types.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { TogetherSandbox } from "./TogetherSandbox.js";
-import { callApi } from "./utils.js";
+import { callApi, terminationSnapshotBody } from "./utils.js";
 import { describeLifecycleFailure } from "./lifecycle.js";
 
 /**
@@ -34,7 +35,7 @@ export interface WatchOptions {
  * const sandbox = await sdk.sandboxes.create({ snapshotId: "my-snapshot-id" });
  * const file = await sandbox.files.read("/src/index.ts");
  * await sandbox.execs.create({ command: "ls", args: ["-la"] });
- * await sandbox.shutdown();
+ * await sandbox.terminate();
  * ```
  */
 export class Sandbox {
@@ -368,15 +369,24 @@ export class Sandbox {
 
   // ── VM lifecycle methods ──────────────────────────────────────────────────
 
-  /** Hibernate (suspend) this VM. */
-  async hibernate(): Promise<void> {
+  /**
+   * Terminate this VM. After this the sandbox is terminal and cannot be used
+   * again. `snapshot` overrides what the stored termination policy would
+   * snapshot for this teardown (omit to use the stored policy; `null` to make
+   * it ephemeral).
+   */
+  async terminate(options?: {
+    snapshot?: TerminationSnapshotParams | null;
+  }): Promise<void> {
     await callApi(
-      "api.stopSandbox",
+      "api.terminateSandbox",
       () =>
-        api.stopSandbox({
+        api.terminateSandbox({
           client: this._apiClient,
           path: { id: this.id },
-          body: { stop_type: "hibernate" },
+          body: {
+            snapshot: terminationSnapshotBody(options?.snapshot),
+          },
         }),
       this._retryConfig,
     );
@@ -391,35 +401,8 @@ export class Sandbox {
       this._retryConfig,
     );
 
-    if (waitResult.status !== "stopped") {
-      throw new Error(describeLifecycleFailure(waitResult, "stopped"));
-    }
-  }
-
-  /** Shut down this VM. */
-  async shutdown(): Promise<void> {
-    await callApi(
-      "api.stopSandbox",
-      () =>
-        api.stopSandbox({
-          client: this._apiClient,
-          path: { id: this.id },
-          body: { stop_type: "shutdown" },
-        }),
-      this._retryConfig,
-    );
-    const waitResult = await callApi(
-      "api.waitForSandbox",
-      () =>
-        api.waitForSandbox({
-          client: this._apiClient,
-          path: { id: this.id },
-        }),
-      this._retryConfig,
-    );
-
-    if (waitResult.status !== "stopped") {
-      throw new Error(describeLifecycleFailure(waitResult, "stopped"));
+    if (waitResult.status !== "terminated") {
+      throw new Error(describeLifecycleFailure(waitResult, "terminated"));
     }
   }
 
@@ -445,38 +428,23 @@ export class Sandbox {
   }
 
   /**
-   * Hibernate a sandbox by ID without needing a running Sandbox instance.
+   * Terminate a sandbox by ID without needing a running Sandbox instance.
    *
    * @example
    * ```typescript
-   * await Sandbox.hibernate("my-sandbox-id", {
+   * await Sandbox.terminate("my-sandbox-id", {
    *   apiKey: process.env.TOGETHER_API_KEY!,
    * });
    * ```
    */
-  static async hibernate(
+  static async terminate(
     sandboxId: string,
     config: TogetherSandboxConfig,
+    options?: {
+      snapshot?: TerminationSnapshotParams | null;
+    },
   ): Promise<void> {
     const sdk = new TogetherSandbox(config);
-    await sdk.sandboxes.hibernate(sandboxId);
-  }
-
-  /**
-   * Shut down a sandbox by ID without needing a running Sandbox instance.
-   *
-   * @example
-   * ```typescript
-   * await Sandbox.shutdown("my-sandbox-id", {
-   *   apiKey: process.env.TOGETHER_API_KEY!,
-   * });
-   * ```
-   */
-  static async shutdown(
-    sandboxId: string,
-    config: TogetherSandboxConfig,
-  ): Promise<void> {
-    const sdk = new TogetherSandbox(config);
-    await sdk.sandboxes.shutdown(sandboxId);
+    await sdk.sandboxes.terminate(sandboxId, options);
   }
 }

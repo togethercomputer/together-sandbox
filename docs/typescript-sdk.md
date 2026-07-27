@@ -33,7 +33,7 @@ const sandbox = await sdk.sandboxes.create({ snapshotAlias: "my-app@v1" });
 const content = await sandbox.files.read("/package.json");
 console.log(content);
 
-await sandbox.shutdown();
+await sandbox.terminate();
 ```
 
 ---
@@ -68,34 +68,28 @@ const sandbox = await sdk.sandboxes.create({
 });
 ```
 
-Resource params (`millicpu`, `memoryBytes`, `diskBytes`) default to **1 vCPU / 2 GiB memory / 10 GiB disk** if omitted.
+Resource params (`cpu`, `memoryBytes`) default to **1 vCPU / 2 GiB memory** if omitted.
 
-| Property        | Type      | Required | Description                                                                                 |
-| --------------- | --------- | -------- | ------------------------------------------------------------------------------------------- |
-| `snapshotId`    | `string`  | \*       | ID of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.              |
-| `snapshotAlias` | `string`  | \*       | Alias of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.           |
-| `millicpu`      | `number`  | No       | CPU allocation in millicpu (must be ≥ 250 and a multiple of 250). Default: `1000` (1 vCPU). |
-| `memoryBytes`   | `number`  | No       | Memory allocation in bytes. Default: `2 * 1024 * 1024 * 1024` (2 GiB).                      |
-| `diskBytes`     | `number`  | No       | Disk allocation in bytes. Default: `10 * 1024 * 1024 * 1024` (10 GiB).                      |
-| `id`            | `string`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                                     |
-| `ephemeral`     | `boolean` | No       | Mark the sandbox as ephemeral.                                                              |
+| Property        | Type      | Required | Description                                                                            |
+| --------------- | --------- | -------- | -------------------------------------------------------------------------------------- |
+| `snapshotId`    | `string`  | \*       | ID of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.         |
+| `snapshotAlias` | `string`  | \*       | Alias of the snapshot to use. One of `snapshotId` or `snapshotAlias` is required.      |
+| `cpu`           | `number`  | No       | CPU allocation in cores (0.1–16). Default: `1` (1 vCPU).                               |
+| `memoryBytes`   | `number`  | No       | Memory allocation in bytes (1–8 GB per CPU). Default: `2 * 1024 * 1024 * 1024` (2 GiB). |
+| `ttl`           | `number`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
+| `tags`          | `object`  | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
+| `terminationPolicy` | `object` | No    | Termination policy `{ snapshot: { memory: boolean, aliases?: string[], ttl?: number, tags?: Record<string, string> } }`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
-Sandboxes autostart on creation, so there is no separate start step. A stopped sandbox is terminal and cannot be started again — to continue from its state, create a new sandbox from its snapshot (`snapshotId`).
+Sandboxes start automatically on creation, so there is no separate start step. A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshotAlias: "sandbox:<id>"`).
 
-#### `sdk.sandboxes.hibernate(sandboxId): Promise<void>`
+#### `sdk.sandboxes.terminate(sandboxId, options?): Promise<void>`
 
-Suspends (hibernates) a VM by sandbox ID.
-
-```typescript
-await sdk.sandboxes.hibernate("your-sandbox-id");
-```
-
-#### `sdk.sandboxes.shutdown(sandboxId): Promise<void>`
-
-Shuts down a VM by sandbox ID.
+Terminates a VM by sandbox ID. `options.snapshot` (`{ memory, aliases, ttl, tags }`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `null` for an ephemeral teardown (no snapshot).
 
 ```typescript
-await sdk.sandboxes.shutdown("your-sandbox-id");
+await sdk.sandboxes.terminate("your-sandbox-id", {
+  snapshot: { memory: false },
+});
 ```
 
 ---
@@ -117,6 +111,7 @@ const result = await sdk.snapshots.create({
   context: "./my-app",
   dockerfile: "./my-app/Dockerfile.prod", // optional
   alias: "my-app@v1", // optional
+  ttl: 86400, // optional — auto-retire the snapshot after N seconds
   onProgress: (event) => console.log(event.output),
 });
 
@@ -193,8 +188,13 @@ const snapshot = await sdk.snapshots.getByAlias("my-app@v1");
 
 List snapshots. Returns a `Page` that is async-iterable across all pages —
 iterate it directly to walk every snapshot, or use `getNextPage()` /
-`nextCursor` for manual page-by-page control. `options.limit` sets the page
-size (1–100, default 20).
+`nextCursor` for manual page-by-page control.
+
+| Option           | Type                     | Description                                                             |
+| ---------------- | ------------------------ | ------------------------------------------------------------------------- |
+| `limit`          | `number`                 | Page size (1–100, default 20).                                          |
+| `excludeRetired` | `boolean`                | When true, retired snapshots are excluded. Default false.               |
+| `tags`           | `Record<string, string>` | Matches snapshots whose tags contain all the given pairs.               |
 
 ```typescript
 // Iterate every snapshot across all pages
@@ -208,18 +208,38 @@ while (page.hasNextPage()) {
   console.log(page.data, page.nextCursor);
   page = await page.getNextPage();
 }
+
+// Only live snapshots for one service
+const live = await sdk.snapshots.list({
+  excludeRetired: true,
+  tags: { service: "api" },
+});
 ```
 
 #### `sdk.sandboxes.list(options?): Promise<Page<SandboxInfo>>`
 
 List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
-`options.limit` sets the page size (1–100, default 20); `options.projectId`
-filters to a single project.
+
+| Option      | Type                     | Description                                                  |
+| ----------- | ------------------------ | -------------------------------------------------------------- |
+| `limit`     | `number`                 | Page size (1–100, default 20).                               |
+| `projectId` | `string`                 | Filter to a single project.                                  |
+| `statuses`  | `SandboxStatus[]`        | Matches sandboxes in any of the given statuses.              |
+| `tags`      | `Record<string, string>` | Matches sandboxes whose tags contain all the given pairs.    |
+
+`SandboxStatus` is one of `starting`, `running`, `terminating`, `terminated`,
+`failed_to_start`, `recovering`, `unrecovered`.
 
 ```typescript
 for await (const sandbox of await sdk.sandboxes.list()) {
   console.log(sandbox.id);
 }
+
+// Running sandboxes for one team
+const running = await sdk.sandboxes.list({
+  statuses: ["running"],
+  tags: { team: "platform" },
+});
 ```
 
 #### `sdk.snapshots.alias(snapshotId, alias): Promise<void>`
@@ -230,20 +250,12 @@ Assign (or update) an alias on an existing snapshot.
 await sdk.snapshots.alias("snapshot-id", "my-app@v2");
 ```
 
-#### `sdk.snapshots.deleteById(id): Promise<void>`
+#### `sdk.snapshots.retire(id): Promise<Snapshot>`
 
-Delete a snapshot by ID.
-
-```typescript
-await sdk.snapshots.deleteById("snapshot-id");
-```
-
-#### `sdk.snapshots.deleteByAlias(alias): Promise<void>`
-
-Delete a snapshot by alias. A leading `@` is stripped automatically.
+Retire a snapshot by ID and return the retired snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and it is eventually deleted, but only once no sandbox still references it.
 
 ```typescript
-await sdk.snapshots.deleteByAlias("my-app@v1");
+const retired = await sdk.snapshots.retire("snapshot-id");
 ```
 
 ---
@@ -257,7 +269,7 @@ A connected, running VM. Returned by `sdk.sandboxes.create()`. All sub-namespace
 | Property | Type           | Description                                |
 | -------- | -------------- | ------------------------------------------ |
 | `id`     | `string`       | The sandbox/VM ID.                         |
-| `vmInfo` | `SandboxModel` | Raw VM start response (id, cluster, etc.). |
+| `vmInfo` | `SandboxModel` | Raw sandbox record (id, status, agent, etc.). |
 
 ---
 
@@ -503,20 +515,20 @@ const stream = await sandbox.ports.streamList();
 
 ### Lifecycle methods
 
-#### `sandbox.hibernate(): Promise<void>`
+#### `sandbox.terminate(options?): Promise<void>`
 
-Suspend (hibernate) this VM.
+Terminate this VM. After this the sandbox is terminal and cannot be used again.
 
-```typescript
-await sandbox.hibernate();
-```
-
-#### `sandbox.shutdown(): Promise<void>`
-
-Shut down this VM.
+`options.snapshot` (`{ memory, aliases, ttl, tags }`) overrides what this
+teardown snapshots — omit it to use the sandbox's stored termination policy, or
+pass `null` for an ephemeral teardown (no snapshot).
 
 ```typescript
-await sandbox.shutdown();
+// Use the stored termination policy
+await sandbox.terminate();
+
+// Snapshot the filesystem and memory, so a new sandbox can resume from it
+await sandbox.terminate({ snapshot: { memory: true } });
 ```
 
 ---
@@ -536,18 +548,10 @@ const sandbox = await Sandbox.create(
 );
 ```
 
-### `Sandbox.hibernate(sandboxId, config): Promise<void>`
+### `Sandbox.terminate(sandboxId, config, options?): Promise<void>`
 
 ```typescript
-await Sandbox.hibernate("your-sandbox-id", {
-  apiKey: process.env.TOGETHER_API_KEY!,
-});
-```
-
-### `Sandbox.shutdown(sandboxId, config): Promise<void>`
-
-```typescript
-await Sandbox.shutdown("your-sandbox-id", {
+await Sandbox.terminate("your-sandbox-id", {
   apiKey: process.env.TOGETHER_API_KEY!,
 });
 ```
@@ -616,7 +620,7 @@ Pass a `RetryConfig` to `new TogetherSandbox({ retry: ... })` to customise this 
 
 | Field       | Type                  | Description                                                                                      |
 | ----------- | --------------------- | ------------------------------------------------------------------------------------------------ |
-| `operation` | `string`              | The operation that failed, e.g. `'hibernateSandbox'`, `'files.read'`.                            |
+| `operation` | `string`              | The operation that failed, e.g. `'api.terminateSandbox'`, `'files.read'`.                        |
 | `attempt`   | `number`              | 1-based number of the attempt that just failed.                                                  |
 | `error`     | `unknown`             | The [`HttpError`](#httperror) that was thrown.                                                   |
 | `status`    | `number \| undefined` | HTTP status code, or `0` for transport-level failures.                                           |

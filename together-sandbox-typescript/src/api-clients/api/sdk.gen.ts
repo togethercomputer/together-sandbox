@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AliasSnapshotData, AliasSnapshotErrors, AliasSnapshotResponses, AuthorizeData, AuthorizeErrors, AuthorizeResponses, BatchGetSandboxesData, BatchGetSandboxesErrors, BatchGetSandboxesResponses, BatchGetSnapshotsData, BatchGetSnapshotsErrors, BatchGetSnapshotsResponses, CreateSandboxData, CreateSandboxErrors, CreateSandboxResponses, CreateSnapshotData, CreateSnapshotErrors, CreateSnapshotResponses, DeleteSandboxData, DeleteSandboxErrors, DeleteSandboxResponses, DeleteSnapshotAliasByAliasData, DeleteSnapshotAliasByAliasErrors, DeleteSnapshotAliasByAliasResponses, DeleteSnapshotAliasData, DeleteSnapshotAliasErrors, DeleteSnapshotAliasResponses, DeleteSnapshotByAliasData, DeleteSnapshotByAliasErrors, DeleteSnapshotByAliasResponses, DeleteSnapshotData, DeleteSnapshotErrors, DeleteSnapshotResponses, GetSandboxData, GetSandboxErrors, GetSandboxResponses, GetSnapshotAliasByAliasData, GetSnapshotAliasByAliasErrors, GetSnapshotAliasByAliasResponses, GetSnapshotAliasData, GetSnapshotAliasErrors, GetSnapshotAliasResponses, GetSnapshotByAliasData, GetSnapshotByAliasErrors, GetSnapshotByAliasResponses, GetSnapshotData, GetSnapshotErrors, GetSnapshotResponses, IssueContainerRegistryCredentialData, IssueContainerRegistryCredentialErrors, IssueContainerRegistryCredentialResponses, ListSandboxesData, ListSandboxesErrors, ListSandboxesResponses, ListSnapshotsData, ListSnapshotsErrors, ListSnapshotsResponses, StopSandboxData, StopSandboxErrors, StopSandboxResponses, WaitForSandboxData, WaitForSandboxErrors, WaitForSandboxResponses } from './types.gen';
+import type { AliasSnapshotData, AliasSnapshotErrors, AliasSnapshotResponses, AuthorizeData, AuthorizeErrors, AuthorizeResponses, BatchGetSandboxesData, BatchGetSandboxesErrors, BatchGetSandboxesResponses, BatchGetSnapshotsData, BatchGetSnapshotsErrors, BatchGetSnapshotsResponses, CreateSandboxData, CreateSandboxErrors, CreateSandboxResponses, CreateSnapshotData, CreateSnapshotErrors, CreateSnapshotResponses, DeleteSnapshotAliasData, DeleteSnapshotAliasErrors, DeleteSnapshotAliasResponses, GetSandboxData, GetSandboxErrors, GetSandboxResponses, GetSnapshotByAliasData, GetSnapshotByAliasErrors, GetSnapshotByAliasResponses, GetSnapshotData, GetSnapshotErrors, GetSnapshotResponses, IssueContainerRegistryCredentialData, IssueContainerRegistryCredentialErrors, IssueContainerRegistryCredentialResponses, ListSandboxesData, ListSandboxesErrors, ListSandboxesResponses, ListSnapshotAliasesData, ListSnapshotAliasesErrors, ListSnapshotAliasesResponses, ListSnapshotsData, ListSnapshotsErrors, ListSnapshotsResponses, RetireSnapshotData, RetireSnapshotErrors, RetireSnapshotResponses, TerminateSandboxData, TerminateSandboxErrors, TerminateSandboxResponses, WaitForSandboxData, WaitForSandboxErrors, WaitForSandboxResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -109,22 +109,6 @@ export const batchGetSandboxes = <ThrowOnError extends boolean = false>(options:
 };
 
 /**
- * Delete a sandbox
- */
-export const deleteSandbox = <ThrowOnError extends boolean = false>(options: Options<DeleteSandboxData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteSandboxResponses, DeleteSandboxErrors, ThrowOnError>({
-        security: [
-            {
-                scheme: 'bearer',
-                type: 'http'
-            }
-        ],
-        url: '/sandboxes/{id}',
-        ...options
-    });
-};
-
-/**
  * Get a sandbox by ID
  */
 export const getSandbox = <ThrowOnError extends boolean = false>(options: Options<GetSandboxData, ThrowOnError>) => {
@@ -141,17 +125,19 @@ export const getSandbox = <ThrowOnError extends boolean = false>(options: Option
 };
 
 /**
- * Stop a sandbox
+ * Terminate a sandbox
+ * Terminates a sandbox. After this operation the sandbox cannot be used again.
+ *
  */
-export const stopSandbox = <ThrowOnError extends boolean = false>(options: Options<StopSandboxData, ThrowOnError>) => {
-    return (options.client ?? client).post<StopSandboxResponses, StopSandboxErrors, ThrowOnError>({
+export const terminateSandbox = <ThrowOnError extends boolean = false>(options: Options<TerminateSandboxData, ThrowOnError>) => {
+    return (options.client ?? client).post<TerminateSandboxResponses, TerminateSandboxErrors, ThrowOnError>({
         security: [
             {
                 scheme: 'bearer',
                 type: 'http'
             }
         ],
-        url: '/sandboxes/{id}/stop',
+        url: '/sandboxes/{id}/terminate',
         ...options,
         headers: {
             'Content-Type': 'application/json',
@@ -229,22 +215,6 @@ export const batchGetSnapshots = <ThrowOnError extends boolean = false>(options:
 };
 
 /**
- * Delete a snapshot
- */
-export const deleteSnapshot = <ThrowOnError extends boolean = false>(options: Options<DeleteSnapshotData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteSnapshotResponses, DeleteSnapshotErrors, ThrowOnError>({
-        security: [
-            {
-                scheme: 'bearer',
-                type: 'http'
-            }
-        ],
-        url: '/snapshots/{id}',
-        ...options
-    });
-};
-
-/**
  * Get a snapshot by ID
  */
 export const getSnapshot = <ThrowOnError extends boolean = false>(options: Options<GetSnapshotData, ThrowOnError>) => {
@@ -261,17 +231,19 @@ export const getSnapshot = <ThrowOnError extends boolean = false>(options: Optio
 };
 
 /**
- * Delete a snapshot by alias
+ * Retire a snapshot
+ * Retires the snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and it is eventually deleted, provided no sandbox still references it.
+ *
  */
-export const deleteSnapshotByAlias = <ThrowOnError extends boolean = false>(options: Options<DeleteSnapshotByAliasData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteSnapshotByAliasResponses, DeleteSnapshotByAliasErrors, ThrowOnError>({
+export const retireSnapshot = <ThrowOnError extends boolean = false>(options: Options<RetireSnapshotData, ThrowOnError>) => {
+    return (options.client ?? client).post<RetireSnapshotResponses, RetireSnapshotErrors, ThrowOnError>({
         security: [
             {
                 scheme: 'bearer',
                 type: 'http'
             }
         ],
-        url: '/snapshots/@{alias}',
+        url: '/snapshots/{id}/retire',
         ...options
     });
 };
@@ -293,7 +265,25 @@ export const getSnapshotByAlias = <ThrowOnError extends boolean = false>(options
 };
 
 /**
+ * List a snapshot's aliases
+ */
+export const listSnapshotAliases = <ThrowOnError extends boolean = false>(options: Options<ListSnapshotAliasesData, ThrowOnError>) => {
+    return (options.client ?? client).get<ListSnapshotAliasesResponses, ListSnapshotAliasesErrors, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
+        url: '/snapshots/{snapshot_id}/aliases',
+        ...options
+    });
+};
+
+/**
  * Assign an alias to a snapshot
+ * Points the alias at the snapshot. If an alias of the same name already exists in the project, it is repointed at this snapshot (an upsert).
+ *
  */
 export const aliasSnapshot = <ThrowOnError extends boolean = false>(options: Options<AliasSnapshotData, ThrowOnError>) => {
     return (options.client ?? client).post<AliasSnapshotResponses, AliasSnapshotErrors, ThrowOnError>({
@@ -313,7 +303,9 @@ export const aliasSnapshot = <ThrowOnError extends boolean = false>(options: Opt
 };
 
 /**
- * Delete a snapshot alias by ID
+ * Delete a snapshot alias
+ * Deletes the alias in the caller's project. Idempotent: succeeds whether or not the alias exists.
+ *
  */
 export const deleteSnapshotAlias = <ThrowOnError extends boolean = false>(options: Options<DeleteSnapshotAliasData, ThrowOnError>) => {
     return (options.client ?? client).delete<DeleteSnapshotAliasResponses, DeleteSnapshotAliasErrors, ThrowOnError>({
@@ -323,55 +315,7 @@ export const deleteSnapshotAlias = <ThrowOnError extends boolean = false>(option
                 type: 'http'
             }
         ],
-        url: '/snapshot-aliases/{id}',
-        ...options
-    });
-};
-
-/**
- * Get a snapshot alias by ID
- */
-export const getSnapshotAlias = <ThrowOnError extends boolean = false>(options: Options<GetSnapshotAliasData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetSnapshotAliasResponses, GetSnapshotAliasErrors, ThrowOnError>({
-        security: [
-            {
-                scheme: 'bearer',
-                type: 'http'
-            }
-        ],
-        url: '/snapshot-aliases/{id}',
-        ...options
-    });
-};
-
-/**
- * Delete a snapshot alias by alias name
- */
-export const deleteSnapshotAliasByAlias = <ThrowOnError extends boolean = false>(options: Options<DeleteSnapshotAliasByAliasData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteSnapshotAliasByAliasResponses, DeleteSnapshotAliasByAliasErrors, ThrowOnError>({
-        security: [
-            {
-                scheme: 'bearer',
-                type: 'http'
-            }
-        ],
-        url: '/snapshot-aliases/@{alias}',
-        ...options
-    });
-};
-
-/**
- * Get a snapshot alias by alias name
- */
-export const getSnapshotAliasByAlias = <ThrowOnError extends boolean = false>(options: Options<GetSnapshotAliasByAliasData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetSnapshotAliasByAliasResponses, GetSnapshotAliasByAliasErrors, ThrowOnError>({
-        security: [
-            {
-                scheme: 'bearer',
-                type: 'http'
-            }
-        ],
-        url: '/snapshot-aliases/@{alias}',
+        url: '/snapshot-aliases/{alias}',
         ...options
     });
 };

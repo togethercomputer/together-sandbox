@@ -1,5 +1,5 @@
 /**
- * Lifecycle helper — turns a non-running / non-stopped sandbox state into a
+ * Lifecycle helper — turns a non-running / non-terminated sandbox state into a
  * single actionable error message.
  *
  * Mirrors `together_sandbox._lifecycle.describe_lifecycle_failure` (Python).
@@ -13,26 +13,26 @@
 export interface LifecycleSandbox {
   id?: string | null;
   status?: string | null;
-  stop_reason?: string | null;
-  recovery_status?: string | null;
-  stopReason?: string | null;
-  recoveryStatus?: string | null;
+  status_reason?: string | null;
+  statusReason?: string | null;
 }
 
-/** stop_reason → recovery hint when expecting "running" but ended up "stopped". */
-const STOP_REASON_HINTS: Record<string, string> = {
-  start_failed:
-    "Sandbox failed to start. Common causes: image not found, snapshot corrupted, or cluster at capacity. Try re-creating from a known-good snapshot.",
+/** status_reason → hint when expecting "running" but ended up terminal. */
+const STATUS_REASON_HINTS: Record<string, string> = {
+  internal_error:
+    "Sandbox failed to start due to an internal error. Common causes: image not found or snapshot corrupted. Try re-creating from a known-good snapshot; if it persists, report it.",
+  out_of_capacity:
+    "Sandbox could not be scheduled — the cluster is out of capacity. Retry shortly, or try a different cluster.",
   oom_killed:
     "Sandbox was killed for exceeding its memory limit. Increase memoryBytes when creating the sandbox.",
   crashed:
-    "The VM crashed. A stopped sandbox is terminal — create a new sandbox from a known-good snapshot.",
+    "The VM crashed. A terminated sandbox is terminal — create a new sandbox from a known-good snapshot.",
   evicted:
-    "Sandbox was evicted from its node. A stopped sandbox is terminal — create a new sandbox from a snapshot.",
+    "Sandbox was evicted from its node. A terminated sandbox is terminal — create a new sandbox from a snapshot.",
   node_lost:
-    "Sandbox's node was lost. A stopped sandbox is terminal — create a new sandbox from a snapshot.",
+    "Sandbox's node was lost. A terminated sandbox is terminal — create a new sandbox from a snapshot.",
   cluster_lost:
-    "Sandbox's cluster was lost. A stopped sandbox is terminal — create a new sandbox from a snapshot.",
+    "Sandbox's cluster was lost. A terminated sandbox is terminal — create a new sandbox from a snapshot.",
 };
 
 function firstDefined<T>(...values: (T | null | undefined)[]): T | undefined {
@@ -47,48 +47,45 @@ function firstDefined<T>(...values: (T | null | undefined)[]): T | undefined {
  * expected terminal state, with an actionable recovery hint.
  *
  * Order of precedence:
- *   1. `recovery_status === "unrecoverable"` — overrides everything; create a new sandbox.
- *   2. `recovery_status === "pending"`       — auto-recovery in progress, wait and retry.
- *   3. `status` of `starting | stopping`     — wait endpoint returned early (unexpected).
- *   4. `status === "created"`                — request never took effect.
- *   5. Wrong terminal (`stopped` ↔ `running`) — use `stop_reason`.
+ *   1. `status === "unrecovered"`             — crash recovery failed; create a new sandbox.
+ *   2. `status === "recovering"`              — auto-recovery in progress, wait and retry.
+ *   3. `status` of `starting | terminating`  — wait endpoint returned early (unexpected).
+ *   4. `status === "failed_to_start"`         — never started; use `status_reason`.
+ *   5. Wrong terminal (`terminated` ↔ `running`) — use `status_reason`.
  *   6. Fallthrough.
  */
 export function describeLifecycleFailure(
   sandbox: LifecycleSandbox,
-  expected: "running" | "stopped",
+  expected: "running" | "terminated",
 ): string {
   const id = sandbox.id ?? "<unknown>";
   const status = sandbox.status ?? "<unknown>";
-  const reason = firstDefined(sandbox.stop_reason, sandbox.stopReason);
-  const recovery = firstDefined(
-    sandbox.recovery_status,
-    sandbox.recoveryStatus,
+  const reason = firstDefined(
+    sandbox.status_reason,
+    sandbox.statusReason,
   );
 
-  // 1. Unrecoverable — terminal, biggest signal
-  if (recovery === "unrecoverable") {
+  // 1. Unrecovered — crash recovery failed; terminal, biggest signal
+  if (status === "unrecovered") {
     return (
-      `Sandbox '${id}' is marked unrecoverable ` +
-      `(status: '${status}'${reason ? `, stop_reason: '${reason}'` : ""}).\n` +
+      `Sandbox '${id}' could not be recovered ` +
+      `(status: 'unrecovered'${reason ? `, status_reason: '${reason}'` : ""}).\n` +
       `Hint: this sandbox cannot be recovered — create a new sandbox from a snapshot.`
     );
   }
 
-  // 2. Pending recovery — wait, do not retry blindly
-  if (recovery === "pending") {
+  // 2. Recovering — wait, do not retry blindly
+  if (status === "recovering") {
     return (
-      `Sandbox '${id}' is currently being auto-recovered ` +
-      `(status: '${status}', recovery_status: 'pending'` +
-      `${reason ? `, stop_reason: '${reason}'` : ""}).\n` +
+      `Sandbox '${id}' is currently being auto-recovered (status: 'recovering'` +
+      `${reason ? `, status_reason: '${reason}'` : ""}).\n` +
       `Hint: recovery is in progress — wait a few seconds then retry sdk.sandboxes.get('${id}'). ` +
-      `If recovery succeeds the sandbox will return to 'running' on its own; ` +
-      `if it becomes 'unrecoverable' you'll need to create a new sandbox.`
+      `If it becomes 'unrecovered' you'll need to create a new sandbox.`
     );
   }
 
   // 3. Transient — wait returned without reaching a terminal status
-  if (status === "starting" || status === "stopping") {
+  if (status === "starting" || status === "terminating") {
     return (
       `Sandbox '${id}' is still in transient state '${status}' after wait returned.\n` +
       `Hint: this is unexpected (waitForSandbox should only return at a terminal status). ` +
@@ -96,43 +93,38 @@ export function describeLifecycleFailure(
     );
   }
 
-  // 4. Request never took effect
-  if (status === "created") {
-    if (expected === "running") {
-      return (
-        `Sandbox '${id}' is still in 'created' state — it never started.\n` +
-        `Hint: sandboxes autostart on creation; create a new sandbox (autostart is on by default).`
-      );
-    }
-
+  // 4. Failed to start — never reached running
+  if (expected === "running" && status === "failed_to_start") {
+    const hint =
+      (reason && STATUS_REASON_HINTS[reason]) ??
+      `The sandbox never started — create a new sandbox from a known-good snapshot.`;
     return (
-      `Sandbox '${id}' is still in 'created' state — the stop request did not take effect.\n` +
-      `Hint: retry sdk.sandboxes.shutdown('${id}').`
+      `Sandbox '${id}' failed to start` +
+      `${reason ? ` (status_reason: '${reason}')` : ""}.\nHint: ${hint}`
     );
   }
 
   // 5. Wrong terminal — reached the other end
-  if (expected === "running" && status === "stopped") {
+  if (expected === "running" && status === "terminated") {
     const hint =
-      (reason && STOP_REASON_HINTS[reason]) ??
-      `A stopped sandbox is terminal — create a new sandbox from a snapshot, or call sdk.sandboxes.get('${id}') to inspect.`;
+      (reason && STATUS_REASON_HINTS[reason]) ??
+      `A terminated sandbox is terminal — create a new sandbox from a snapshot, or call sdk.sandboxes.get('${id}') to inspect.`;
     return (
-      `Sandbox '${id}' stopped instead of reaching 'running'` +
-      `${reason ? ` (stop_reason: '${reason}')` : ""}.\nHint: ${hint}`
+      `Sandbox '${id}' terminated instead of reaching 'running'` +
+      `${reason ? ` (status_reason: '${reason}')` : ""}.\nHint: ${hint}`
     );
   }
 
-  if (expected === "stopped" && status === "running") {
+  if (expected === "terminated" && status === "running") {
     return (
-      `Sandbox '${id}' is still running — the stop request did not take effect.\n` +
-      `Hint: retry sdk.sandboxes.shutdown('${id}'); report if it persists.`
+      `Sandbox '${id}' is still running — the terminate request did not take effect.\n` +
+      `Hint: retry sdk.sandboxes.terminate('${id}'); report if it persists.`
     );
   }
 
   // 6. Fallthrough — genuinely unexpected combination
   const extras: string[] = [];
-  if (reason) extras.push(`stop_reason: '${reason}'`);
-  if (recovery) extras.push(`recovery_status: '${recovery}'`);
+  if (reason) extras.push(`status_reason: '${reason}'`);
   const extrasStr = extras.length > 0 ? `, ${extras.join(", ")}` : "";
   return (
     `Sandbox '${id}' reached unexpected status '${status}' (expected '${expected}'${extrasStr}).\n` +

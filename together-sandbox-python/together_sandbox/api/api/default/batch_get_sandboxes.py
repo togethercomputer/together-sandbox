@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from typing import Any
+from uuid import UUID
 
 import httpx
 
@@ -12,12 +13,15 @@ from ...types import UNSET, Response
 
 def _get_kwargs(
     *,
-    ids: list[str],
+    ids: list[UUID],
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
 
-    json_ids = ids
+    json_ids = []
+    for ids_item_data in ids:
+        ids_item = str(ids_item_data)
+        json_ids.append(ids_item)
 
     params["ids[]"] = json_ids
 
@@ -80,12 +84,12 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    ids: list[str],
+    ids: list[UUID],
 ) -> Response[Error | list[Sandbox]]:
     """Batch get sandboxes by IDs
 
     Args:
-        ids (list[str]):
+        ids (list[UUID]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -109,12 +113,12 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    ids: list[str],
+    ids: list[UUID],
 ) -> Error | list[Sandbox] | None:
     """Batch get sandboxes by IDs
 
     Args:
-        ids (list[str]):
+        ids (list[UUID]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -133,12 +137,12 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    ids: list[str],
+    ids: list[UUID],
 ) -> Response[Error | list[Sandbox]]:
     """Batch get sandboxes by IDs
 
     Args:
-        ids (list[str]):
+        ids (list[UUID]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -160,12 +164,12 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    ids: list[str],
+    ids: list[UUID],
 ) -> Error | list[Sandbox] | None:
     """Batch get sandboxes by IDs
 
     Args:
-        ids (list[str]):
+        ids (list[UUID]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

@@ -86,6 +86,9 @@ def sync_detailed(
 ) -> Response[Any | Error]:
     """Assign an alias to a snapshot
 
+     Points the alias at the snapshot. If an alias of the same name already exists in the project, it is
+    repointed at this snapshot (an upsert).
+
     Args:
         snapshot_id (UUID):
         body (AliasSnapshotBody):
@@ -118,6 +121,9 @@ def sync(
 ) -> Any | Error | None:
     """Assign an alias to a snapshot
 
+     Points the alias at the snapshot. If an alias of the same name already exists in the project, it is
+    repointed at this snapshot (an upsert).
+
     Args:
         snapshot_id (UUID):
         body (AliasSnapshotBody):
@@ -144,6 +150,9 @@ async def asyncio_detailed(
     body: AliasSnapshotBody,
 ) -> Response[Any | Error]:
     """Assign an alias to a snapshot
+
+     Points the alias at the snapshot. If an alias of the same name already exists in the project, it is
+    repointed at this snapshot (an upsert).
 
     Args:
         snapshot_id (UUID):
@@ -174,6 +183,9 @@ async def asyncio(
     body: AliasSnapshotBody,
 ) -> Any | Error | None:
     """Assign an alias to a snapshot
+
+     Points the alias at the snapshot. If an alias of the same name already exists in the project, it is
+    repointed at this snapshot (an upsert).
 
     Args:
         snapshot_id (UUID):
