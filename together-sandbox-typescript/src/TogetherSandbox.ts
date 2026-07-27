@@ -69,7 +69,7 @@ export class TogetherSandbox {
     const baseUrl = config?.baseUrl ?? getInferredBaseUrl();
     const apiClient = createApiClient(
       createApiConfig({
-        baseUrl: `${baseUrl}/api/v1`,
+        baseUrl: `${baseUrl}/v1`,
         headers: { Authorization: `Bearer ${apiKey}` },
       }),
     );

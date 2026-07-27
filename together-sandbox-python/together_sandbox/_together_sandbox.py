@@ -48,7 +48,7 @@ class TogetherSandbox:
                 "api_key must be provided or TOGETHER_API_KEY env var must be set"
             )
         self._api_key = resolved_key
-        self._base_url = resolved_url + "/api/v1"
+        self._base_url = resolved_url + "/v1"
         self._retry = retry
         self._api_client = ApiClient(
             base_url=self._base_url,
