@@ -1,10 +1,9 @@
-name: e2e
+name: e2e (PR)
 
 on:
-  push:
+  pull_request:
     branches:
       - main
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,6 +11,10 @@ permissions:
 
 jobs:
   prepare:
+    # GitHub automatically withholds secrets for fork PRs when using the
+    # pull_request trigger, so no explicit fork guard is needed here.
+    # Fork PRs will fail at the snapshot creation step with an auth error
+    # rather than silently passing with an empty key.
     runs-on: ubuntu-latest
     outputs:
       snapshot_id: ${{ steps.snapshot.outputs.snapshot_id }}
@@ -71,8 +74,8 @@ jobs:
           echo "snapshot_id=$SNAPSHOT_ID" >> "$GITHUB_OUTPUT"
           echo "::notice title=prepare::snapshot_id=$SNAPSHOT_ID"
         env:
-          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
-          TOGETHER_BASE_URL: https://api.bartender.codesandbox.io
+          TOGETHER_API_KEY: ${{ secrets.STG_TOGETHER_API_KEY }}
+          TOGETHER_BASE_URL: https://api.bartender.codesandbox.stream
 
   e2e-python:
     needs: prepare
@@ -95,9 +98,9 @@ jobs:
         run: pytest tests/e2e/ -v
         working-directory: together-sandbox-python
         env:
-          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.STG_TOGETHER_API_KEY }}
           TOGETHER_SNAPSHOT_ID: ${{ needs.prepare.outputs.snapshot_id }}
-          TOGETHER_BASE_URL: https://api.bartender.codesandbox.io
+          TOGETHER_BASE_URL: https://api.bartender.codesandbox.stream
 
   e2e-typescript:
     needs: prepare
@@ -118,6 +121,6 @@ jobs:
         run: npm run test:e2e
         working-directory: together-sandbox-typescript
         env:
-          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.STG_TOGETHER_API_KEY }}
           TOGETHER_SNAPSHOT_ID: ${{ needs.prepare.outputs.snapshot_id }}
-          TOGETHER_BASE_URL: https://api.bartender.codesandbox.io
+          TOGETHER_BASE_URL: https://api.bartender.codesandbox.stream
