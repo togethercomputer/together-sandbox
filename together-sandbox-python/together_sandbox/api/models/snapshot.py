@@ -7,10 +7,10 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
+from typing_extensions import Self
 
 if TYPE_CHECKING:
-    from ..models.snapshot_tags import SnapshotTags
+    from ..models.tags import Tags
 
 
 T = TypeVar("T", bound="Snapshot")
@@ -24,13 +24,13 @@ class Snapshot:
         organization_id (None | str):
         project_id (str):
         byte_size (int):
-        tags (SnapshotTags): Arbitrary key/value labels attached to the snapshot.
-        ttl (int | None): Seconds after creation before the snapshot is automatically retired. Null disables automatic
-            retirement.
-        memory (bool): Whether the snapshot includes a memory snapshot in addition to the filesystem.
+        tags (Tags): User-defined key-value labels (both keys and values are strings).
+        ttl (int | None): Seconds after creation before the snapshot is automatically retired, or null if it is kept
+            indefinitely.
+        memory (bool): Whether the snapshot includes a memory snapshot.
         created_at (datetime.datetime):
         retired_at (datetime.datetime | None): When the snapshot was retired, or null if it is still active. A retired
-            snapshot is deleted after a short retention window.
+            snapshot can no longer be used to create new sandboxes and is eventually deleted.
         updated_at (datetime.datetime):
     """
 
@@ -38,7 +38,7 @@ class Snapshot:
     organization_id: None | str
     project_id: str
     byte_size: int
-    tags: SnapshotTags
+    tags: Tags
     ttl: int | None
     memory: bool
     created_at: datetime.datetime
@@ -93,8 +93,8 @@ class Snapshot:
         return field_dict
 
     @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.snapshot_tags import SnapshotTags
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        from ..models.tags import Tags
 
         d = dict(src_dict)
         id = UUID(d.pop("id"))
@@ -110,7 +110,7 @@ class Snapshot:
 
         byte_size = d.pop("byte_size")
 
-        tags = SnapshotTags.from_dict(d.pop("tags"))
+        tags = Tags.from_dict(d.pop("tags"))
 
         def _parse_ttl(data: object) -> int | None:
             if data is None:
@@ -121,7 +121,7 @@ class Snapshot:
 
         memory = d.pop("memory")
 
-        created_at = isoparse(d.pop("created_at"))
+        created_at = datetime.datetime.fromisoformat(d.pop("created_at"))
 
         def _parse_retired_at(data: object) -> datetime.datetime | None:
             if data is None:
@@ -129,7 +129,7 @@ class Snapshot:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                retired_at_type_0 = isoparse(data)
+                retired_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return retired_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -138,7 +138,7 @@ class Snapshot:
 
         retired_at = _parse_retired_at(d.pop("retired_at"))
 
-        updated_at = isoparse(d.pop("updated_at"))
+        updated_at = datetime.datetime.fromisoformat(d.pop("updated_at"))
 
         snapshot = cls(
             id=id,

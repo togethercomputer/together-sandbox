@@ -285,7 +285,7 @@ A connected, running VM. Returned by `sdk.sandboxes.create()`. All sub-namespace
 | Property | Type           | Description                                |
 | -------- | -------------- | ------------------------------------------ |
 | `id`     | `string`       | The sandbox/VM ID.                         |
-| `vmInfo` | `SandboxModel` | Raw VM start response (id, cluster, etc.). |
+| `vmInfo` | `SandboxModel` | Raw sandbox record (id, status, agent, etc.). |
 
 ---
 

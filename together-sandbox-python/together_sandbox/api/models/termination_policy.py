@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from ..models.termination_snapshot import TerminationSnapshot
@@ -15,10 +16,10 @@ T = TypeVar("T", bound="TerminationPolicy")
 
 @_attrs_define
 class TerminationPolicy:
-    """The snapshot policy applied when a sandbox terminates.
+    """The policy applied when a sandbox terminates.
 
     Attributes:
-        snapshot (TerminationSnapshot): The snapshot produced when a sandbox terminates.
+        snapshot (TerminationSnapshot): The snapshot captured when a sandbox terminates.
     """
 
     snapshot: TerminationSnapshot
@@ -38,7 +39,7 @@ class TerminationPolicy:
         return field_dict
 
     @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         from ..models.termination_snapshot import TerminationSnapshot
 
         d = dict(src_dict)

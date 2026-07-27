@@ -6,7 +6,7 @@ from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
+from typing_extensions import Self
 
 from ..models.exec_stdout_type import ExecStdoutType
 from ..types import UNSET, Unset
@@ -62,7 +62,7 @@ class ExecStdout:
         return field_dict
 
     @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         d = dict(src_dict)
         type_ = ExecStdoutType(d.pop("type"))
 
@@ -75,7 +75,7 @@ class ExecStdout:
         if isinstance(_timestamp, Unset):
             timestamp = UNSET
         else:
-            timestamp = isoparse(_timestamp)
+            timestamp = datetime.datetime.fromisoformat(_timestamp)
 
         exit_code = d.pop("exitCode", UNSET)
 

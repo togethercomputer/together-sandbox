@@ -5,13 +5,14 @@ from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+from typing_extensions import Self
 
-T = TypeVar("T", bound="TerminationSnapshotTags")
+T = TypeVar("T", bound="Tags")
 
 
 @_attrs_define
-class TerminationSnapshotTags:
-    """Arbitrary key/value labels to attach to the produced snapshot."""
+class Tags:
+    """User-defined key-value labels (both keys and values are strings)."""
 
     additional_properties: dict[str, str] = _attrs_field(init=False, factory=dict)
 
@@ -23,12 +24,12 @@ class TerminationSnapshotTags:
         return field_dict
 
     @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         d = dict(src_dict)
-        termination_snapshot_tags = cls()
+        tags = cls()
 
-        termination_snapshot_tags.additional_properties = d
-        return termination_snapshot_tags
+        tags.additional_properties = d
+        return tags
 
     @property
     def additional_keys(self) -> list[str]:

@@ -6,7 +6,9 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error import Error
+from ...models.list_sandboxes_statuses_item import ListSandboxesStatusesItem
 from ...models.sandbox_page import SandboxPage
+from ...models.tags import Tags
 from ...types import UNSET, Response, Unset
 
 
@@ -15,6 +17,8 @@ def _get_kwargs(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
+    tags: Tags | Unset = UNSET,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -24,6 +28,21 @@ def _get_kwargs(
     params["limit"] = limit
 
     params["cursor"] = cursor
+
+    json_statuses: list[str] | Unset = UNSET
+    if not isinstance(statuses, Unset):
+        json_statuses = []
+        for statuses_item_data in statuses:
+            statuses_item = statuses_item_data.value
+            json_statuses.append(statuses_item)
+
+    params["statuses[]"] = json_statuses
+
+    json_tags: dict[str, Any] | Unset = UNSET
+    if not isinstance(tags, Unset):
+        json_tags = tags.to_dict()
+    if not isinstance(json_tags, Unset):
+        params.update(json_tags)
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -82,6 +101,8 @@ def sync_detailed(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
+    tags: Tags | Unset = UNSET,
 ) -> Response[Error | SandboxPage]:
     """List sandboxes
 
@@ -89,6 +110,8 @@ def sync_detailed(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        statuses (list[ListSandboxesStatusesItem] | Unset):
+        tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -102,6 +125,8 @@ def sync_detailed(
         project_id=project_id,
         limit=limit,
         cursor=cursor,
+        statuses=statuses,
+        tags=tags,
     )
 
     response = client.get_httpx_client().request(
@@ -117,6 +142,8 @@ def sync(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
+    tags: Tags | Unset = UNSET,
 ) -> Error | SandboxPage | None:
     """List sandboxes
 
@@ -124,6 +151,8 @@ def sync(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        statuses (list[ListSandboxesStatusesItem] | Unset):
+        tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -138,6 +167,8 @@ def sync(
         project_id=project_id,
         limit=limit,
         cursor=cursor,
+        statuses=statuses,
+        tags=tags,
     ).parsed
 
 
@@ -147,6 +178,8 @@ async def asyncio_detailed(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
+    tags: Tags | Unset = UNSET,
 ) -> Response[Error | SandboxPage]:
     """List sandboxes
 
@@ -154,6 +187,8 @@ async def asyncio_detailed(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        statuses (list[ListSandboxesStatusesItem] | Unset):
+        tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -167,6 +202,8 @@ async def asyncio_detailed(
         project_id=project_id,
         limit=limit,
         cursor=cursor,
+        statuses=statuses,
+        tags=tags,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -180,6 +217,8 @@ async def asyncio(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
+    tags: Tags | Unset = UNSET,
 ) -> Error | SandboxPage | None:
     """List sandboxes
 
@@ -187,6 +226,8 @@ async def asyncio(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        statuses (list[ListSandboxesStatusesItem] | Unset):
+        tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -202,5 +243,7 @@ async def asyncio(
             project_id=project_id,
             limit=limit,
             cursor=cursor,
+            statuses=statuses,
+            tags=tags,
         )
     ).parsed

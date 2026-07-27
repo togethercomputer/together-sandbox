@@ -291,7 +291,7 @@ async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
 | Property  | Type           | Description                                 |
 | --------- | -------------- | ------------------------------------------- |
 | `id`      | `str`          | The sandbox/VM ID.                          |
-| `vm_info` | `SandboxModel` | Raw VM start response (id, agent, etc.) |
+| `vm_info` | `SandboxModel` | Raw sandbox record (id, status, agent, etc.) |
 
 ---
 

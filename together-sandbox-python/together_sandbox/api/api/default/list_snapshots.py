@@ -7,6 +7,7 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error import Error
 from ...models.snapshot_page import SnapshotPage
+from ...models.tags import Tags
 from ...types import UNSET, Response, Unset
 
 
@@ -15,6 +16,7 @@ def _get_kwargs(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    tags: Tags | Unset = UNSET,
     exclude_retired: bool | Unset = False,
 ) -> dict[str, Any]:
 
@@ -25,6 +27,12 @@ def _get_kwargs(
     params["limit"] = limit
 
     params["cursor"] = cursor
+
+    json_tags: dict[str, Any] | Unset = UNSET
+    if not isinstance(tags, Unset):
+        json_tags = tags.to_dict()
+    if not isinstance(json_tags, Unset):
+        params.update(json_tags)
 
     params["exclude_retired"] = exclude_retired
 
@@ -85,6 +93,7 @@ def sync_detailed(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    tags: Tags | Unset = UNSET,
     exclude_retired: bool | Unset = False,
 ) -> Response[Error | SnapshotPage]:
     """List snapshots
@@ -93,6 +102,7 @@ def sync_detailed(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
         exclude_retired (bool | Unset):  Default: False.
 
     Raises:
@@ -107,6 +117,7 @@ def sync_detailed(
         project_id=project_id,
         limit=limit,
         cursor=cursor,
+        tags=tags,
         exclude_retired=exclude_retired,
     )
 
@@ -123,6 +134,7 @@ def sync(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    tags: Tags | Unset = UNSET,
     exclude_retired: bool | Unset = False,
 ) -> Error | SnapshotPage | None:
     """List snapshots
@@ -131,6 +143,7 @@ def sync(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
         exclude_retired (bool | Unset):  Default: False.
 
     Raises:
@@ -146,6 +159,7 @@ def sync(
         project_id=project_id,
         limit=limit,
         cursor=cursor,
+        tags=tags,
         exclude_retired=exclude_retired,
     ).parsed
 
@@ -156,6 +170,7 @@ async def asyncio_detailed(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    tags: Tags | Unset = UNSET,
     exclude_retired: bool | Unset = False,
 ) -> Response[Error | SnapshotPage]:
     """List snapshots
@@ -164,6 +179,7 @@ async def asyncio_detailed(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
         exclude_retired (bool | Unset):  Default: False.
 
     Raises:
@@ -178,6 +194,7 @@ async def asyncio_detailed(
         project_id=project_id,
         limit=limit,
         cursor=cursor,
+        tags=tags,
         exclude_retired=exclude_retired,
     )
 
@@ -192,6 +209,7 @@ async def asyncio(
     project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
+    tags: Tags | Unset = UNSET,
     exclude_retired: bool | Unset = False,
 ) -> Error | SnapshotPage | None:
     """List snapshots
@@ -200,6 +218,7 @@ async def asyncio(
         project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
+        tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
         exclude_retired (bool | Unset):  Default: False.
 
     Raises:
@@ -216,6 +235,7 @@ async def asyncio(
             project_id=project_id,
             limit=limit,
             cursor=cursor,
+            tags=tags,
             exclude_retired=exclude_retired,
         )
     ).parsed

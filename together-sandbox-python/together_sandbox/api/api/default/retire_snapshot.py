@@ -78,8 +78,8 @@ def sync_detailed(
 ) -> Response[Error | Snapshot]:
     """Retire a snapshot
 
-     Retires the snapshot (a soft delete). The snapshot is deleted after a short retention window,
-    provided no sandbox still references it.
+     Retires the snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and
+    it is eventually deleted, provided no sandbox still references it.
 
     Args:
         id (UUID):
@@ -110,8 +110,8 @@ def sync(
 ) -> Error | Snapshot | None:
     """Retire a snapshot
 
-     Retires the snapshot (a soft delete). The snapshot is deleted after a short retention window,
-    provided no sandbox still references it.
+     Retires the snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and
+    it is eventually deleted, provided no sandbox still references it.
 
     Args:
         id (UUID):
@@ -137,8 +137,8 @@ async def asyncio_detailed(
 ) -> Response[Error | Snapshot]:
     """Retire a snapshot
 
-     Retires the snapshot (a soft delete). The snapshot is deleted after a short retention window,
-    provided no sandbox still references it.
+     Retires the snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and
+    it is eventually deleted, provided no sandbox still references it.
 
     Args:
         id (UUID):
@@ -167,8 +167,8 @@ async def asyncio(
 ) -> Error | Snapshot | None:
     """Retire a snapshot
 
-     Retires the snapshot (a soft delete). The snapshot is deleted after a short retention window,
-    provided no sandbox still references it.
+     Retires the snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and
+    it is eventually deleted, provided no sandbox still references it.
 
     Args:
         id (UUID):

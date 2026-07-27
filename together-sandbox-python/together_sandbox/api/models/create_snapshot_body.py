@@ -5,12 +5,13 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+from typing_extensions import Self
 
 from ..models.create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.create_snapshot_body_tags import CreateSnapshotBodyTags
+    from ..models.tags import Tags
 
 
 T = TypeVar("T", bound="CreateSnapshotBody")
@@ -25,13 +26,13 @@ class CreateSnapshotBody:
         architecture (CreateSnapshotBodyArchitecture | Unset): Expected image architecture.
         ttl (int | Unset): Seconds after creation before the snapshot is automatically deleted. Omit to keep the
             snapshot indefinitely.
-        tags (CreateSnapshotBodyTags | Unset): Arbitrary key/value labels to attach to the snapshot.
+        tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
     """
 
     image: str
     architecture: CreateSnapshotBodyArchitecture | Unset = UNSET
     ttl: int | Unset = UNSET
-    tags: CreateSnapshotBodyTags | Unset = UNSET
+    tags: Tags | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -64,8 +65,8 @@ class CreateSnapshotBody:
         return field_dict
 
     @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.create_snapshot_body_tags import CreateSnapshotBodyTags
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        from ..models.tags import Tags
 
         d = dict(src_dict)
         image = d.pop("image")
@@ -80,11 +81,11 @@ class CreateSnapshotBody:
         ttl = d.pop("ttl", UNSET)
 
         _tags = d.pop("tags", UNSET)
-        tags: CreateSnapshotBodyTags | Unset
+        tags: Tags | Unset
         if isinstance(_tags, Unset):
             tags = UNSET
         else:
-            tags = CreateSnapshotBodyTags.from_dict(_tags)
+            tags = Tags.from_dict(_tags)
 
         create_snapshot_body = cls(
             image=image,

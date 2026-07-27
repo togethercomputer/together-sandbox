@@ -125,6 +125,28 @@ export const getSandbox = <ThrowOnError extends boolean = false>(options: Option
 };
 
 /**
+ * Terminate a sandbox
+ * Terminates a sandbox. After this operation the sandbox cannot be used again.
+ *
+ */
+export const terminateSandbox = <ThrowOnError extends boolean = false>(options: Options<TerminateSandboxData, ThrowOnError>) => {
+    return (options.client ?? client).post<TerminateSandboxResponses, TerminateSandboxErrors, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
+        url: '/sandboxes/{id}/terminate',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
  * Wait for a sandbox to reach a terminal status
  */
 export const waitForSandbox = <ThrowOnError extends boolean = false>(options: Options<WaitForSandboxData, ThrowOnError>) => {
@@ -210,7 +232,7 @@ export const getSnapshot = <ThrowOnError extends boolean = false>(options: Optio
 
 /**
  * Retire a snapshot
- * Retires the snapshot (a soft delete). The snapshot is deleted after a short retention window, provided no sandbox still references it.
+ * Retires the snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and it is eventually deleted, provided no sandbox still references it.
  *
  */
 export const retireSnapshot = <ThrowOnError extends boolean = false>(options: Options<RetireSnapshotData, ThrowOnError>) => {
@@ -260,6 +282,8 @@ export const listSnapshotAliases = <ThrowOnError extends boolean = false>(option
 
 /**
  * Assign an alias to a snapshot
+ * Points the alias at the snapshot. If an alias of the same name already exists in the project, it is repointed at this snapshot (an upsert).
+ *
  */
 export const aliasSnapshot = <ThrowOnError extends boolean = false>(options: Options<AliasSnapshotData, ThrowOnError>) => {
     return (options.client ?? client).post<AliasSnapshotResponses, AliasSnapshotErrors, ThrowOnError>({
@@ -293,27 +317,5 @@ export const deleteSnapshotAlias = <ThrowOnError extends boolean = false>(option
         ],
         url: '/snapshot-aliases/{alias}',
         ...options
-    });
-};
-
-/**
- * Terminate a sandbox
- * Terminates a sandbox. After this operation the sandbox cannot be used again.
- *
- */
-export const terminateSandbox = <ThrowOnError extends boolean = false>(options: Options<TerminateSandboxData, ThrowOnError>) => {
-    return (options.client ?? client).post<TerminateSandboxResponses, TerminateSandboxErrors, ThrowOnError>({
-        security: [
-            {
-                scheme: 'bearer',
-                type: 'http'
-            }
-        ],
-        url: '/sandboxes/{id}/terminate',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
     });
 };

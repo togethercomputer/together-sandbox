@@ -7,14 +7,14 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
+from typing_extensions import Self
 
 from ..models.sandbox_status import SandboxStatus
 from ..models.sandbox_status_reason import SandboxStatusReason
 
 if TYPE_CHECKING:
     from ..models.sandbox_agent import SandboxAgent
-    from ..models.sandbox_tags import SandboxTags
+    from ..models.tags import Tags
     from ..models.termination_policy import TerminationPolicy
 
 
@@ -25,20 +25,20 @@ T = TypeVar("T", bound="Sandbox")
 class Sandbox:
     """
     Attributes:
-        id (UUID):
+        id (UUID): The sandbox's unique identifier.
         organization_id (None | str):
         project_id (str):
         status (SandboxStatus):
         snapshot_id (UUID): The snapshot the sandbox boots from. The snapshot produced when the sandbox terminates is
             aliased as `sandbox:<sandbox id>`.
         cpu (float): CPU allocation in cores.
-        memory_bytes (int):
-        tags (SandboxTags): Arbitrary key/value labels attached to the sandbox.
+        memory_bytes (int): Memory allocation in bytes.
         agent (SandboxAgent): Connection details for the in-sandbox agent.
         ttl (int | None): Seconds after creation before the sandbox is automatically terminated. Null disables automatic
             termination.
-        termination_policy (None | TerminationPolicy): The termination snapshot policy, or null for an ephemeral sandbox
-            (no snapshot is taken and it is deleted on termination).
+        tags (Tags): User-defined key-value labels (both keys and values are strings).
+        termination_policy (None | TerminationPolicy): The termination policy, or null for an ephemeral sandbox (no
+            snapshot is taken and it is deleted on termination).
         created_at (datetime.datetime):
         started_at (datetime.datetime | None):
         terminated_at (datetime.datetime | None):
@@ -55,9 +55,9 @@ class Sandbox:
     snapshot_id: UUID
     cpu: float
     memory_bytes: int
-    tags: SandboxTags
     agent: SandboxAgent
     ttl: int | None
+    tags: Tags
     termination_policy: None | TerminationPolicy
     created_at: datetime.datetime
     started_at: datetime.datetime | None
@@ -86,12 +86,12 @@ class Sandbox:
 
         memory_bytes = self.memory_bytes
 
-        tags = self.tags.to_dict()
-
         agent = self.agent.to_dict()
 
         ttl: int | None
         ttl = self.ttl
+
+        tags = self.tags.to_dict()
 
         termination_policy: dict[str, Any] | None
         if isinstance(self.termination_policy, TerminationPolicy):
@@ -140,9 +140,9 @@ class Sandbox:
                 "snapshot_id": snapshot_id,
                 "cpu": cpu,
                 "memory_bytes": memory_bytes,
-                "tags": tags,
                 "agent": agent,
                 "ttl": ttl,
+                "tags": tags,
                 "termination_policy": termination_policy,
                 "created_at": created_at,
                 "started_at": started_at,
@@ -157,9 +157,9 @@ class Sandbox:
         return field_dict
 
     @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         from ..models.sandbox_agent import SandboxAgent
-        from ..models.sandbox_tags import SandboxTags
+        from ..models.tags import Tags
         from ..models.termination_policy import TerminationPolicy
 
         d = dict(src_dict)
@@ -182,8 +182,6 @@ class Sandbox:
 
         memory_bytes = d.pop("memory_bytes")
 
-        tags = SandboxTags.from_dict(d.pop("tags"))
-
         agent = SandboxAgent.from_dict(d.pop("agent"))
 
         def _parse_ttl(data: object) -> int | None:
@@ -192,6 +190,8 @@ class Sandbox:
             return cast(int | None, data)
 
         ttl = _parse_ttl(d.pop("ttl"))
+
+        tags = Tags.from_dict(d.pop("tags"))
 
         def _parse_termination_policy(data: object) -> None | TerminationPolicy:
             if data is None:
@@ -208,7 +208,7 @@ class Sandbox:
 
         termination_policy = _parse_termination_policy(d.pop("termination_policy"))
 
-        created_at = isoparse(d.pop("created_at"))
+        created_at = datetime.datetime.fromisoformat(d.pop("created_at"))
 
         def _parse_started_at(data: object) -> datetime.datetime | None:
             if data is None:
@@ -216,7 +216,7 @@ class Sandbox:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                started_at_type_0 = isoparse(data)
+                started_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return started_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -231,7 +231,7 @@ class Sandbox:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                terminated_at_type_0 = isoparse(data)
+                terminated_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return terminated_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -248,7 +248,7 @@ class Sandbox:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                resized_at_type_0 = isoparse(data)
+                resized_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return resized_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -263,7 +263,7 @@ class Sandbox:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                recovery_at_type_0 = isoparse(data)
+                recovery_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return recovery_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -272,7 +272,7 @@ class Sandbox:
 
         recovery_at = _parse_recovery_at(d.pop("recovery_at"))
 
-        updated_at = isoparse(d.pop("updated_at"))
+        updated_at = datetime.datetime.fromisoformat(d.pop("updated_at"))
 
         sandbox = cls(
             id=id,
@@ -282,9 +282,9 @@ class Sandbox:
             snapshot_id=snapshot_id,
             cpu=cpu,
             memory_bytes=memory_bytes,
-            tags=tags,
             agent=agent,
             ttl=ttl,
+            tags=tags,
             termination_policy=termination_policy,
             created_at=created_at,
             started_at=started_at,

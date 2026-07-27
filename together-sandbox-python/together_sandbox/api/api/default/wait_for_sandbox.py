@@ -79,7 +79,7 @@ def sync_detailed(
     """Wait for a sandbox to reach a terminal status
 
     Args:
-        id (UUID): Sandbox ID.
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -108,7 +108,7 @@ def sync(
     """Wait for a sandbox to reach a terminal status
 
     Args:
-        id (UUID): Sandbox ID.
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -132,7 +132,7 @@ async def asyncio_detailed(
     """Wait for a sandbox to reach a terminal status
 
     Args:
-        id (UUID): Sandbox ID.
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -159,7 +159,7 @@ async def asyncio(
     """Wait for a sandbox to reach a terminal status
 
     Args:
-        id (UUID): Sandbox ID.
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

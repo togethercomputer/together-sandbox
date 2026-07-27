@@ -4,7 +4,17 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}/v1` | (string & {});
 };
 
+/**
+ * User-defined key-value labels (both keys and values are strings).
+ */
+export type Tags = {
+    [key: string]: string;
+};
+
 export type Sandbox = {
+    /**
+     * The sandbox's unique identifier.
+     */
     id: string;
     organization_id: string | null;
     project_id: string;
@@ -18,13 +28,10 @@ export type Sandbox = {
      * CPU allocation in cores.
      */
     cpu: number;
-    memory_bytes: number;
     /**
-     * Arbitrary key/value labels attached to the sandbox.
+     * Memory allocation in bytes.
      */
-    tags: {
-        [key: string]: string;
-    };
+    memory_bytes: number;
     /**
      * Connection details for the in-sandbox agent.
      */
@@ -44,8 +51,9 @@ export type Sandbox = {
      *
      */
     ttl: number | null;
+    tags: Tags;
     /**
-     * The termination snapshot policy, or null for an ephemeral sandbox (no snapshot is taken and it is deleted on termination).
+     * The termination policy, or null for an ephemeral sandbox (no snapshot is taken and it is deleted on termination).
      *
      */
     termination_policy: TerminationPolicy | null;
@@ -58,29 +66,52 @@ export type Sandbox = {
     updated_at: string;
 };
 
+/**
+ * The policy applied when a sandbox terminates.
+ */
+export type TerminationPolicy = {
+    snapshot: TerminationSnapshot;
+};
+
+/**
+ * The snapshot captured when a sandbox terminates.
+ */
+export type TerminationSnapshot = {
+    /**
+     * When true both the filesystem and memory are snapshotted (hibernate); when false only the filesystem is snapshotted (stop).
+     *
+     */
+    memory?: boolean;
+    /**
+     * Aliases to apply to the produced snapshot.
+     */
+    aliases?: Array<string>;
+    /**
+     * Seconds after which the snapshot produced on termination expires. Must be > 0. Omit to keep the snapshot indefinitely.
+     *
+     */
+    ttl?: number;
+    tags?: Tags;
+};
+
 export type Snapshot = {
     id: string;
     organization_id: string | null;
     project_id: string;
     byte_size: number;
+    tags: Tags;
     /**
-     * Arbitrary key/value labels attached to the snapshot.
-     */
-    tags: {
-        [key: string]: string;
-    };
-    /**
-     * Seconds after creation before the snapshot is automatically retired. Null disables automatic retirement.
+     * Seconds after creation before the snapshot is automatically retired, or null if it is kept indefinitely.
      *
      */
     ttl: number | null;
     /**
-     * Whether the snapshot includes a memory snapshot in addition to the filesystem.
+     * Whether the snapshot includes a memory snapshot.
      */
     memory: boolean;
     created_at: string;
     /**
-     * When the snapshot was retired, or null if it is still active. A retired snapshot is deleted after a short retention window.
+     * When the snapshot was retired, or null if it is still active. A retired snapshot can no longer be used to create new sandboxes and is eventually deleted.
      *
      */
     retired_at: string | null;
@@ -130,37 +161,6 @@ export type _Error = {
             [key: string]: unknown;
         };
     }>;
-};
-
-/**
- * The snapshot policy applied when a sandbox terminates.
- */
-export type TerminationPolicy = {
-    snapshot: TerminationSnapshot;
-};
-
-/**
- * The snapshot produced when a sandbox terminates.
- */
-export type TerminationSnapshot = {
-    /**
-     * Whether to include a memory snapshot in addition to the filesystem.
-     */
-    memory?: boolean;
-    /**
-     * Aliases to apply to the produced snapshot.
-     */
-    aliases?: Array<string>;
-    /**
-     * Seconds after creation before the produced snapshot is automatically deleted.
-     */
-    ttl?: number;
-    /**
-     * Arbitrary key/value labels to attach to the produced snapshot.
-     */
-    tags?: {
-        [key: string]: string;
-    };
 };
 
 export type AuthorizeData = {
@@ -240,6 +240,14 @@ export type ListSandboxesData = {
          * Sandbox ID returned as `next_cursor` from a previous page.
          */
         cursor?: string;
+        /**
+         * Filter by status; matches sandboxes in any of the given statuses.
+         */
+        'statuses[]'?: Array<'starting' | 'running' | 'terminating' | 'terminated' | 'failed_to_start' | 'recovering' | 'unrecovered'>;
+        /**
+         * Filter by tags; matches sandboxes whose tags contain all given pairs.
+         */
+        tags?: Tags;
     };
     url: '/sandboxes';
 };
@@ -283,33 +291,26 @@ export type CreateSandboxData = {
          */
         snapshot_alias?: string;
         /**
-         * CPU allocation in cores. Must be > 0 and a multiple of 0.25.
+         * CPU allocation in cores. Defaults to 1 when omitted.
+         *
          */
-        cpu: number;
+        cpu?: number;
         /**
-         * Memory allocation in bytes. Must be > 0.
+         * Memory allocation in bytes. Must be between 1 GB and 8 GB per requested CPU. Defaults to 2 GB when omitted.
+         *
          */
-        memory_bytes: number;
-        /**
-         * Arbitrary key/value labels to attach to the sandbox.
-         */
-        tags?: {
-            [key: string]: string;
-        };
+        memory_bytes?: number;
         /**
          * Seconds after creation before the sandbox is automatically terminated. Must be > 0. Omit to disable automatic termination.
          *
          */
         ttl?: number;
+        tags?: Tags;
         /**
-         * The termination snapshot policy. Omit for an ephemeral sandbox (no snapshot, deleted on termination).
+         * The termination policy. Omit for an ephemeral sandbox (no snapshot, deleted on termination).
          *
          */
         termination_policy?: TerminationPolicy;
-        /**
-         * Name of the cluster to launch the sandbox in.
-         */
-        cluster_name?: string;
     };
     path?: never;
     query?: never;
@@ -388,7 +389,7 @@ export type GetSandboxData = {
     body?: never;
     path: {
         /**
-         * Sandbox ID.
+         * The sandbox's unique identifier.
          */
         id: string;
     };
@@ -426,11 +427,59 @@ export type GetSandboxResponses = {
 
 export type GetSandboxResponse = GetSandboxResponses[keyof GetSandboxResponses];
 
+export type TerminateSandboxData = {
+    body?: {
+        /**
+         * What this teardown snapshots, overriding the snapshot the sandbox's stored termination policy would take. Omit to keep the stored policy; null makes the teardown ephemeral (no snapshot).
+         *
+         */
+        snapshot?: TerminationSnapshot | null;
+    };
+    path: {
+        /**
+         * The sandbox's unique identifier.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/sandboxes/{id}/terminate';
+};
+
+export type TerminateSandboxErrors = {
+    /**
+     * Bad request.
+     */
+    400: _Error;
+    /**
+     * Not authenticated.
+     */
+    401: _Error;
+    /**
+     * Not authorized.
+     */
+    403: _Error;
+    /**
+     * Resource not found.
+     */
+    404: _Error;
+};
+
+export type TerminateSandboxError = TerminateSandboxErrors[keyof TerminateSandboxErrors];
+
+export type TerminateSandboxResponses = {
+    /**
+     * Sandbox with updated status.
+     */
+    200: Sandbox;
+};
+
+export type TerminateSandboxResponse = TerminateSandboxResponses[keyof TerminateSandboxResponses];
+
 export type WaitForSandboxData = {
     body?: never;
     path: {
         /**
-         * Sandbox ID.
+         * The sandbox's unique identifier.
          */
         id: string;
     };
@@ -478,6 +527,10 @@ export type ListSnapshotsData = {
          * Snapshot ID returned as `next_cursor` from a previous page.
          */
         cursor?: string;
+        /**
+         * Filter by tags; matches snapshots whose tags contain all given pairs.
+         */
+        tags?: Tags;
         /**
          * When true, retired snapshots are excluded. Defaults to false.
          */
@@ -528,12 +581,7 @@ export type CreateSnapshotData = {
          *
          */
         ttl?: number;
-        /**
-         * Arbitrary key/value labels to attach to the snapshot.
-         */
-        tags?: {
-            [key: string]: string;
-        };
+        tags?: Tags;
     };
     path?: never;
     query?: never;
@@ -843,51 +891,3 @@ export type DeleteSnapshotAliasResponses = {
 };
 
 export type DeleteSnapshotAliasResponse = DeleteSnapshotAliasResponses[keyof DeleteSnapshotAliasResponses];
-
-export type TerminateSandboxData = {
-    body?: {
-        /**
-         * What this teardown snapshots, overriding the snapshot the sandbox's stored termination policy would take. Omit to keep the stored policy; null makes the teardown ephemeral (no snapshot).
-         *
-         */
-        snapshot?: TerminationSnapshot | null;
-    };
-    path: {
-        /**
-         * Sandbox ID.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/sandboxes/{id}/terminate';
-};
-
-export type TerminateSandboxErrors = {
-    /**
-     * Bad request.
-     */
-    400: _Error;
-    /**
-     * Not authenticated.
-     */
-    401: _Error;
-    /**
-     * Not authorized.
-     */
-    403: _Error;
-    /**
-     * Resource not found.
-     */
-    404: _Error;
-};
-
-export type TerminateSandboxError = TerminateSandboxErrors[keyof TerminateSandboxErrors];
-
-export type TerminateSandboxResponses = {
-    /**
-     * Sandbox with updated status.
-     */
-    200: Sandbox;
-};
-
-export type TerminateSandboxResponse = TerminateSandboxResponses[keyof TerminateSandboxResponses];

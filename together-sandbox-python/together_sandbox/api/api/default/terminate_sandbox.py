@@ -92,7 +92,7 @@ def sync_detailed(
      Terminates a sandbox. After this operation the sandbox cannot be used again.
 
     Args:
-        id (UUID): Sandbox ID.
+        id (UUID):
         body (TerminateSandboxBody | Unset):
 
     Raises:
@@ -126,7 +126,7 @@ def sync(
      Terminates a sandbox. After this operation the sandbox cannot be used again.
 
     Args:
-        id (UUID): Sandbox ID.
+        id (UUID):
         body (TerminateSandboxBody | Unset):
 
     Raises:
@@ -155,7 +155,7 @@ async def asyncio_detailed(
      Terminates a sandbox. After this operation the sandbox cannot be used again.
 
     Args:
-        id (UUID): Sandbox ID.
+        id (UUID):
         body (TerminateSandboxBody | Unset):
 
     Raises:
@@ -187,7 +187,7 @@ async def asyncio(
      Terminates a sandbox. After this operation the sandbox cannot be used again.
 
     Args:
-        id (UUID): Sandbox ID.
+        id (UUID):
         body (TerminateSandboxBody | Unset):
 
     Raises:
