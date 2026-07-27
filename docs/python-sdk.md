@@ -89,7 +89,8 @@ Resource params (`cpu`, `memory_bytes`) default to **1 vCPU / 2 GiB memory** if 
 | `tags`           | `dict \| None` | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
 | `termination_policy` | `dict \| None` | No   | Termination policy `{"snapshot": {"memory": bool, "aliases": [...], "ttl": int, "tags": {...}}}`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
-Sandboxes start automatically on creation, so there is no separate start step. A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshot_alias="sandbox:<id>"`).
+Sandboxes start automatically on creation, so there is no separate start step. 
+A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshot_alias="sandbox:<id>"`).
 
 #### `sdk.sandboxes.terminate(sandbox_id, *, snapshot=UNSET): Coroutine[None]`
 
