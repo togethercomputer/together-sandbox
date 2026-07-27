@@ -6,7 +6,7 @@ This document explains the core concepts behind Together Sandbox: what sandboxes
 
 ## What is a sandbox?
 
-A sandbox is a virtual machine that runs on Together's infrastructure. You create one — it starts automatically — run code inside it (via shell commands, file operations, and port forwarding), then terminate it. When a sandbox is hibernated its state is preserved as a snapshot; to continue from where it left off you create a new sandbox from that snapshot. Once terminated, a sandbox cannot be used again. Sandboxes can optionally be created as **ephemeral**, in which case they cannot be hibernated and are automatically deleted when they terminate.
+A sandbox is a virtual machine that runs on Together's infrastructure. You create one — it starts automatically — run code inside it (via shell commands, file operations, and port forwarding), then terminate it. When a sandbox terminates with a memory snapshot its state is preserved; to continue from where it left off you create a new sandbox from that snapshot. Once terminated, a sandbox cannot be used again. Sandboxes can optionally be created as **ephemeral**, in which case they take no snapshot and are automatically deleted when they terminate.
 
 Every sandbox is backed by a **snapshot**.
 
@@ -41,7 +41,7 @@ A sandbox moves through the following states:
               ┌─────────┐
               │ running │  ◄─── you interact with the sandbox here
               └────┬────┘
-                   │ terminate(), hibernate() or shutdown()
+                   │ terminate()
                    ▼
               ┌─────────────┐
               │ terminating │  ← transitional
@@ -53,7 +53,7 @@ A sandbox moves through the following states:
               └────────────┘
 ```
 
-Sandboxes autostart on creation. `starting` and `terminating` are transient states — `create()`, `terminate()`, `hibernate()`, and `shutdown()` all block until the sandbox reaches a terminal state (`running` or `terminated`). Once a sandbox reaches `terminated` it cannot be used again. To continue from a terminated sandbox's state, create a new sandbox from the snapshot it produced.
+Sandboxes autostart on creation. `starting` and `terminating` are transient states — `create()` and `terminate()` both block until the sandbox reaches a terminal state (`running` or `terminated`). Once a sandbox reaches `terminated` it cannot be used again. To continue from a terminated sandbox's state, create a new sandbox from the snapshot it produced.
 
 **Note!** A `starting` sandbox that cannot start moves to `failed_to_start` (terminal). If a running sandbox crashes it is auto-recovered (`recovering`); if recovery fails it ends in `unrecovered`.
 
@@ -89,44 +89,44 @@ snapshot was captured and `false` otherwise.
 
 ---
 
-## Terminating: hibernate vs. shutdown
+## Terminating
 
 Terminating a sandbox tears it down for good. `terminate()` takes a
 `snapshot` object `{ memory, aliases, ttl, tags }` selecting what to snapshot
-first — `memory: false` snapshots the disk only, `memory: true` snapshots disk +
-memory — plus which aliases and tags to apply to the produced snapshot; omit it
+first, plus which aliases and tags to apply to the produced snapshot. Omit it
 to use the policy the sandbox was created with, or pass `null` to make the
-teardown ephemeral (no snapshot). `shutdown()` and `hibernate()` are convenience
-wrappers for the two common snapshot modes:
+teardown ephemeral (no snapshot).
 
-### Hibernate
+`memory` picks between the two useful teardowns:
 
-```typescript
-await sandbox.hibernate();
-```
-
-Hibernation suspends the VM and **preserves its full memory state** as a new snapshot. To continue, you create a new sandbox from that snapshot; it resumes from exactly where it left off — running processes, open file descriptors, and all. This resume is fast because the OS does not need to boot.
-
-Use hibernation when you want to pause a sandbox and come back to it later with its state intact.
-
-> **Note:** Hibernation is not supported on ephemeral sandboxes as they do not preserve state when stopped. Calling `hibernate()` on an ephemeral sandbox returns an error. Use `shutdown()` instead.
-
-### Shutdown
+### Filesystem only — `{ memory: false }`
 
 ```typescript
-await sandbox.shutdown();
+await sandbox.terminate({ snapshot: { memory: false } });
 ```
 
-Shutdown terminates the VM cleanly without preserving memory. A new sandbox created from the resulting snapshot boots from disk with a clean slate — no in-memory state is carried over. Cold starts are slower than resumes.
+The VM is torn down cleanly without preserving memory. A new sandbox created from the resulting snapshot boots from disk with a clean slate — no in-memory state is carried over. Cold starts are slower than resumes.
 
-Use shutdown when you want a clean restart or when ongoing state doesn't matter.
+Use this when you want a clean restart or when ongoing state doesn't matter.
+
+### Filesystem and memory — `{ memory: true }`
+
+```typescript
+await sandbox.terminate({ snapshot: { memory: true } });
+```
+
+This suspends the VM and **preserves its full memory state** as a new snapshot. To continue, you create a new sandbox from that snapshot; it resumes from exactly where it left off — running processes, open file descriptors, and all. This resume is fast because the OS does not need to boot.
+
+Use it when you want to pause a sandbox and come back to it later with its state intact.
+
+> **Note:** Memory snapshots are not supported on ephemeral sandboxes, as they do not preserve state when stopped. Passing `{ memory: true }` for an ephemeral sandbox returns an error.
 
 ---
 
 ## Source and result snapshots
 
 - `snapshot_id` — the snapshot the sandbox booted from (set at creation).
-- The snapshot created when the sandbox terminates (via hibernate or shutdown)
+- The snapshot created when the sandbox terminates
   is **not** stored on the sandbox model. It is aliased as `sandbox:<sandbox id>`,
   so you can create a new sandbox from it with `snapshotAlias: "sandbox:<id>"`.
 
@@ -322,8 +322,8 @@ The SDK wraps these automatically — you don't need to use them directly. The `
 | ---------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
 | Create sandbox               | `sdk.sandboxes.create({ snapshotAlias: "…" })` | `sdk.sandboxes.create(snapshot_alias="…")`                       |
 | Terminate sandbox            | `sandbox.terminate()`                          | `sandbox.terminate()`                                            |
-| Hibernate sandbox            | `sandbox.hibernate()`                          | `sandbox.hibernate()`                                            |
-| Shut down sandbox            | `sandbox.shutdown()`                           | `sandbox.shutdown()`                                             |
+| Terminate, snapshot disk     | `sandbox.terminate({ snapshot: { memory: false } })` | `sandbox.terminate(snapshot={"memory": False})`            |
+| Terminate, snapshot disk+RAM | `sandbox.terminate({ snapshot: { memory: true } })`  | `sandbox.terminate(snapshot={"memory": True})`             |
 | List sandboxes               | `sdk.sandboxes.list()`                         | `sdk.sandboxes.list()`                                           |
 | Create snapshot (Dockerfile) | `sdk.snapshots.create({ context: "…" })`       | `sdk.snapshots.create(CreateContextSnapshotParams(context="…"))` |
 | Create snapshot (image)      | `sdk.snapshots.create({ image: "…" })`         | `sdk.snapshots.create(CreateImageSnapshotParams(image="…"))`     |

@@ -195,23 +195,4 @@ export class SandboxesNamespace {
       throw new Error(describeLifecycleFailure(waitResult, "terminated"));
     }
   }
-
-  /**
-   * Hibernate (suspend) a VM by sandbox ID — a terminate that snapshots both
-   * the filesystem and memory.
-   */
-  async hibernate(sandboxId: string): Promise<void> {
-    await this.terminate(sandboxId, {
-      snapshot: { memory: true },
-    });
-  }
-
-  /**
-   * Shut down a VM by sandbox ID — a terminate that snapshots the filesystem.
-   */
-  async shutdown(sandboxId: string): Promise<void> {
-    await this.terminate(sandboxId, {
-      snapshot: { memory: false },
-    });
-  }
 }
