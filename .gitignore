@@ -1,8 +1,3 @@
-# Generated code
-together-sandbox-typescript/src/api-clients
-together-sandbox-python/together_sandbox/api
-together-sandbox-python/together_sandbox/sandbox
-
 # Generated SDK docs
 together-sandbox-typescript/docs
 together-sandbox-typescript/LLMS.md
