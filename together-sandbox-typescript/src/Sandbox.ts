@@ -35,7 +35,7 @@ export interface WatchOptions {
  * const sandbox = await sdk.sandboxes.create({ snapshotId: "my-snapshot-id" });
  * const file = await sandbox.files.read("/src/index.ts");
  * await sandbox.execs.create({ command: "ls", args: ["-la"] });
- * await sandbox.shutdown();
+ * await sandbox.terminate();
  * ```
  */
 export class Sandbox {
@@ -406,16 +406,6 @@ export class Sandbox {
     }
   }
 
-  /** Hibernate (suspend) this VM — a terminate that snapshots filesystem and memory. */
-  async hibernate(): Promise<void> {
-    await this.terminate({ snapshot: { memory: true } });
-  }
-
-  /** Shut down this VM — a terminate that snapshots the filesystem. */
-  async shutdown(): Promise<void> {
-    await this.terminate({ snapshot: { memory: false } });
-  }
-
   // ── Static factory methods ─────────────────────────────────────────────
 
   /**
@@ -456,41 +446,5 @@ export class Sandbox {
   ): Promise<void> {
     const sdk = new TogetherSandbox(config);
     await sdk.sandboxes.terminate(sandboxId, options);
-  }
-
-  /**
-   * Hibernate a sandbox by ID without needing a running Sandbox instance.
-   *
-   * @example
-   * ```typescript
-   * await Sandbox.hibernate("my-sandbox-id", {
-   *   apiKey: process.env.TOGETHER_API_KEY!,
-   * });
-   * ```
-   */
-  static async hibernate(
-    sandboxId: string,
-    config: TogetherSandboxConfig,
-  ): Promise<void> {
-    const sdk = new TogetherSandbox(config);
-    await sdk.sandboxes.hibernate(sandboxId);
-  }
-
-  /**
-   * Shut down a sandbox by ID without needing a running Sandbox instance.
-   *
-   * @example
-   * ```typescript
-   * await Sandbox.shutdown("my-sandbox-id", {
-   *   apiKey: process.env.TOGETHER_API_KEY!,
-   * });
-   * ```
-   */
-  static async shutdown(
-    sandboxId: string,
-    config: TogetherSandboxConfig,
-  ): Promise<void> {
-    const sdk = new TogetherSandbox(config);
-    await sdk.sandboxes.shutdown(sandboxId);
   }
 }

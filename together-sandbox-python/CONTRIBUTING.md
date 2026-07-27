@@ -139,7 +139,7 @@ async def test_lifecycle():
         sandbox = await sdk.sandboxes.start(template_id)
         # Test code
     finally:
-        await sdk.sandboxes.shutdown(sandbox.id)
+        await sdk.sandboxes.terminate(sandbox.id)
         await sdk.close()
 ```
 

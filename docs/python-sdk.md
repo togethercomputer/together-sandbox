@@ -33,12 +33,12 @@ async def main():
     async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
         content = await sandbox.files.read("/package.json")
         print(content)
-        await sandbox.shutdown()
+        await sandbox.terminate()
 
 asyncio.run(main())
 ```
 
-> **Note:** The `async with` block closes the HTTP connection on exit. It does **not** automatically shut down the VM — call `await sandbox.shutdown()` explicitly when you're done.
+> **Note:** The `async with` block closes the HTTP connection on exit. It does **not** automatically terminate the VM — call `await sandbox.terminate()` explicitly when you're done.
 
 ---
 
@@ -98,22 +98,6 @@ Terminates a VM by sandbox ID. `snapshot` (`{"memory": ..., "aliases": [...], "t
 
 ```python
 await sdk.sandboxes.terminate("your-sandbox-id", snapshot={"memory": False})
-```
-
-#### `sdk.sandboxes.hibernate(sandbox_id): Coroutine[None]`
-
-Suspends (hibernates) a VM by sandbox ID — a terminate that snapshots filesystem and memory.
-
-```python
-await sdk.sandboxes.hibernate("your-sandbox-id")
-```
-
-#### `sdk.sandboxes.shutdown(sandbox_id): Coroutine[None]`
-
-Shuts down a VM by sandbox ID.
-
-```python
-await sdk.sandboxes.shutdown("your-sandbox-id")
 ```
 
 ---
@@ -548,20 +532,20 @@ async for event in sandbox.ports.stream_list():
 
 ### Lifecycle methods
 
-#### `sandbox.hibernate() -> None`
+#### `sandbox.terminate(*, snapshot=UNSET) -> None`
 
-Suspend (hibernate) this VM.
+Terminate this VM. After this the sandbox is terminal and cannot be used again.
 
-```python
-await sandbox.hibernate()
-```
-
-#### `sandbox.shutdown() -> None`
-
-Shut down this VM.
+`snapshot` (`{"memory": ..., "aliases": [...], "ttl": ..., "tags": {...}}`)
+overrides what this teardown snapshots — omit it to use the sandbox's stored
+termination policy, or pass `None` for an ephemeral teardown (no snapshot).
 
 ```python
-await sandbox.shutdown()
+# Use the stored termination policy
+await sandbox.terminate()
+
+# Snapshot the filesystem and memory, so a new sandbox can resume from it
+await sandbox.terminate(snapshot={"memory": True})
 ```
 
 #### `sandbox.close() -> None`
@@ -572,12 +556,12 @@ Close the underlying sandbox HTTP client connection without affecting the VM sta
 
 ### Async context manager
 
-`Sandbox` supports use as an async context manager. Exiting the block closes the HTTP connection but does **not** shut down the VM.
+`Sandbox` supports use as an async context manager. Exiting the block closes the HTTP connection but does **not** terminate the VM.
 
 ```python
 async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
     content = await sandbox.files.read("/README.md")
-    await sandbox.shutdown()
+    await sandbox.terminate()
 ```
 
 ---
@@ -594,17 +578,8 @@ Creates a sandbox from a snapshot, starts the VM, and returns a connected [`Sand
 sandbox = await Sandbox.create(snapshot_id="your-snapshot-id", api_key="your-key")
 ```
 
-### `Sandbox.hibernate(sandbox_id, *, api_key=None, base_url=...)`
-
-```python
-await Sandbox.hibernate("sandbox-id", api_key="your-key")
-```
-
-### `Sandbox.shutdown(sandbox_id, *, api_key=None, base_url=...)`
-
-```python
-await Sandbox.shutdown("sandbox-id", api_key="your-key")
-```
+To terminate a sandbox by ID without a running `Sandbox` instance, use the
+namespace method: `await sdk.sandboxes.terminate("sandbox-id")`.
 
 ---
 
@@ -669,7 +644,7 @@ Pass a `RetryConfig` to `TogetherSandbox(retry=...)` to customise this behaviour
 
 | Field       | Type          | Description                                                                                  |
 | ----------- | ------------- | -------------------------------------------------------------------------------------------- |
-| `operation` | `str`         | The operation that failed, e.g. `'hibernateSandbox'`, `'files.read'`.                        |
+| `operation` | `str`         | The operation that failed, e.g. `'api.terminate_sandbox'`, `'files.read'`.                   |
 | `attempt`   | `int`         | 1-based number of the attempt that just failed.                                              |
 | `error`     | `Exception`   | The [`HttpError`](#httperror) that was raised.                                               |
 | `status`    | `int \| None` | HTTP status code, or `0` for transport-level failures.                                       |

@@ -217,10 +217,3 @@ class SandboxesNamespace:
         if vm_info.status != "terminated":
             raise RuntimeError(describe_lifecycle_failure(vm_info, "terminated"))
 
-    async def hibernate(self, sandbox_id: str) -> None:
-        """Hibernate (suspend) a VM — a terminate that snapshots filesystem and memory."""
-        await self.terminate(sandbox_id, snapshot={"memory": True})
-
-    async def shutdown(self, sandbox_id: str) -> None:
-        """Shut down a VM — a terminate that snapshots the filesystem."""
-        await self.terminate(sandbox_id, snapshot={"memory": False})

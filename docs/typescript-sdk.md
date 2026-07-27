@@ -33,7 +33,7 @@ const sandbox = await sdk.sandboxes.create({ snapshotAlias: "my-app@v1" });
 const content = await sandbox.files.read("/package.json");
 console.log(content);
 
-await sandbox.shutdown();
+await sandbox.terminate();
 ```
 
 ---
@@ -90,22 +90,6 @@ Terminates a VM by sandbox ID. `options.snapshot` (`{ memory, aliases, ttl, tags
 await sdk.sandboxes.terminate("your-sandbox-id", {
   snapshot: { memory: false },
 });
-```
-
-#### `sdk.sandboxes.hibernate(sandboxId): Promise<void>`
-
-Suspends (hibernates) a VM by sandbox ID — a terminate that snapshots filesystem and memory.
-
-```typescript
-await sdk.sandboxes.hibernate("your-sandbox-id");
-```
-
-#### `sdk.sandboxes.shutdown(sandboxId): Promise<void>`
-
-Shuts down a VM by sandbox ID.
-
-```typescript
-await sdk.sandboxes.shutdown("your-sandbox-id");
 ```
 
 ---
@@ -531,20 +515,20 @@ const stream = await sandbox.ports.streamList();
 
 ### Lifecycle methods
 
-#### `sandbox.hibernate(): Promise<void>`
+#### `sandbox.terminate(options?): Promise<void>`
 
-Suspend (hibernate) this VM.
+Terminate this VM. After this the sandbox is terminal and cannot be used again.
 
-```typescript
-await sandbox.hibernate();
-```
-
-#### `sandbox.shutdown(): Promise<void>`
-
-Shut down this VM.
+`options.snapshot` (`{ memory, aliases, ttl, tags }`) overrides what this
+teardown snapshots — omit it to use the sandbox's stored termination policy, or
+pass `null` for an ephemeral teardown (no snapshot).
 
 ```typescript
-await sandbox.shutdown();
+// Use the stored termination policy
+await sandbox.terminate();
+
+// Snapshot the filesystem and memory, so a new sandbox can resume from it
+await sandbox.terminate({ snapshot: { memory: true } });
 ```
 
 ---
@@ -564,18 +548,10 @@ const sandbox = await Sandbox.create(
 );
 ```
 
-### `Sandbox.hibernate(sandboxId, config): Promise<void>`
+### `Sandbox.terminate(sandboxId, config, options?): Promise<void>`
 
 ```typescript
-await Sandbox.hibernate("your-sandbox-id", {
-  apiKey: process.env.TOGETHER_API_KEY!,
-});
-```
-
-### `Sandbox.shutdown(sandboxId, config): Promise<void>`
-
-```typescript
-await Sandbox.shutdown("your-sandbox-id", {
+await Sandbox.terminate("your-sandbox-id", {
   apiKey: process.env.TOGETHER_API_KEY!,
 });
 ```
@@ -644,7 +620,7 @@ Pass a `RetryConfig` to `new TogetherSandbox({ retry: ... })` to customise this 
 
 | Field       | Type                  | Description                                                                                      |
 | ----------- | --------------------- | ------------------------------------------------------------------------------------------------ |
-| `operation` | `string`              | The operation that failed, e.g. `'hibernateSandbox'`, `'files.read'`.                            |
+| `operation` | `string`              | The operation that failed, e.g. `'api.terminateSandbox'`, `'files.read'`.                        |
 | `attempt`   | `number`              | 1-based number of the attempt that just failed.                                                  |
 | `error`     | `unknown`             | The [`HttpError`](#httperror) that was thrown.                                                   |
 | `status`    | `number \| undefined` | HTTP status code, or `0` for transport-level failures.                                           |

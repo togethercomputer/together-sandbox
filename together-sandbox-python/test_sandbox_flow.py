@@ -66,8 +66,8 @@ async def main() -> None:
             print(f"File content: {content.strip()}")
 
         finally:
-            await sdk.sandboxes.shutdown(sandbox.id)
-            print("Sandbox shut down.")
+            await sdk.sandboxes.terminate(sandbox.id)
+            print("Sandbox terminated.")
 
 
 if __name__ == "__main__":

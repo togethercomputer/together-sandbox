@@ -41,8 +41,8 @@ async def main():
         content = await sandbox.files.read("/workspace/hello.txt")
         print(f"/workspace/hello.txt:\n{content}")
     finally:
-        print("Shutting down sandbox...")
-        await sdk.sandboxes.shutdown(sandbox.id)
+        print("Terminating sandbox...")
+        await sdk.sandboxes.terminate(sandbox.id)
         print("Done.")
 
 
