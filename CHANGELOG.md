@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v3.1.0...together-sandbox-workspace-v3.2.0) (2026-07-27)
+
+
+### Features
+
+* Adapt SDK to new data model ([#118](https://github.com/togethercomputer/together-sandbox/issues/118)) ([d435328](https://github.com/togethercomputer/together-sandbox/commit/d4353280853260e743507c1b4bfdebfe216c6bec))
+
 ## [3.1.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v3.0.2...together-sandbox-workspace-v3.1.0) (2026-07-24)
 
 
