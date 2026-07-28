@@ -4,7 +4,13 @@ import { TogetherSandbox } from "together-sandbox";
 import type { CreateSnapshotParams, Snapshot } from "together-sandbox";
 import ora from "ora";
 import { runList, type ListArgs } from "./_list";
-import { cell, formatTags, humanBytes, renderDescribe } from "./_table";
+import {
+  cell,
+  formatAge,
+  formatTags,
+  humanBytes,
+  renderDescribe,
+} from "./_table";
 import { parseKeyValues } from "./_exec";
 import { examples } from "./_help";
 
@@ -265,13 +271,13 @@ export const listCommand: yargs.CommandModule<
             sdk.snapshots.list({ ...params, excludeRetired, tags }),
           // TAGS is last: it is the only unbounded-width column, and
           // `renderTable` truncates the final column to fit the terminal.
-          headers: ["ID", "SIZE", "MEMORY", "RETIRED", "CREATED", "TAGS"],
+          headers: ["ID", "SIZE", "MEMORY", "RETIRED", "AGE", "TAGS"],
           toRow: (s) => [
             cell(s.id),
             humanBytes(s.byte_size),
             cell(s.memory),
-            cell(s.retired_at),
-            cell(s.created_at),
+            formatAge(s.retired_at),
+            formatAge(s.created_at),
             formatTags(s.tags),
           ],
         },

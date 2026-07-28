@@ -105,11 +105,13 @@ List snapshots, newest cursor-paginated page first.
 | `-o, --output`       | `string`  | `table` (default) or `json`.                                                      |
 | `--ci`               | `boolean` | Plain output, no interactive pager.                                               |
 
-Columns: `ID`, `SIZE`, `MEMORY`, `RETIRED`, `CREATED`, `TAGS`.
+Columns: `ID`, `SIZE`, `MEMORY`, `RETIRED`, `AGE`, `TAGS`.
 
 On a TTY the results are streamed into your pager (`$PAGER`, or `less`), fetching the next page only as you scroll. Passing `--limit`/`--cursor`, `--ci`, or piping the output emits a single page instead.
 
-`TAGS` renders as a sorted, comma-separated `key=value` list (`<none>` when empty). On a TTY it is truncated with `…` to keep each sandbox on one line; when piped or under `--ci` the full value is printed, so `awk`/`cut` see whole values.
+`TAGS` renders as a sorted, comma-separated `key=value` list (`<none>` when empty). On a TTY it is truncated with `…` to keep each row on one line; when piped or under `--ci` the full value is printed, so `awk`/`cut` see whole values.
+
+`AGE` and `RETIRED` render as a relative age — `10s ago`, `7mins ago`, `10hrs ago`, `3days ago`, `5mos ago`, `2yrs ago` — showing only the largest matching unit. Use `-o json` when you need the exact ISO-8601 timestamps; JSON output is always the raw API payload.
 
 ### `together-sandbox snapshots get <ref>`
 
@@ -123,7 +125,7 @@ Sandbox management commands.
 
 ### `together-sandbox sandboxes list [options]`
 
-List sandboxes. Columns: `ID`, `STATUS`, `REASON`, `CPU`, `CREATED`, `TAGS`. Same pagination, tag rendering, and output behaviour as `snapshots list`, plus:
+List sandboxes. Columns: `ID`, `STATUS`, `REASON`, `CPU`, `AGE`, `TAGS`. Same pagination, tag/age rendering, and output behaviour as `snapshots list`, plus:
 
 | Option              | Type      | Description                                                                                                                                     |
 | ------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |

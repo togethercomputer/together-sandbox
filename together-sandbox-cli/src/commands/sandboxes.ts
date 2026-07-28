@@ -6,7 +6,13 @@ import type {
   TerminationSnapshotParams,
 } from "together-sandbox";
 import { runList, type ListArgs } from "./_list";
-import { cell, formatTags, humanBytes, renderDescribe } from "./_table";
+import {
+  cell,
+  formatAge,
+  formatTags,
+  humanBytes,
+  renderDescribe,
+} from "./_table";
 import {
   execTarget,
   fullCommand,
@@ -215,13 +221,13 @@ export const listCommand: yargs.CommandModule<
             sdk.sandboxes.list({ ...params, statuses, tags }),
           // TAGS is last: it is the only unbounded-width column, and
           // `renderTable` truncates the final column to fit the terminal.
-          headers: ["ID", "STATUS", "REASON", "CPU", "CREATED", "TAGS"],
+          headers: ["ID", "STATUS", "REASON", "CPU", "AGE", "TAGS"],
           toRow: (s) => [
             cell(s.id),
             cell(s.status),
             cell(s.statusReason),
             cell(s.cpu),
-            cell(s.createdAt),
+            formatAge(s.createdAt),
             formatTags(s.tags),
           ],
         },

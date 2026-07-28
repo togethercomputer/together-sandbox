@@ -23,6 +23,37 @@ export function formatTags(tags: Record<string, string> | undefined): string {
     .join(",");
 }
 
+// Largest-unit-first thresholds for `formatAge`, in seconds.
+const AGE_UNITS: [seconds: number, singular: string, plural: string][] = [
+  [60 * 60 * 24 * 365, "yr", "yrs"],
+  [60 * 60 * 24 * 30, "mo", "mos"],
+  [60 * 60 * 24, "day", "days"],
+  [60 * 60, "hr", "hrs"],
+  [60, "min", "mins"],
+];
+
+/**
+ * Render an ISO timestamp as a compact age, e.g. "10s ago" / "7mins ago" /
+ * "10hrs ago". Only the largest matching unit is shown — this is a table
+ * column, not a precise duration. Unparseable values are passed through so a
+ * surprise from the API is visible rather than silently swallowed.
+ */
+export function formatAge(timestamp: string | null | undefined): string {
+  if (timestamp === null || timestamp === undefined || timestamp === "")
+    return cell(undefined);
+  const then = Date.parse(timestamp);
+  if (Number.isNaN(then)) return timestamp;
+
+  // Clamp: a clock skewed slightly ahead of ours should read "0s ago", not a
+  // negative age.
+  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  for (const [size, singular, plural] of AGE_UNITS) {
+    const n = Math.floor(seconds / size);
+    if (n >= 1) return `${n}${n === 1 ? singular : plural} ago`;
+  }
+  return `${seconds}s ago`;
+}
+
 /** Human-readable byte size, e.g. 134217728 → "128.0MiB". */
 export function humanBytes(n: number): string {
   if (!Number.isFinite(n)) return String(n);
