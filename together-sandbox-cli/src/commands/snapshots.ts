@@ -62,6 +62,7 @@ export type CreateArgs = {
   dockerfile?: string;
   image?: string;
   alias?: string;
+  cacheKey?: string;
   ci?: boolean;
 };
 
@@ -88,6 +89,12 @@ export const createCommand: yargs.CommandModule<
       .option("alias", {
         type: "string",
         describe: "Alias for the snapshot (namespace@tag or just tag)",
+      })
+      .option("cache-key", {
+        type: "string",
+        describe:
+          "Share a build layer cache between builds using the same key " +
+          "(only with --context)",
       })
       .option("ci", {
         type: "boolean",
@@ -122,6 +129,10 @@ export const createCommand: yargs.CommandModule<
           throw new Error("--context and --image are mutually exclusive.");
         if (argv.dockerfile && !argv.context)
           throw new Error("--dockerfile requires --context.");
+        // --image registers an existing image without building, so there is no
+        // layer cache to key.
+        if (argv.cacheKey && !argv.context)
+          throw new Error("--cache-key requires --context.");
         return true;
       }) as yargs.Argv<CreateArgs>,
 
@@ -152,6 +163,7 @@ export const createCommand: yargs.CommandModule<
           context: resolvedContext,
           dockerfile: resolvedDockerfile,
           alias: argv.alias,
+          cacheKey: argv.cacheKey,
           tags: withClientTag(),
           onProgress,
         };

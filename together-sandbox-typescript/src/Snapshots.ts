@@ -39,6 +39,13 @@ export type CreateContextSnapshotParams = {
   tags?: Record<string, string>;
   /** Seconds after creation before the snapshot is automatically retired. */
   ttl?: number;
+  /**
+   * Groups remote builds that share a layer cache. Set a stable key to get
+   * reuse across rebuilds: snapshots build under a generated image name, so
+   * the server's default key never matches a previous build.
+   */
+  cacheKey?: string;
+
 };
 
 export type CreateImageSnapshotParams = {
@@ -369,6 +376,7 @@ export class SnapshotsNamespace {
       imageName: imageRef,
       dockerfile: dockerfileRel,
       nydus: true,
+      cacheKey: params.cacheKey,
     });
 
     const archEnv = process.env.TOGETHER_REMOTE_ARCHITECTURE;
