@@ -130,6 +130,46 @@ describe("SandboxesNamespace.create", () => {
     const ns = new SandboxesNamespace(makeApiClient());
     await expect(ns.create()).rejects.toThrow();
   });
+
+  it("skips the wait when createSandbox already returns a running sandbox", async () => {
+    const runningRaw = makeRawSandbox({ id: "abc123", status: "running" });
+
+    mockCallApi.mockResolvedValueOnce(runningRaw);
+
+    const ns = new SandboxesNamespace(makeApiClient());
+    const sandbox = await ns.create();
+
+    expect(mockCallApi).toHaveBeenCalledTimes(1);
+    expect(mockCallApi.mock.calls[0][0]).toBe("api.createSandbox");
+    expect(sandbox.id).toBe("abc123");
+  });
+
+  it("skips the wait and throws when createSandbox returns a settled failure", async () => {
+    const failedRaw = makeRawSandbox({
+      id: "abc123",
+      status: "failed_to_start",
+      status_reason: "out_of_capacity",
+    });
+
+    mockCallApi.mockResolvedValueOnce(failedRaw);
+
+    const ns = new SandboxesNamespace(makeApiClient());
+    await expect(ns.create()).rejects.toThrow(/failed to start/);
+    expect(mockCallApi).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits when createSandbox returns a terminating sandbox", async () => {
+    const terminatingRaw = makeRawSandbox({ id: "abc123", status: "terminating" });
+    const terminatedRaw = makeRawSandbox({ id: "abc123", status: "terminated" });
+
+    mockCallApi
+      .mockResolvedValueOnce(terminatingRaw)
+      .mockResolvedValueOnce(terminatedRaw);
+
+    const ns = new SandboxesNamespace(makeApiClient());
+    await expect(ns.create()).rejects.toThrow(/terminated instead of reaching/);
+    expect(mockCallApi.mock.calls[1][0]).toBe("api.waitForSandbox");
+  });
 });
 
 // ─── SandboxesNamespace.list ──────────────────────────────────────────────────
