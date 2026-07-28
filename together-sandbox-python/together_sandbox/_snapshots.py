@@ -79,6 +79,10 @@ class CreateContextSnapshotParams:
     # Seconds after creation before the snapshot is automatically retired.
     ttl: int | None = None
     tags: dict[str, str] | None = None
+    # Groups remote builds that share a layer cache. Set a stable key to get
+    # reuse across rebuilds: snapshots build under a generated image name, so
+    # the server's default key never matches a previous build.
+    cache_key: str | None = None
 
 
 @dataclass
@@ -419,6 +423,7 @@ class SnapshotsNamespace:
             image_name=image_ref,
             dockerfile=dockerfile_rel,
             nydus=True,
+            cache_key=params.cache_key,
         )
 
         architecture_str = os.getenv("TOGETHER_REMOTE_ARCHITECTURE")
