@@ -13,7 +13,6 @@ from .api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandb
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
 from .api.models.terminate_sandbox_body import TerminateSandboxBody
-from .api.types import UNSET, Unset
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
