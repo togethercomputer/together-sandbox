@@ -80,6 +80,17 @@ class CreateContextSnapshotParams:
     # Seconds after creation before the snapshot is automatically retired.
     ttl: int | None = None
     tags: dict[str, str] | None = None
+    # Groups remote builds that share a registry-backed layer cache. Builds
+    # given the same key reuse each other's layers.
+    #
+    # Worth setting whenever you rebuild the same project repeatedly: each
+    # snapshot is built under a freshly generated image name, so with no key
+    # there is nothing for a later build to match against and the cache never
+    # hits. Pass a stable key of your own (e.g. "my-app") to get reuse.
+    #
+    # Must be a lowercase path of alphanumerics, '.', '_', '-' and '/' (no
+    # tag), at most 255 characters. Ignored for local builds.
+    cache_key: str | None = None
 
 
 @dataclass
@@ -422,6 +433,7 @@ class SnapshotsNamespace:
             image_name=image_ref,
             dockerfile=dockerfile_rel,
             nydus=True,
+            cache_key=params.cache_key,
         )
 
         architecture_str = os.getenv("TOGETHER_REMOTE_ARCHITECTURE")

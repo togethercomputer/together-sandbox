@@ -143,6 +143,7 @@ const sandbox = await sdk.sandboxes.create({
 | ------------ | ----------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `context`    | `string`                            | Path to the Docker build context directory. Mutually exclusive with `image`.                                |
 | `dockerfile` | `string`                            | Path to a Dockerfile. Defaults to `Dockerfile` inside `context`. Only valid with `context`.                 |
+| `cacheKey`   | `string`                            | Groups remote builds that share a layer cache; builds with the same key reuse each other's layers. Each snapshot builds under a freshly generated image name, so with no key there is nothing to match against and the cache never hits — set a stable key to get reuse. Lowercase path of alphanumerics, `.`, `_`, `-`, `/`; no tag; max 255 chars. Ignored for local builds. Only valid with `context`. |
 | `alias`      | `string`                            | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the context directory name. |
 | `onProgress` | `(event: SnapshotProgress) => void` | Optional progress callback. Receives `{ step, output }` at each stage.                                      |
 
