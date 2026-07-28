@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "together-sandbox"
-version = "3.2.0"
+version = "3.3.0"
 description = "Together Sandbox Python SDK"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,6 +15,7 @@ dependencies = [
     "attrs>=23.0.0",
     "python-dateutil>=2.8.0",
     "pathspec>=0.11.0",
+    "typing-extensions>=4.0.0",
 ]
 license = { text = "MIT" }
 

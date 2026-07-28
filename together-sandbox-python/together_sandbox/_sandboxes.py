@@ -28,7 +28,7 @@ from ._utils import (
     deep_object_tags,
 )
 from ._pagination import Page
-from ._lifecycle import describe_lifecycle_failure
+from ._lifecycle import describe_lifecycle_failure, is_transient_status
 
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
@@ -39,20 +39,28 @@ DEFAULT_MEMORY_BYTES = 2048 * 1024 * 1024  # 2 GiB
 
 
 async def _connect_running_sandbox(
-    sandbox_id: str,
+    sandbox: SandboxModel,
     api_client: ApiClient,
     retry: RetryConfig | None,
 ) -> Sandbox:
     """Wait for a sandbox to reach 'running', wire up its client, and return it.
 
+    ``sandbox`` is the sandbox as last seen (e.g. the create_sandbox response).
+    The wait phase is skipped when it has already settled on a non-transient
+    status — waiting would just echo that status back.
+
     Used by :meth:`SandboxesNamespace.create`.
     """
-    vm_info: SandboxModel = await _call_api(
-        "api.wait_for_sandbox",
-        lambda: wait_for_sandbox_api(sandbox_id, client=api_client),
-        retry,
-        context=f"for sandbox {sandbox_id!r}",
-    )
+    sandbox_id = sandbox.id
+    vm_info: SandboxModel = sandbox
+
+    if is_transient_status(sandbox.status):
+        vm_info = await _call_api(
+            "api.wait_for_sandbox",
+            lambda: wait_for_sandbox_api(sandbox_id, client=api_client),
+            retry,
+            context=f"for sandbox {sandbox_id!r}",
+        )
 
     if vm_info.status != "running":
         raise RuntimeError(describe_lifecycle_failure(vm_info, "running"))
@@ -93,6 +101,9 @@ class SandboxesNamespace:
     ) -> Sandbox:
         """Create a sandbox and wait for it to be running.
 
+        The wait is skipped when the create response already reports a settled
+        status (e.g. the sandbox came back ``running``).
+
         Args:
             cpu: CPU allocation in cores (e.g. 1 = 1 vCPU). Must be between 0.1 and 16.
             memory_bytes: Memory allocation in bytes. Must be between 1 GB and
@@ -103,7 +114,7 @@ class SandboxesNamespace:
                 automatically terminated.
             tags: Optional key/value labels to attach to the sandbox.
             termination_policy: The termination snapshot policy, e.g.
-                ``{"snapshot": {"memory": False, "aliases": ["prod"]}}``.
+                ``{"snapshot": {"aliases": ["prod"]}}``.
                 Omit for an ephemeral sandbox (no snapshot, deleted on termination).
 
         """
@@ -122,13 +133,12 @@ class SandboxesNamespace:
             self._retry,
         )
 
-        return await _connect_running_sandbox(sandbox_model.id, self._api_client, self._retry)
+        return await _connect_running_sandbox(sandbox_model, self._api_client, self._retry)
 
     async def list(
         self,
         *,
         limit: int | None = None,
-        project_id: str | None = None,
         statuses: list[str] | None = None,
         tags: dict[str, str] | None = None,
     ) -> Page[SandboxModel]:
@@ -140,7 +150,6 @@ class SandboxesNamespace:
 
         Args:
             limit: Max items per page (1–100, default 20).
-            project_id: Filter to a single project.
             statuses: Filter by status; matches sandboxes in any of the given
                 statuses.
             tags: Filter by tags; matches sandboxes whose tags contain all the
@@ -161,7 +170,6 @@ class SandboxesNamespace:
                     client=self._api_client,
                     limit=limit if limit is not None else UNSET,
                     cursor=cursor if cursor is not None else UNSET,
-                    project_id=project_id if project_id is not None else UNSET,
                     statuses=(
                         [ListSandboxesStatusesItem(s) for s in statuses]
                         if statuses is not None
@@ -189,7 +197,7 @@ class SandboxesNamespace:
             sandbox_id: The sandbox to terminate.
             snapshot: What this teardown snapshots, overriding the snapshot the
                 sandbox's stored termination policy would take, e.g.
-                ``{"memory": True}``. Omit (the default) to keep the stored
+                ``{"aliases": ["prod"]}``. Omit (the default) to keep the stored
                 policy; pass ``None`` to make the teardown ephemeral (no
                 snapshot). The produced snapshot is aliased as
                 ``sandbox:<sandbox id>`` plus any ``aliases``.

@@ -78,11 +78,6 @@ export type TerminationPolicy = {
  */
 export type TerminationSnapshot = {
     /**
-     * When true both the filesystem and memory are snapshotted (hibernate); when false only the filesystem is snapshotted (stop).
-     *
-     */
-    memory?: boolean;
-    /**
      * Aliases to apply to the produced snapshot.
      */
     aliases?: Array<string>;
@@ -234,7 +229,6 @@ export type ListSandboxesData = {
     body?: never;
     path?: never;
     query?: {
-        project_id?: string;
         limit?: number;
         /**
          * Sandbox ID returned as `next_cursor` from a previous page.
@@ -521,7 +515,6 @@ export type ListSnapshotsData = {
     body?: never;
     path?: never;
     query?: {
-        project_id?: string;
         limit?: number;
         /**
          * Snapshot ID returned as `next_cursor` from a previous page.

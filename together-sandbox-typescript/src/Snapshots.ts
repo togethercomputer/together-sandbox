@@ -4,9 +4,8 @@ import * as path from "path";
 import * as api from "./api-clients/api/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { isLocalEnvironment } from "./configuration.js";
-import { callApi, sleep, withRetry } from "./utils.js";
+import { callApi, withRetry } from "./utils.js";
 import { Page } from "./pagination.js";
-import { describeLifecycleFailure } from "./lifecycle.js";
 import {
   buildDockerImage,
   dockerLogin,
@@ -16,10 +15,6 @@ import {
 import { RemoteImageBuilderClient } from "./RemoteImageBuilder.js";
 import { randomUUID } from "crypto";
 import type { RetryConfig } from "./types.js";
-import {
-  DEFAULT_CPU,
-  DEFAULT_MEMORY_BYTES,
-} from "./Sandboxes.js";
 
 export type SnapshotProgress = { output: string } & (
   | { step: "prepare" }
@@ -27,7 +22,6 @@ export type SnapshotProgress = { output: string } & (
   | { step: "auth" }
   | { step: "push" }
   | { step: "register" }
-  | { step: "memory-snapshot" }
   | { step: "alias" }
 );
 
@@ -51,8 +45,7 @@ export type CreateContextSnapshotParams = {
    * the server's default key never matches a previous build.
    */
   cacheKey?: string;
-  /** @internal */
-  memorySnapshot?: boolean;
+
 };
 
 export type CreateImageSnapshotParams = {
@@ -63,8 +56,6 @@ export type CreateImageSnapshotParams = {
   tags?: Record<string, string>;
   /** Seconds after creation before the snapshot is automatically retired. */
   ttl?: number;
-  /** @internal */
-  memorySnapshot?: boolean;
 };
 export type CreateSnapshotParams =
   | CreateContextSnapshotParams
@@ -74,7 +65,7 @@ export type CreateSnapshotParams =
  * Result of a successful snapshot creation.
  */
 export interface CreateSnapshotResult {
-  /** ID of the created (or memory-snapshotted) snapshot. */
+  /** ID of the created snapshot. */
   snapshotId: string;
   /** The alias that was applied, if any. */
   alias?: string;
@@ -215,7 +206,7 @@ export class SnapshotsNamespace {
   /**
    * Create a snapshot from a Docker build context or a public Docker image.
    *
-   * Pass `{ context, dockerfile?, alias?, onProgress?, memorySnapshot? }` to build from a Dockerfile.
+   * Pass `{ context, dockerfile?, alias?, onProgress? }` to build from a Dockerfile.
    * Pass `{ image, alias?, onProgress? }` to register a public Docker image.
    *
    * @note The `snapshots.create` operation is not idempotent: retrying on a 500 error
@@ -261,84 +252,7 @@ export class SnapshotsNamespace {
       this._retryConfig,
     );
 
-    let snapshotId = snapshotData.id;
-
-    if (params.memorySnapshot) {
-      // Create a memory snapshot from a sandbox
-      params.onProgress?.({
-        step: "memory-snapshot",
-        output: "Creating and starting sandbox...",
-      });
-
-      // Sandboxes autostart on creation, so no explicit start step is needed.
-      const sandboxResult = await callApi(
-        "api.snapshots.createSandboxForMemorySnapshot",
-        () =>
-          api.createSandbox({
-            body: {
-              snapshot_id: snapshotData.id,
-              cpu: DEFAULT_CPU,
-              memory_bytes: DEFAULT_MEMORY_BYTES,
-            },
-          }),
-        this._retryConfig,
-      );
-
-      params.onProgress?.({
-        step: "memory-snapshot",
-        output: "Waiting for sandbox to initialize...",
-      });
-      await sleep(10000);
-
-      params.onProgress?.({
-        step: "memory-snapshot",
-        output: "Hibernating sandbox...",
-      });
-      await callApi(
-        "api.snapshots.terminateSandboxForMemorySnapshot",
-        () =>
-          api.terminateSandbox({
-            client: this._apiClient,
-            path: { id: sandboxResult.id },
-            body: { snapshot: { memory: true } },
-          }),
-        this._retryConfig,
-      );
-
-      // Wait for the sandbox to reach its terminal state. Surfaces
-      // status_reason hints when the VM ended up in an unexpected state
-      // (crashed, evicted, still starting…).
-      const terminateResult = await callApi(
-        "api.waitForSandbox",
-        () =>
-          api.waitForSandbox({
-            client: this._apiClient,
-            path: { id: sandboxResult.id },
-          }),
-        this._retryConfig,
-      );
-
-      if (terminateResult.status !== "terminated") {
-        throw new Error(describeLifecycleFailure(terminateResult, "terminated"));
-      }
-
-      // The snapshot produced by termination is aliased as `sandbox:<id>`.
-      const produced = await this.getByAlias(`sandbox:${sandboxResult.id}`);
-
-      // The hibernate-specific guard: the VM terminated, but no memory snapshot
-      // was captured (e.g. it crashed during the wait window before hibernation
-      // completed). The produced snapshot's `memory` field is the source of
-      // truth for whether in-memory state was preserved.
-      if (produced.memory !== true) {
-        throw new Error(
-          `Could not create memory snapshot — sandbox '${terminateResult.id}' terminated without capturing a memory snapshot (reason: '${terminateResult.status_reason ?? "<unknown>"}').\n` +
-            `Hint: this can happen if the VM crashed during the initialization window. ` +
-            `Try increasing memory_bytes or simplifying the snapshot's startup.`,
-        );
-      }
-
-      snapshotId = produced.id;
-    }
+    const snapshotId = snapshotData.id;
 
     // Create alias if needed
     if (params.alias) {
@@ -407,7 +321,6 @@ export class SnapshotsNamespace {
         context: contextDir,
         alias: params.alias,
         onProgress: params.onProgress,
-        memorySnapshot: params.memorySnapshot,
       });
     } finally {
       await fs.promises.rm(tmpParent, { recursive: true, force: true });

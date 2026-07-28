@@ -87,17 +87,17 @@ Resource params (`cpu`, `memory_bytes`) default to **1 vCPU / 2 GiB memory** if 
 | `memory_bytes`   | `int`          | No       | Memory allocation in bytes (1–8 GB per CPU). Default: `2 * 1024 ** 3` (2 GiB).         |
 | `ttl`            | `int \| None`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
 | `tags`           | `dict \| None` | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
-| `termination_policy` | `dict \| None` | No   | Termination policy `{"snapshot": {"memory": bool, "aliases": [...], "ttl": int, "tags": {...}}}`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
+| `termination_policy` | `dict \| None` | No   | Termination policy `{"snapshot": {"aliases": [...], "ttl": int, "tags": {...}}}`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
 Sandboxes start automatically on creation, so there is no separate start step. 
 A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshot_alias="sandbox:<id>"`).
 
 #### `sdk.sandboxes.terminate(sandbox_id, *, snapshot=UNSET): Coroutine[None]`
 
-Terminates a VM by sandbox ID. `snapshot` (`{"memory": ..., "aliases": [...], "ttl": ..., "tags": {...}}`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `None` for an ephemeral teardown (no snapshot).
+Terminates a VM by sandbox ID. `snapshot` (`{"aliases": [...], "ttl": ..., "tags": {...}}`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `None` for an ephemeral teardown (no snapshot).
 
 ```python
-await sdk.sandboxes.terminate("your-sandbox-id", snapshot={"memory": False})
+await sdk.sandboxes.terminate("your-sandbox-id", snapshot={"aliases": ["my-app@v2"]})
 ```
 
 ---
@@ -175,7 +175,7 @@ print(result.snapshot_id)
 
 | Property | Type  | Description                                                                                                 |
 | -------- | ----- | ----------------------------------------------------------------------------------------------------------- |
-| `step`   | `str` | Current stage: `"prepare"`, `"build"`, `"auth"`, `"push"`, `"register"`, `"memory-snapshot"`, or `"alias"`. |
+| `step`   | `str` | Current stage: `"prepare"`, `"build"`, `"auth"`, `"push"`, `"register"`, or `"alias"`.                       |
 | `output` | `str` | Human-readable progress message.                                                                            |
 
 #### `sdk.snapshots.get_by_id(id) -> Snapshot`
@@ -222,16 +222,15 @@ while page.has_next_page():
 live = await sdk.snapshots.list(exclude_retired=True, tags={"service": "api"})
 ```
 
-#### `sdk.sandboxes.list(*, limit=None, project_id=None, statuses=None, tags=None) -> Page[Sandbox]`
+#### `sdk.sandboxes.list(*, limit=None, statuses=None, tags=None) -> Page[Sandbox]`
 
 List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
 
-| Parameter    | Type                  | Description                                              |
-| ------------ | --------------------- | ---------------------------------------------------------- |
-| `limit`      | `int \| None`         | Page size (1–100, default 20).                           |
-| `project_id` | `str \| None`         | Filter to a single project.                              |
-| `statuses`   | `list[str] \| None`   | Matches sandboxes in any of the given statuses.          |
-| `tags`       | `dict \| None`        | Matches sandboxes whose tags contain all the given pairs. |
+| Parameter  | Type                | Description                                               |
+| ---------- | ------------------- | --------------------------------------------------------- |
+| `limit`    | `int \| None`       | Page size (1–100, default 20).                            |
+| `statuses` | `list[str] \| None` | Matches sandboxes in any of the given statuses.           |
+| `tags`     | `dict \| None`      | Matches sandboxes whose tags contain all the given pairs. |
 
 A status is one of `starting`, `running`, `terminating`, `terminated`,
 `failed_to_start`, `recovering`, `unrecovered`.
@@ -537,7 +536,7 @@ async for event in sandbox.ports.stream_list():
 
 Terminate this VM. After this the sandbox is terminal and cannot be used again.
 
-`snapshot` (`{"memory": ..., "aliases": [...], "ttl": ..., "tags": {...}}`)
+`snapshot` (`{"aliases": [...], "ttl": ..., "tags": {...}}`)
 overrides what this teardown snapshots — omit it to use the sandbox's stored
 termination policy, or pass `None` for an ephemeral teardown (no snapshot).
 
@@ -545,8 +544,8 @@ termination policy, or pass `None` for an ephemeral teardown (no snapshot).
 # Use the stored termination policy
 await sandbox.terminate()
 
-# Snapshot the filesystem and memory, so a new sandbox can resume from it
-await sandbox.terminate(snapshot={"memory": True})
+# Snapshot the filesystem and alias it, so a new sandbox can start from it
+await sandbox.terminate(snapshot={"aliases": ["my-app@v2"]})
 ```
 
 #### `sandbox.close() -> None`

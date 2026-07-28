@@ -42,11 +42,22 @@ _STATUS_REASON_HINTS: dict[str, str] = {
 }
 
 
+# Statuses a sandbox can still move out of on its own. Any other status is
+# settled — waiting on it would return immediately, so callers can skip the
+# wait phase entirely.
+_TRANSIENT_STATUSES = ("starting", "terminating")
+
+
 def _unwrap(value: Any) -> Any:
     """Normalise enum-like values to their underlying string."""
     if value is None:
         return None
     return getattr(value, "value", value)
+
+
+def is_transient_status(status: Any) -> bool:
+    """Return True when the sandbox is still moving and a wait is worthwhile."""
+    return _unwrap(status) in _TRANSIENT_STATUSES
 
 
 def describe_lifecycle_failure(
@@ -94,7 +105,7 @@ def describe_lifecycle_failure(
         )
 
     # 3. Transient — wait returned without reaching a terminal status
-    if status in ("starting", "terminating"):
+    if is_transient_status(status):
         return (
             f"Sandbox '{sandbox_id}' is still in transient state '{status}' "
             f"after wait returned.\n"

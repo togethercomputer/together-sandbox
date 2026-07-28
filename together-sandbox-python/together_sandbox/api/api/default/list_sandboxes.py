@@ -14,7 +14,6 @@ from ...types import UNSET, Response, Unset
 
 def _get_kwargs(
     *,
-    project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
@@ -22,8 +21,6 @@ def _get_kwargs(
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
-
-    params["project_id"] = project_id
 
     params["limit"] = limit
 
@@ -98,7 +95,6 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
@@ -107,7 +103,6 @@ def sync_detailed(
     """List sandboxes
 
     Args:
-        project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         statuses (list[ListSandboxesStatusesItem] | Unset):
@@ -122,7 +117,6 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
         limit=limit,
         cursor=cursor,
         statuses=statuses,
@@ -139,7 +133,6 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
@@ -148,7 +141,6 @@ def sync(
     """List sandboxes
 
     Args:
-        project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         statuses (list[ListSandboxesStatusesItem] | Unset):
@@ -164,7 +156,6 @@ def sync(
 
     return sync_detailed(
         client=client,
-        project_id=project_id,
         limit=limit,
         cursor=cursor,
         statuses=statuses,
@@ -175,7 +166,6 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
@@ -184,7 +174,6 @@ async def asyncio_detailed(
     """List sandboxes
 
     Args:
-        project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         statuses (list[ListSandboxesStatusesItem] | Unset):
@@ -199,7 +188,6 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
         limit=limit,
         cursor=cursor,
         statuses=statuses,
@@ -214,7 +202,6 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
@@ -223,7 +210,6 @@ async def asyncio(
     """List sandboxes
 
     Args:
-        project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         statuses (list[ListSandboxesStatusesItem] | Unset):
@@ -240,7 +226,6 @@ async def asyncio(
     return (
         await asyncio_detailed(
             client=client,
-            project_id=project_id,
             limit=limit,
             cursor=cursor,
             statuses=statuses,
