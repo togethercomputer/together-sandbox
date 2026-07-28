@@ -46,16 +46,9 @@ export type CreateContextSnapshotParams = {
   /** Seconds after creation before the snapshot is automatically retired. */
   ttl?: number;
   /**
-   * Groups remote builds that share a registry-backed layer cache. Builds
-   * given the same key reuse each other's layers.
-   *
-   * Worth setting whenever you rebuild the same project repeatedly: each
-   * snapshot is built under a freshly generated image name, so with no key
-   * there is nothing for a later build to match against and the cache never
-   * hits. Pass a stable key of your own (e.g. `"my-app"`) to get reuse.
-   *
-   * Must be a lowercase path of alphanumerics, `.`, `_`, `-` and `/` (no tag),
-   * at most 255 characters. Ignored for local builds.
+   * Groups remote builds that share a layer cache. Set a stable key to get
+   * reuse across rebuilds: snapshots build under a generated image name, so
+   * the server's default key never matches a previous build.
    */
   cacheKey?: string;
   /** @internal */
