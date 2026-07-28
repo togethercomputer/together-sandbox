@@ -7,6 +7,7 @@ import {
   runExec,
   type ExecSpec,
 } from "./_exec";
+import { examples } from "./_help";
 
 interface ExecArgs {
   id: string;
@@ -57,6 +58,32 @@ export const execCommand: yargs.CommandModule<Record<string, never>, ExecArgs> =
           type: "string",
           describe: 'Run as user[:group] (e.g. "1000:1000" or "node")',
         })
+        .epilogue(
+          examples(
+            [
+              {
+                describe: "One-shot command",
+                command: "$0 sandboxes exec <sandbox-id> -- ls -la /app",
+              },
+              {
+                describe: "Interactive shell (PTY over a websocket)",
+                command: "$0 sandboxes exec <sandbox-id> -it -- bash",
+              },
+              {
+                describe: "Set the working directory and environment",
+                command:
+                  "$0 sandboxes exec <sandbox-id> --cwd /app --env NODE_ENV=test -- npm test",
+              },
+              {
+                describe: "Pipe stdin into the remote command",
+                command:
+                  "cat data.json | $0 sandboxes exec <sandbox-id> -i -- jq .name",
+              },
+            ],
+            "Use `--` to separate the command from CLI flags.\n" +
+              "The sandbox must be running. The CLI exits with the remote command's exit code.",
+          ),
+        )
         .check((argv) => {
           if (fullCommand(argv as Record<string, unknown>).length === 0)
             throw new Error("Provide a command to run, e.g. exec <id> -- ls -la");

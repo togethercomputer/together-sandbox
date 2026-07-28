@@ -7,6 +7,7 @@ import {
   streamExecOutput,
 } from "./_exec";
 import { cell, renderTable } from "./_table";
+import { examples } from "./_help";
 
 interface LsArgs {
   id: string;
@@ -30,7 +31,19 @@ export const lsCommand: yargs.CommandModule<Record<string, never>, LsArgs> = {
         choices: ["table", "json"] as const,
         default: "table",
         describe: "Output format",
-      }) as unknown as yargs.Argv<LsArgs>,
+      })
+      .epilogue(
+        examples([
+          {
+            describe: "List execs running (or recently run) in a sandbox",
+            command: "$0 sandboxes execs ls <sandbox-id>",
+          },
+          {
+            describe: "Machine-readable output",
+            command: "$0 sandboxes execs ls <sandbox-id> -o json",
+          },
+        ]),
+      ) as unknown as yargs.Argv<LsArgs>,
 
   handler: async (argv) => {
     try {
@@ -97,7 +110,22 @@ export const logsCommand: yargs.CommandModule<Record<string, never>, LogsArgs> =
           type: "boolean",
           default: false,
           describe: "Follow output as it is produced until the exec exits",
-        }) as unknown as yargs.Argv<LogsArgs>,
+        })
+        .epilogue(
+          examples(
+            [
+              {
+                describe: "Print everything the exec has produced so far",
+                command: "$0 sandboxes execs logs <sandbox-id> <exec-id>",
+              },
+              {
+                describe: "Stream output until the exec exits",
+                command: "$0 sandboxes execs logs <sandbox-id> <exec-id> -f",
+              },
+            ],
+            "Find exec ids with `$0 sandboxes execs ls <sandbox-id>`.",
+          ),
+        ) as unknown as yargs.Argv<LogsArgs>,
 
     handler: async (argv) => {
       try {

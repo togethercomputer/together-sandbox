@@ -14,6 +14,7 @@ import {
   parseKeyValues,
   runExec,
 } from "./_exec";
+import { examples } from "./_help";
 
 /** The statuses a sandbox can report, for `--status` validation. */
 const SANDBOX_STATUSES = [
@@ -149,7 +150,32 @@ export const listCommand: yargs.CommandModule<
         type: "boolean",
         default: false,
         describe: "Plain output, no interactive pager",
-      }) as unknown as yargs.Argv<SandboxListArgs>,
+      })
+      .epilogue(
+        examples([
+          {
+            describe: "Page through every sandbox in your pager",
+            command: "$0 sandboxes list",
+          },
+          {
+            describe: "Only sandboxes that are up or coming up",
+            command: "$0 sandboxes list --status running --status starting",
+          },
+          {
+            describe: "Only sandboxes carrying both tags",
+            command: "$0 sandboxes list --tag env=prod --tag team=core",
+          },
+          {
+            describe:
+              "Fetch one specific page (the next cursor is printed on stderr)",
+            command: "$0 sandboxes list --limit 50 --cursor <cursor>",
+          },
+          {
+            describe: "Machine-readable single page: { data, nextCursor }",
+            command: "$0 sandboxes list --ci -o json",
+          },
+        ]),
+      ) as unknown as yargs.Argv<SandboxListArgs>,
 
   handler: async (argv) => {
     const sdk = new TogetherSandbox();
@@ -204,7 +230,19 @@ export const getCommand: yargs.CommandModule<Record<string, never>, GetArgs> = {
         choices: ["text", "json"] as const,
         default: "text",
         describe: "Output format",
-      }) as unknown as yargs.Argv<GetArgs>,
+      })
+      .epilogue(
+        examples([
+          {
+            describe: "Show status, resources, termination policy and agent",
+            command: "$0 sandboxes get <sandbox-id>",
+          },
+          {
+            describe: "Machine-readable output",
+            command: "$0 sandboxes get <sandbox-id> -o json",
+          },
+        ]),
+      ) as unknown as yargs.Argv<GetArgs>,
 
   handler: async (argv) => {
     const sdk = new TogetherSandbox();
@@ -335,7 +373,29 @@ export const createCommand: yargs.CommandModule<
         describe: "Snapshot id, or @alias to resolve by alias",
         demandOption: true,
       }),
-    ) as unknown as yargs.Argv<CreateArgs>,
+    )
+      .epilogue(
+        examples([
+          {
+            describe: "Ephemeral sandbox from a snapshot id, default resources",
+            command: "$0 sandboxes create <snapshot-id>",
+          },
+          {
+            describe: "From an alias, with 2 vCPUs",
+            command: "$0 sandboxes create @my-app@v1 --cpu 2",
+          },
+          {
+            describe: "Auto-terminate after an hour, tagged env=dev",
+            command: "$0 sandboxes create @my-app@v1 --ttl 3600 --tag env=dev",
+          },
+          {
+            describe:
+              "Keep a resumable fs+memory snapshot on teardown, aliased my-app@v2",
+            command:
+              "$0 sandboxes create @my-app@v1 --snapshot-on-terminate --memory-snapshot --snapshot-alias my-app@v2",
+          },
+        ]),
+      ) as unknown as yargs.Argv<CreateArgs>,
 
   handler: async (argv) => {
     try {
@@ -431,7 +491,27 @@ export const terminateCommand: yargs.CommandModule<
       })
       .conflicts("ephemeral", ["memory", "snapshot-alias", "snapshot-ttl", "snapshot-tag"])
       .epilogue(
-        "With no snapshot flags, the sandbox's stored termination policy applies.",
+        examples(
+          [
+            {
+              describe:
+                "Use the termination policy the sandbox was created with",
+              command: "$0 sandboxes terminate <sandbox-id>",
+            },
+            {
+              describe: "Throw the sandbox away, taking no snapshot",
+              command: "$0 sandboxes terminate <sandbox-id> --ephemeral",
+            },
+            {
+              describe: "Capture fs+memory so a new sandbox can resume in place",
+              command:
+                "$0 sandboxes terminate <sandbox-id> --memory --snapshot-alias my-app@paused",
+            },
+          ],
+          "With no snapshot flags, the sandbox's stored termination policy applies.",
+          "The produced snapshot is always aliased `sandbox:<sandbox-id>`, so you can\n" +
+            "resume later with: $0 sandboxes create @sandbox:<sandbox-id>",
+        ),
       ) as unknown as yargs.Argv<TerminateArgs>,
 
   handler: async (argv) => {
@@ -514,11 +594,40 @@ export const runCommand: yargs.CommandModule<Record<string, never>, RunArgs> = {
           type: "string",
           describe: 'Run as user[:group] (e.g. "1000:1000" or "node")',
         }),
-    ).check((argv) => {
-      if (fullCommand(argv as Record<string, unknown>).length === 0)
-        throw new Error("Provide a command to run, e.g. run @my-image -- ls -la");
-      return true;
-    }) as unknown as yargs.Argv<RunArgs>,
+    )
+      .epilogue(
+        examples(
+          [
+            {
+              describe: "One-shot command",
+              command: "$0 sandboxes run @my-app@v1 -- ls -la",
+            },
+            {
+              describe: "Run tests and tear the sandbox down afterwards",
+              command: "$0 sandboxes run @my-app@v1 --rm -- npm test",
+            },
+            {
+              describe: "Interactive shell in a throwaway sandbox",
+              command: "$0 sandboxes run @my-app@v1 -it --rm -- bash",
+            },
+            {
+              describe: "Size the sandbox and shape the command's environment",
+              command:
+                "$0 sandboxes run @my-app@v1 --cpu 4 --env NODE_ENV=test --cwd /app -- npm run bench",
+            },
+          ],
+          "Accepts every option of `$0 sandboxes create` and `$0 sandboxes exec`.",
+          "Progress notices go to stderr, so stdout carries only the command's output.\n" +
+            "The CLI exits with the remote command's exit code.",
+        ),
+      )
+      .check((argv) => {
+        if (fullCommand(argv as Record<string, unknown>).length === 0)
+          throw new Error(
+            "Provide a command to run, e.g. run @my-image -- ls -la",
+          );
+        return true;
+      }) as unknown as yargs.Argv<RunArgs>,
 
   handler: async (argv) => {
     const sdk = new TogetherSandbox();
