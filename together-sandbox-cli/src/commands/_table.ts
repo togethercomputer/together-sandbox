@@ -23,18 +23,20 @@ export function formatTags(tags: Record<string, string> | undefined): string {
     .join(",");
 }
 
-// Largest-unit-first thresholds for `formatAge`, in seconds.
+// Largest-unit-first thresholds for `formatAge`, in seconds. The last entry is
+// the fallback, so its threshold must be 1.
 const AGE_UNITS: [seconds: number, singular: string, plural: string][] = [
   [60 * 60 * 24 * 365, "yr", "yrs"],
   [60 * 60 * 24 * 30, "mo", "mos"],
   [60 * 60 * 24, "day", "days"],
   [60 * 60, "hr", "hrs"],
   [60, "min", "mins"],
+  [1, "sec", "secs"],
 ];
 
 /**
- * Render an ISO timestamp as a compact age, e.g. "10s ago" / "7mins ago" /
- * "10hrs ago". Only the largest matching unit is shown — this is a table
+ * Render an ISO timestamp as a compact age, e.g. "10 secs ago" / "7 mins ago"
+ * / "10 hrs ago". Only the largest matching unit is shown — this is a table
  * column, not a precise duration. Unparseable values are passed through so a
  * surprise from the API is visible rather than silently swallowed.
  */
@@ -44,14 +46,14 @@ export function formatAge(timestamp: string | null | undefined): string {
   const then = Date.parse(timestamp);
   if (Number.isNaN(then)) return timestamp;
 
-  // Clamp: a clock skewed slightly ahead of ours should read "0s ago", not a
-  // negative age.
+  // Clamp: a clock skewed slightly ahead of ours should read "0 secs ago", not
+  // a negative age.
   const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
   for (const [size, singular, plural] of AGE_UNITS) {
     const n = Math.floor(seconds / size);
-    if (n >= 1) return `${n}${n === 1 ? singular : plural} ago`;
+    if (n >= 1) return `${n} ${n === 1 ? singular : plural} ago`;
   }
-  return `${seconds}s ago`;
+  return `0 secs ago`;
 }
 
 /** Human-readable byte size, e.g. 134217728 → "128.0MiB". */
