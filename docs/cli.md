@@ -35,6 +35,19 @@ curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/m
 
 ---
 
+## Resource tagging
+
+Every sandbox and snapshot the CLI creates is tagged `client=together-sandbox-cli`, so
+resources created here can be told apart from those created directly through an SDK:
+
+```bash
+together-sandbox sandboxes list --tag client=together-sandbox-cli
+```
+
+A tag you set yourself wins — `--tag client=ci` stores `client=ci`, not the CLI's value.
+
+---
+
 ## Authentication
 
 The CLI reads your Together AI API key from the environment:

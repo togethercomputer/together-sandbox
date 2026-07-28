@@ -14,6 +14,7 @@ import {
 } from "./_table";
 import { parseKeyValues } from "./_exec";
 import { examples } from "./_help";
+import { withClientTag } from "../constants";
 
 function describeSnapshot(s: Snapshot): {
   title: string;
@@ -151,12 +152,14 @@ export const createCommand: yargs.CommandModule<
           context: resolvedContext,
           dockerfile: resolvedDockerfile,
           alias: argv.alias,
+          tags: withClientTag(),
           onProgress,
         };
       } else {
         params = {
           image: argv.image!,
           alias: argv.alias,
+          tags: withClientTag(),
           onProgress,
         };
       }

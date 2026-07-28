@@ -22,6 +22,7 @@ import {
   runExec,
 } from "./_exec";
 import { examples } from "./_help";
+import { withClientTag } from "../constants";
 
 /** The statuses a sandbox can report, for `--status` validation. */
 const SANDBOX_STATUSES = [
@@ -378,7 +379,7 @@ function buildCreateParams(argv: CreateOptions, ref: string) {
     cpu: argv.cpu,
     memoryBytes: argv.memoryBytes,
     ttl: argv.ttl,
-    tags: parseKeyValues(argv.tag, "--tag"),
+    tags: withClientTag(parseKeyValues(argv.tag, "--tag")),
     terminationPolicy: argv.snapshotOnTerminate
       ? {
           snapshot: {
