@@ -114,7 +114,7 @@ class SandboxesNamespace:
                 automatically terminated.
             tags: Optional key/value labels to attach to the sandbox.
             termination_policy: The termination snapshot policy, e.g.
-                ``{"snapshot": {"memory": False, "aliases": ["prod"]}}``.
+                ``{"snapshot": {"aliases": ["prod"]}}``.
                 Omit for an ephemeral sandbox (no snapshot, deleted on termination).
 
         """
@@ -139,7 +139,6 @@ class SandboxesNamespace:
         self,
         *,
         limit: int | None = None,
-        project_id: str | None = None,
         statuses: list[str] | None = None,
         tags: dict[str, str] | None = None,
     ) -> Page[SandboxModel]:
@@ -151,7 +150,6 @@ class SandboxesNamespace:
 
         Args:
             limit: Max items per page (1–100, default 20).
-            project_id: Filter to a single project.
             statuses: Filter by status; matches sandboxes in any of the given
                 statuses.
             tags: Filter by tags; matches sandboxes whose tags contain all the
@@ -172,7 +170,6 @@ class SandboxesNamespace:
                     client=self._api_client,
                     limit=limit if limit is not None else UNSET,
                     cursor=cursor if cursor is not None else UNSET,
-                    project_id=project_id if project_id is not None else UNSET,
                     statuses=(
                         [ListSandboxesStatusesItem(s) for s in statuses]
                         if statuses is not None
@@ -200,7 +197,7 @@ class SandboxesNamespace:
             sandbox_id: The sandbox to terminate.
             snapshot: What this teardown snapshots, overriding the snapshot the
                 sandbox's stored termination policy would take, e.g.
-                ``{"memory": True}``. Omit (the default) to keep the stored
+                ``{"aliases": ["prod"]}``. Omit (the default) to keep the stored
                 policy; pass ``None`` to make the teardown ephemeral (no
                 snapshot). The produced snapshot is aliased as
                 ``sandbox:<sandbox id>`` plus any ``aliases``.

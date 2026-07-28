@@ -76,7 +76,6 @@ class CreateContextSnapshotParams:
     dockerfile: str | None = None
     alias: str | None = None
     on_progress: Callable[[SnapshotProgress], None] | None = None
-    memory_snapshot: bool | None = None
     # Seconds after creation before the snapshot is automatically retired.
     ttl: int | None = None
     tags: dict[str, str] | None = None
@@ -87,7 +86,6 @@ class CreateImageSnapshotParams:
     image: str
     alias: str | None = None
     on_progress: Callable[[SnapshotProgress], None] | None = None
-    memory_snapshot: bool | None = None
     # Seconds after creation before the snapshot is automatically retired.
     ttl: int | None = None
     tags: dict[str, str] | None = None
@@ -362,7 +360,6 @@ class SnapshotsNamespace:
                 CreateContextSnapshotParams(
                     context=str(context_dir),
                     alias=params.alias,
-                    memory_snapshot=params.memory_snapshot,
                     on_progress=params.on_progress,
                 )
             )

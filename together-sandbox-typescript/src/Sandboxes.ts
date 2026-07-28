@@ -126,7 +126,6 @@ export class SandboxesNamespace {
    * manual page-by-page control.
    *
    * @param options.limit Max items per page (1–100, default 20).
-   * @param options.projectId Filter to a single project.
    * @param options.statuses Filter by status; matches sandboxes in any of the
    *   given statuses.
    * @param options.tags Filter by tags; matches sandboxes whose tags contain
@@ -134,7 +133,6 @@ export class SandboxesNamespace {
    */
   async list(options?: {
     limit?: number;
-    projectId?: string;
     statuses?: SandboxStatus[];
     tags?: Record<string, string>;
   }): Promise<Page<SandboxInfo>> {
@@ -147,7 +145,6 @@ export class SandboxesNamespace {
             query: {
               limit: options?.limit,
               cursor,
-              project_id: options?.projectId,
               "statuses[]": options?.statuses,
               tags: options?.tags,
             },

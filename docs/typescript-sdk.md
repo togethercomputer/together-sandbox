@@ -78,17 +78,17 @@ Resource params (`cpu`, `memoryBytes`) default to **1 vCPU / 2 GiB memory** if o
 | `memoryBytes`   | `number`  | No       | Memory allocation in bytes (1–8 GB per CPU). Default: `2 * 1024 * 1024 * 1024` (2 GiB). |
 | `ttl`           | `number`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
 | `tags`          | `object`  | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
-| `terminationPolicy` | `object` | No    | Termination policy `{ snapshot: { memory: boolean, aliases?: string[], ttl?: number, tags?: Record<string, string> } }`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
+| `terminationPolicy` | `object` | No    | Termination policy `{ snapshot: { aliases?: string[], ttl?: number, tags?: Record<string, string> } }`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
 Sandboxes start automatically on creation, so there is no separate start step. A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshotAlias: "sandbox:<id>"`).
 
 #### `sdk.sandboxes.terminate(sandboxId, options?): Promise<void>`
 
-Terminates a VM by sandbox ID. `options.snapshot` (`{ memory, aliases, ttl, tags }`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `null` for an ephemeral teardown (no snapshot).
+Terminates a VM by sandbox ID. `options.snapshot` (`{ aliases, ttl, tags }`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `null` for an ephemeral teardown (no snapshot).
 
 ```typescript
 await sdk.sandboxes.terminate("your-sandbox-id", {
-  snapshot: { memory: false },
+  snapshot: { aliases: ["my-app@v2"] },
 });
 ```
 
@@ -165,7 +165,7 @@ const sandbox = await sdk.sandboxes.create({
 
 | Property | Type     | Description                                                                                                 |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------- |
-| `step`   | `string` | Current stage: `"prepare"`, `"build"`, `"auth"`, `"push"`, `"register"`, `"memory-snapshot"`, or `"alias"`. |
+| `step`   | `string` | Current stage: `"prepare"`, `"build"`, `"auth"`, `"push"`, `"register"`, or `"alias"`.                       |
 | `output` | `string` | Human-readable progress message.                                                                            |
 
 #### `sdk.snapshots.getById(id): Promise<Snapshot>`
@@ -220,12 +220,11 @@ const live = await sdk.snapshots.list({
 
 List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
 
-| Option      | Type                     | Description                                                  |
-| ----------- | ------------------------ | -------------------------------------------------------------- |
-| `limit`     | `number`                 | Page size (1–100, default 20).                               |
-| `projectId` | `string`                 | Filter to a single project.                                  |
-| `statuses`  | `SandboxStatus[]`        | Matches sandboxes in any of the given statuses.              |
-| `tags`      | `Record<string, string>` | Matches sandboxes whose tags contain all the given pairs.    |
+| Option     | Type                     | Description                                               |
+| ---------- | ------------------------ | --------------------------------------------------------- |
+| `limit`    | `number`                 | Page size (1–100, default 20).                            |
+| `statuses` | `SandboxStatus[]`        | Matches sandboxes in any of the given statuses.           |
+| `tags`     | `Record<string, string>` | Matches sandboxes whose tags contain all the given pairs. |
 
 `SandboxStatus` is one of `starting`, `running`, `terminating`, `terminated`,
 `failed_to_start`, `recovering`, `unrecovered`.
@@ -519,7 +518,7 @@ const stream = await sandbox.ports.streamList();
 
 Terminate this VM. After this the sandbox is terminal and cannot be used again.
 
-`options.snapshot` (`{ memory, aliases, ttl, tags }`) overrides what this
+`options.snapshot` (`{ aliases, ttl, tags }`) overrides what this
 teardown snapshots — omit it to use the sandbox's stored termination policy, or
 pass `null` for an ephemeral teardown (no snapshot).
 
@@ -527,8 +526,8 @@ pass `null` for an ephemeral teardown (no snapshot).
 // Use the stored termination policy
 await sandbox.terminate();
 
-// Snapshot the filesystem and memory, so a new sandbox can resume from it
-await sandbox.terminate({ snapshot: { memory: true } });
+// Snapshot the filesystem and alias it, so a new sandbox can start from it
+await sandbox.terminate({ snapshot: { aliases: ["my-app@v2"] } });
 ```
 
 ---
