@@ -1,5 +1,23 @@
 # Changelog
 
+## [4.0.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v3.3.0...together-sandbox-workspace-v4.0.0) (2026-07-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* drop project_id and memory snapshot params
+
+### Features
+
+* allow passing a build cache key to the remote image builder ([4f3b477](https://github.com/togethercomputer/together-sandbox/commit/4f3b47770196ff4160749f20de99ef3643602800))
+* allow passing a build cache key to the remote image builder ([f63b7a7](https://github.com/togethercomputer/together-sandbox/commit/f63b7a7961cb4794b883c8dc8aa0a2a8eb6e1475))
+* drop project_id and memory snapshot params ([70bf1df](https://github.com/togethercomputer/together-sandbox/commit/70bf1df2eaba45bd077382def0d1e1985eed0234))
+
+
+### Bug Fixes
+
+* allow passing a build cache key to the remote image builder ([8af2f02](https://github.com/togethercomputer/together-sandbox/commit/8af2f02ec5b21ac0d2877faf1271fe4a23f214fc))
+
 ## [3.3.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v3.2.0...together-sandbox-workspace-v3.3.0) (2026-07-28)
 
 

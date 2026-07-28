@@ -1,6 +1,6 @@
 {
   "name": "together-sandbox-workspace",
-  "version": "3.3.0",
+  "version": "4.0.0",
   "private": true,
   "workspaces": [
     "together-sandbox-typescript",
