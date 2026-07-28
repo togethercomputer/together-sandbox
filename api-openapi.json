@@ -216,11 +216,6 @@
         "type": "object",
         "description": "The snapshot captured when a sandbox terminates.",
         "properties": {
-          "memory": {
-            "type": "boolean",
-            "default": false,
-            "description": "When true both the filesystem and memory are snapshotted (hibernate); when false only the filesystem is snapshotted (stop).\n"
-          },
           "aliases": {
             "type": "array",
             "items": {
@@ -550,13 +545,6 @@
         "operationId": "listSandboxes",
         "summary": "List sandboxes",
         "parameters": [
-          {
-            "name": "project_id",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "limit",
             "in": "query",
@@ -992,13 +980,6 @@
         "operationId": "listSnapshots",
         "summary": "List snapshots",
         "parameters": [
-          {
-            "name": "project_id",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "limit",
             "in": "query",

@@ -18,14 +18,13 @@ export function sleep(ms: number): Promise<void> {
 export function terminationSnapshotBody(
   snapshot?: TerminationSnapshotParams | null,
 ): {
-  memory?: boolean;
   aliases?: string[];
   ttl?: number;
   tags?: Record<string, string>;
 } | null | undefined {
   if (snapshot == null) return snapshot;
-  const { memory, aliases, ttl, tags } = snapshot;
-  return { memory, aliases, ttl, tags };
+  const { aliases, ttl, tags } = snapshot;
+  return { aliases, ttl, tags };
 }
 
 /**
@@ -37,7 +36,6 @@ export function terminationPolicyBody(
   terminationPolicy?: TerminationPolicyParams | null,
 ): {
   snapshot: {
-    memory?: boolean;
     aliases?: string[];
     ttl?: number;
     tags?: Record<string, string>;

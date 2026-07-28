@@ -13,7 +13,6 @@ from ...types import UNSET, Response, Unset
 
 def _get_kwargs(
     *,
-    project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     tags: Tags | Unset = UNSET,
@@ -21,8 +20,6 @@ def _get_kwargs(
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
-
-    params["project_id"] = project_id
 
     params["limit"] = limit
 
@@ -90,7 +87,6 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     tags: Tags | Unset = UNSET,
@@ -99,7 +95,6 @@ def sync_detailed(
     """List snapshots
 
     Args:
-        project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
@@ -114,7 +109,6 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
         limit=limit,
         cursor=cursor,
         tags=tags,
@@ -131,7 +125,6 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     tags: Tags | Unset = UNSET,
@@ -140,7 +133,6 @@ def sync(
     """List snapshots
 
     Args:
-        project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
@@ -156,7 +148,6 @@ def sync(
 
     return sync_detailed(
         client=client,
-        project_id=project_id,
         limit=limit,
         cursor=cursor,
         tags=tags,
@@ -167,7 +158,6 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     tags: Tags | Unset = UNSET,
@@ -176,7 +166,6 @@ async def asyncio_detailed(
     """List snapshots
 
     Args:
-        project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
@@ -191,7 +180,6 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        project_id=project_id,
         limit=limit,
         cursor=cursor,
         tags=tags,
@@ -206,7 +194,6 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    project_id: str | Unset = UNSET,
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     tags: Tags | Unset = UNSET,
@@ -215,7 +202,6 @@ async def asyncio(
     """List snapshots
 
     Args:
-        project_id (str | Unset):
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
@@ -232,7 +218,6 @@ async def asyncio(
     return (
         await asyncio_detailed(
             client=client,
-            project_id=project_id,
             limit=limit,
             cursor=cursor,
             tags=tags,

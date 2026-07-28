@@ -190,7 +190,6 @@ describe("SandboxesNamespace.list", () => {
     const ns = new SandboxesNamespace(makeApiClient());
     await ns.list({
       limit: 50,
-      projectId: "proj-1",
       statuses: ["running", "starting"],
       tags: { team: "platform" },
     });
@@ -198,7 +197,6 @@ describe("SandboxesNamespace.list", () => {
     expect(vi.mocked(api.listSandboxes).mock.calls[0][0]?.query).toEqual({
       limit: 50,
       cursor: undefined,
-      project_id: "proj-1",
       "statuses[]": ["running", "starting"],
       tags: { team: "platform" },
     });
