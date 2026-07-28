@@ -8,6 +8,25 @@ The `together-sandbox` CLI lets you create snapshots from Dockerfiles or existin
 curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash
 ```
 
+This downloads a self-contained binary — no Node.js, no clone, no `npm install`. It installs to `~/.local/bin` (or `$XDG_BIN_HOME`), creating the directory if needed, and **never uses `sudo`**. If that directory isn't on your `PATH`, the installer prints the exact line to add for your shell.
+
+| Variable      | Default                             | Purpose                                                                    |
+| ------------- | ----------------------------------- | -------------------------------------------------------------------------- |
+| `INSTALL_DIR` | `$XDG_BIN_HOME`, else `~/.local/bin` | Where to put the binary. Must be a directory you own.                      |
+| `VERSION`     | `latest`                            | Pin a release. Accepts `3.2.0`, `v3.2.0`, or the full tag.                 |
+
+```bash
+# Install somewhere else
+curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | INSTALL_DIR=~/bin bash
+
+# Pin a version
+curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | VERSION=3.2.0 bash
+```
+
+Prebuilt binaries exist for macOS (arm64, x64), Linux (arm64, x64), and Windows x64; on Windows use Git Bash. Don't run the installer under `sudo` — it installs into your home directory, and `sudo` would put it in root's.
+
+> **Not on npm.** `@together-sandbox/cli` is not published, so `npx @together-sandbox/cli` will not work. Only the SDKs are published — `together-sandbox` on npm and PyPI. The CLI ships solely as the release binaries above.
+
 ---
 
 ## Authentication
