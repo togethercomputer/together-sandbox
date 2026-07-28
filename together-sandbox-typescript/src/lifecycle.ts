@@ -35,6 +35,18 @@ const STATUS_REASON_HINTS: Record<string, string> = {
     "Sandbox's cluster was lost. A terminated sandbox is terminal — create a new sandbox from a snapshot.",
 };
 
+/**
+ * Statuses a sandbox can still move out of on its own. Any other status is
+ * settled — waiting on it would return immediately, so callers can skip the
+ * wait phase entirely.
+ */
+const TRANSIENT_STATUSES = new Set(["starting", "terminating"]);
+
+/** True when the sandbox is still moving and a wait is worthwhile. */
+export function isTransientStatus(status: string | null | undefined): boolean {
+  return status != null && TRANSIENT_STATUSES.has(status);
+}
+
 function firstDefined<T>(...values: (T | null | undefined)[]): T | undefined {
   for (const v of values) {
     if (v !== null && v !== undefined) return v;
@@ -85,7 +97,7 @@ export function describeLifecycleFailure(
   }
 
   // 3. Transient — wait returned without reaching a terminal status
-  if (status === "starting" || status === "terminating") {
+  if (isTransientStatus(status)) {
     return (
       `Sandbox '${id}' is still in transient state '${status}' after wait returned.\n` +
       `Hint: this is unexpected (waitForSandbox should only return at a terminal status). ` +
