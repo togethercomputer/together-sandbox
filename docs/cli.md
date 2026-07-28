@@ -23,7 +23,13 @@ curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/m
 curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | VERSION=3.2.0 bash
 ```
 
-Prebuilt binaries exist for macOS (arm64, x64), Linux (arm64, x64), and Windows x64; on Windows use Git Bash. Don't run the installer under `sudo` — it installs into your home directory, and `sudo` would put it in root's.
+Prebuilt binaries exist for macOS (arm64, x64), Linux (arm64, x64), and Windows x64; on Windows use Git Bash.
+
+Running as root works — useful in containers and CI. Note the installer resolves its default prefix from `$HOME`, so under `sudo` on Linux that is usually `/root/.local/bin` rather than your own home. Set `INSTALL_DIR` explicitly if you want it elsewhere:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | INSTALL_DIR=/usr/local/bin sudo -E bash
+```
 
 > **Not on npm.** `@together-sandbox/cli` is not published, so `npx @together-sandbox/cli` will not work. Only the SDKs are published — `together-sandbox` on npm and PyPI. The CLI ships solely as the release binaries above.
 

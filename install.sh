@@ -1,23 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Refuse to run under sudo from a regular user's shell. This installer puts the
-# binary under $HOME, which under sudo resolves to root's home: it would land in
-# /root/.local/bin and `together-sandbox` would not be found from your own
-# shell. Plain root with no sudo (containers, CI) is unaffected.
-if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ] &&
-   [ -z "${TOGETHER_INSTALL_ALLOW_SUDO:-}" ]; then
-  echo "Error: do not run this installer with sudo." >&2
-  echo "" >&2
-  echo "together-sandbox installs into your home directory and does not need root." >&2
-  echo "Under sudo it would install into root's home instead of yours, and the" >&2
-  echo "'together-sandbox' command would not work from your own shell." >&2
-  echo "" >&2
-  echo "Re-run the same command without sudo. To install for root deliberately," >&2
-  echo "set TOGETHER_INSTALL_ALLOW_SUDO=1." >&2
-  exit 1
-fi
-
 REPO="togethercomputer/together-sandbox"
 VERSION="${VERSION:-latest}"
 # Install into a user-owned prefix by default, as rustup/bun/deno/uv do, so the
