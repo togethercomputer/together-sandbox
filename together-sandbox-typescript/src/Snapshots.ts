@@ -138,6 +138,8 @@ export class SnapshotsNamespace {
    * manual page-by-page control.
    *
    * @param options.limit Max items per page (1–100, default 20).
+   * @param options.cursor Resume from a cursor returned by a previous page's
+   *   {@link Page.nextCursor} (omit to start from the first page).
    * @param options.excludeRetired When true, retired snapshots are excluded
    *   (default false — retired snapshots are included).
    * @param options.tags Filter by tags; matches snapshots whose tags contain
@@ -145,6 +147,7 @@ export class SnapshotsNamespace {
    */
   async list(options?: {
     limit?: number;
+    cursor?: string;
     excludeRetired?: boolean;
     tags?: Record<string, string>;
   }): Promise<Page<Snapshot>> {
@@ -166,7 +169,7 @@ export class SnapshotsNamespace {
       return new Page<Snapshot>(result.data, result.next_cursor, fetchPage);
     };
 
-    return fetchPage();
+    return fetchPage(options?.cursor);
   }
 
   async alias(snapshotId: string, alias: string): Promise<void> {

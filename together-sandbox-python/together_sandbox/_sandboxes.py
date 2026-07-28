@@ -9,6 +9,7 @@ from .api.api.default.wait_for_sandbox import asyncio_detailed as wait_for_sandb
 from .api.api.default.terminate_sandbox import asyncio_detailed as terminate_sandbox_api
 from .api.api.default.create_sandbox import asyncio_detailed as create_sandbox_api
 from .api.api.default.list_sandboxes import asyncio_detailed as list_sandboxes_api
+from .api.api.default.get_sandbox import asyncio_detailed as get_sandbox_api
 
 # ── Management API models ─────────────────────────────────────────────────────
 from .api.models.sandbox import Sandbox as SandboxModel
@@ -139,6 +140,7 @@ class SandboxesNamespace:
         self,
         *,
         limit: int | None = None,
+        cursor: str | None = None,
         statuses: list[str] | None = None,
         tags: dict[str, str] | None = None,
     ) -> Page[SandboxModel]:
@@ -150,6 +152,8 @@ class SandboxesNamespace:
 
         Args:
             limit: Max items per page (1–100, default 20).
+            cursor: A ``next_cursor`` value returned by a previous page (omit
+                to start from the first page).
             statuses: Filter by status; matches sandboxes in any of the given
                 statuses.
             tags: Filter by tags; matches sandboxes whose tags contain all the
@@ -181,7 +185,30 @@ class SandboxesNamespace:
             )
             return Page(result.data, result.next_cursor, fetch_page)
 
-        return await fetch_page()
+        return await fetch_page(cursor)
+
+    async def get(self, sandbox_id: str) -> SandboxModel:
+        """Fetch a single sandbox by id.
+
+        Returns the raw sandbox metadata, consistent with :meth:`list` — not
+        a wired :class:`Sandbox` client.
+
+        Args:
+            sandbox_id: The sandbox to fetch.
+
+        Returns:
+            Sandbox: The sandbox metadata record.
+
+        Example:
+            >>> sandbox = await sdk.sandboxes.get("sb_1")
+            >>> print(sandbox.status)
+        """
+        return await _call_api(
+            "api.get_sandbox",
+            lambda: get_sandbox_api(sandbox_id, client=self._api_client),
+            self._retry,
+            context=f"for sandbox {sandbox_id!r}",
+        )
 
     async def terminate(
         self,

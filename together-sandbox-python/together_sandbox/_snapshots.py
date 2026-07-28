@@ -41,6 +41,9 @@ from .api.models.create_snapshot_body_architecture import CreateSnapshotBodyArch
 from .api.models.tags import Tags
 from .api.models.container_registry_credential import ContainerRegistryCredential
 from .api.models.snapshot import Snapshot
+from .api.types import UNSET
+
+from ._pagination import Page
 
 # ── Helpers ────────────────────────────────────────────────────────────
 from .docker import (
@@ -260,11 +263,12 @@ class SnapshotsNamespace:
         self,
         *,
         limit: int | None = None,
+        cursor: str | None = None,
         exclude_retired: bool | None = None,
         tags: dict[str, str] | None = None,
     ) -> Page[Snapshot]:
         """
-        List snapshots.
+        List snapshots, one page at a time.
 
         Returns a :class:`Page` that is async-iterable across all pages —
         iterate it directly to walk every snapshot, or use ``get_next_page()``
@@ -272,6 +276,8 @@ class SnapshotsNamespace:
 
         Args:
             limit: Max items per page (1–100, default 20).
+            cursor: A ``next_cursor`` value returned by a previous page (omit
+                to start from the first page).
             exclude_retired: When true, retired snapshots are excluded
                 (default false — retired snapshots are included).
             tags: Filter by tags; matches snapshots whose tags contain all the
@@ -286,6 +292,8 @@ class SnapshotsNamespace:
         Example:
             >>> async for snapshot in await sdk.snapshots.list():
             ...     print(snapshot.id)
+            >>> if page.next_cursor:
+            ...     page = await sdk.snapshots.list(cursor=page.next_cursor)
         """
 
         async def fetch_page(cursor: str | None = None) -> Page[Snapshot]:
@@ -304,7 +312,7 @@ class SnapshotsNamespace:
             )
             return Page(result.data, result.next_cursor, fetch_page)
 
-        return await fetch_page()
+        return await fetch_page(cursor)
 
     async def retire_by_id(self, id: str) -> Snapshot:
         """
