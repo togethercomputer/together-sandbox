@@ -9,6 +9,7 @@ import { runList, type ListArgs } from "./_list";
 import {
   cell,
   formatAge,
+  formatTagLines,
   formatTags,
   humanBytes,
   renderDescribe,
@@ -58,7 +59,7 @@ function describeSandbox(s: SandboxInfo): {
         ["Organization", cell(s.organizationId)],
         ["Project", cell(s.projectId)],
         ["Snapshot", cell(s.snapshotId)],
-        ["Tags", formatTags(s.tags)],
+        ["Tags", formatTagLines(s.tags)],
       ],
     },
     {

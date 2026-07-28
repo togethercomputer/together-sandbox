@@ -7,6 +7,7 @@ import { runList, type ListArgs } from "./_list";
 import {
   cell,
   formatAge,
+  formatTagLines,
   formatTags,
   humanBytes,
   renderDescribe,
@@ -25,7 +26,7 @@ function describeSnapshot(s: Snapshot): {
         ["ID", cell(s.id)],
         ["Organization", cell(s.organization_id)],
         ["Project", cell(s.project_id)],
-        ["Tags", formatTags(s.tags)],
+        ["Tags", formatTagLines(s.tags)],
       ],
     },
     {

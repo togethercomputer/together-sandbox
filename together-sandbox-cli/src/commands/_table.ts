@@ -10,17 +10,29 @@ export function cell(value: unknown): string {
   return String(value);
 }
 
+/** `tags` as sorted `key=value` strings; empty when there are none. */
+function tagPairs(tags: Record<string, string> | undefined): string[] {
+  return Object.entries(tags ?? {})
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`);
+}
+
 /**
- * Render a `tags` map as a compact, awk-safe `k=v,k=v` string. Keys are sorted
- * so the same tags always render identically across rows and runs.
+ * Render a `tags` map as a compact, single-line `k=v,k=v` string — for table
+ * rows, where a row has to stay on one line.
  */
 export function formatTags(tags: Record<string, string> | undefined): string {
-  const entries = Object.entries(tags ?? {});
-  if (entries.length === 0) return cell(undefined);
-  return entries
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([k, v]) => `${k}=${v}`)
-    .join(",");
+  const pairs = tagPairs(tags);
+  return pairs.length === 0 ? cell(undefined) : pairs.join(",");
+}
+
+/**
+ * Render a `tags` map one `key=value` per line — for `renderDescribe`, which
+ * indents the continuation lines under the first.
+ */
+export function formatTagLines(tags: Record<string, string> | undefined): string {
+  const pairs = tagPairs(tags);
+  return pairs.length === 0 ? cell(undefined) : pairs.join("\n");
 }
 
 // Largest-unit-first thresholds for `formatAge`, in seconds. The last entry is
@@ -98,9 +110,16 @@ export function renderDescribe(sections: DescribeSection[]): string {
     .filter((s) => s.rows.length > 0)
     .map((section) => {
       const keyWidth = Math.max(0, ...section.rows.map(([k]) => k.length + 1));
-      const rows = section.rows.map(
-        ([k, v]) => `  ${`${k}:`.padEnd(keyWidth + 1)} ${v}`,
-      );
+      // A value may span several lines (e.g. one tag per line). Continuation
+      // lines are indented to sit under the first, `kubectl describe`-style.
+      const indent = " ".repeat(keyWidth + 4);
+      const rows = section.rows.flatMap(([k, v]) => {
+        const [first = "", ...rest] = String(v).split("\n");
+        return [
+          `  ${`${k}:`.padEnd(keyWidth + 1)} ${first}`,
+          ...rest.map((line) => `${indent}${line}`),
+        ];
+      });
       return [section.title, ...rows].join("\n");
     });
   return blocks.join("\n\n");

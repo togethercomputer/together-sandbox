@@ -134,7 +134,7 @@ Columns: `ID`, `SIZE`, `MEMORY`, `RETIRED`, `AGE`, `TAGS`.
 
 On a TTY the results are streamed into your pager (`$PAGER`, or `less`), fetching the next page only as you scroll. Passing `--limit`/`--cursor`, `--ci`, or piping the output emits a single page instead.
 
-`TAGS` renders as a sorted, comma-separated `key=value` list (`<none>` when empty). On a TTY it is truncated with `…` to keep each row on one line; when piped or under `--ci` the full value is printed, so `awk`/`cut` see whole values.
+`TAGS` renders as a sorted, comma-separated `key=value` list (`<none>` when empty). On a TTY it is truncated with `…` to keep each row on one line; when piped or under `--ci` the full value is printed, so `awk`/`cut` see whole values. The `get` commands instead list one tag per line, since they are not constrained to a single row.
 
 `AGE` and `RETIRED` render as a relative age — `10 secs ago`, `7 mins ago`, `10 hrs ago`, `3 days ago`, `5 mos ago`, `2 yrs ago` — showing only the largest matching unit. Note these cells contain spaces, so address them by column position rather than `awk` field number; `-o json` gives the exact ISO-8601 timestamps and is the robust option for scripts.
 
