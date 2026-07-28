@@ -10,6 +10,19 @@ export function cell(value: unknown): string {
   return String(value);
 }
 
+/**
+ * Render a `tags` map as a compact, awk-safe `k=v,k=v` string. Keys are sorted
+ * so the same tags always render identically across rows and runs.
+ */
+export function formatTags(tags: Record<string, string> | undefined): string {
+  const entries = Object.entries(tags ?? {});
+  if (entries.length === 0) return cell(undefined);
+  return entries
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`)
+    .join(",");
+}
+
 /** Human-readable byte size, e.g. 134217728 → "128.0MiB". */
 export function humanBytes(n: number): string {
   if (!Number.isFinite(n)) return String(n);
@@ -68,38 +81,45 @@ function truncate(s: string, max: number): string {
 }
 
 /**
+ * Shrink the last column so a full row fits inside `maxWidth`, `ps aux`-style.
+ * Only the last column gives ground — it is by convention the one holding
+ * unbounded values (a command line, a tag map).
+ */
+export function capLastColumn(widths: number[], maxWidth: number): number[] {
+  if (widths.length < 2) return widths;
+  const last = widths.length - 1;
+  const gaps = COLUMN_GAP.length * (widths.length - 1);
+  const fixed = widths.slice(0, last).reduce((a, b) => a + b, 0) + gaps;
+  // Leave at least a few columns for the last field even on a narrow tty.
+  const cap = Math.max(3, maxWidth - fixed);
+  if (widths[last]! <= cap) return widths;
+  const capped = widths.slice();
+  capped[last] = cap;
+  return capped;
+}
+
+/** Truncate each cell to its column width, so no row overflows its layout. */
+export function fitRow(cells: string[], widths: number[]): string[] {
+  return cells.map((c, i) => truncate(c ?? "", widths[i] ?? 0));
+}
+
+/**
  * Render an uppercase header row + rows as space-aligned columns.
  *
  * When `maxWidth` is given (typically the terminal width), the last column is
- * truncated so every line fits on one row, `ps aux`-style. Omit it — e.g. when
- * output is piped — to print full, untruncated cells.
+ * truncated so every line fits on one row. Omit it — e.g. when output is piped
+ * — to print full, untruncated cells.
  */
 export function renderTable(
   headers: string[],
   rows: string[][],
   maxWidth?: number,
 ): string {
-  let displayRows = rows;
   let widths = computeWidths(headers, rows);
-
-  if (maxWidth !== undefined && widths.length > 1) {
-    const last = widths.length - 1;
-    const gaps = COLUMN_GAP.length * (widths.length - 1);
-    const fixed = widths.slice(0, last).reduce((a, b) => a + b, 0) + gaps;
-    // Leave at least a few columns for the last field even on a narrow tty.
-    const cap = Math.max(3, maxWidth - fixed);
-    if (widths[last] > cap) {
-      displayRows = rows.map((r) => {
-        const copy = r.slice();
-        copy[last] = truncate(copy[last] ?? "", cap);
-        return copy;
-      });
-      widths = computeWidths(headers, displayRows);
-    }
-  }
+  if (maxWidth !== undefined) widths = capLastColumn(widths, maxWidth);
 
   return [
     formatRow(headers, widths),
-    ...displayRows.map((r) => formatRow(r, widths)),
+    ...rows.map((r) => formatRow(fitRow(r, widths), widths)),
   ].join("\n");
 }

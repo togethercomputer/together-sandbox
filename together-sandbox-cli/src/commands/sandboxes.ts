@@ -6,7 +6,7 @@ import type {
   TerminationSnapshotParams,
 } from "together-sandbox";
 import { runList, type ListArgs } from "./_list";
-import { cell, humanBytes, renderDescribe } from "./_table";
+import { cell, formatTags, humanBytes, renderDescribe } from "./_table";
 import {
   execTarget,
   fullCommand,
@@ -26,13 +26,6 @@ const SANDBOX_STATUSES = [
   "recovering",
   "unrecovered",
 ] as const satisfies readonly SandboxStatus[];
-
-/** Render `tags` as a compact `k=v,k=v` string. */
-function formatTags(tags: Record<string, string> | undefined): string {
-  const entries = Object.entries(tags ?? {});
-  if (entries.length === 0) return cell(undefined);
-  return entries.map(([k, v]) => `${k}=${v}`).join(",");
-}
 
 /**
  * Summarise the termination policy. A sandbox created without one is
@@ -59,6 +52,7 @@ function describeSandbox(s: SandboxInfo): {
         ["Organization", cell(s.organizationId)],
         ["Project", cell(s.projectId)],
         ["Snapshot", cell(s.snapshotId)],
+        ["Tags", formatTags(s.tags)],
       ],
     },
     {
@@ -80,7 +74,6 @@ function describeSandbox(s: SandboxInfo): {
       rows: [
         ["TTL", s.ttl !== null && s.ttl !== undefined ? `${s.ttl}s` : cell(undefined)],
         ["Policy", formatTerminationPolicy(s)],
-        ["Tags", formatTags(s.tags)],
       ],
     },
     {
@@ -220,13 +213,16 @@ export const listCommand: yargs.CommandModule<
         {
           fetchPage: (params) =>
             sdk.sandboxes.list({ ...params, statuses, tags }),
-          headers: ["ID", "STATUS", "REASON", "CPU", "CREATED"],
+          // TAGS is last: it is the only unbounded-width column, and
+          // `renderTable` truncates the final column to fit the terminal.
+          headers: ["ID", "STATUS", "REASON", "CPU", "CREATED", "TAGS"],
           toRow: (s) => [
             cell(s.id),
             cell(s.status),
             cell(s.statusReason),
             cell(s.cpu),
             cell(s.createdAt),
+            formatTags(s.tags),
           ],
         },
         argv,

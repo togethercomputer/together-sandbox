@@ -4,7 +4,7 @@ import { TogetherSandbox } from "together-sandbox";
 import type { CreateSnapshotParams, Snapshot } from "together-sandbox";
 import ora from "ora";
 import { runList, type ListArgs } from "./_list";
-import { cell, humanBytes, renderDescribe } from "./_table";
+import { cell, formatTags, humanBytes, renderDescribe } from "./_table";
 import { parseKeyValues } from "./_exec";
 import { examples } from "./_help";
 
@@ -19,6 +19,7 @@ function describeSnapshot(s: Snapshot): {
         ["ID", cell(s.id)],
         ["Organization", cell(s.organization_id)],
         ["Project", cell(s.project_id)],
+        ["Tags", formatTags(s.tags)],
       ],
     },
     {
@@ -32,7 +33,6 @@ function describeSnapshot(s: Snapshot): {
       title: "Retention",
       rows: [
         ["TTL", s.ttl !== null && s.ttl !== undefined ? `${s.ttl}s` : cell(undefined)],
-        ["Tags", formatTags(s.tags)],
       ],
     },
     {
@@ -48,12 +48,6 @@ function describeSnapshot(s: Snapshot): {
   ];
 }
 
-/** Render `tags` as a compact `k=v,k=v` string. */
-function formatTags(tags: Record<string, string> | undefined): string {
-  const entries = Object.entries(tags ?? {});
-  if (entries.length === 0) return cell(undefined);
-  return entries.map(([k, v]) => `${k}=${v}`).join(",");
-}
 
 export type CreateArgs = {
   context?: string;
@@ -269,13 +263,16 @@ export const listCommand: yargs.CommandModule<
         {
           fetchPage: (params) =>
             sdk.snapshots.list({ ...params, excludeRetired, tags }),
-          headers: ["ID", "SIZE", "MEMORY", "RETIRED", "CREATED"],
+          // TAGS is last: it is the only unbounded-width column, and
+          // `renderTable` truncates the final column to fit the terminal.
+          headers: ["ID", "SIZE", "MEMORY", "RETIRED", "CREATED", "TAGS"],
           toRow: (s) => [
             cell(s.id),
             humanBytes(s.byte_size),
             cell(s.memory),
             cell(s.retired_at),
             cell(s.created_at),
+            formatTags(s.tags),
           ],
         },
         argv,

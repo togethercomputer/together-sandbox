@@ -3,7 +3,7 @@ import { once } from "events";
 import * as path from "path";
 import type { Writable } from "stream";
 import type { Page } from "together-sandbox";
-import { computeWidths, formatRow, renderTable } from "./_table";
+import { capLastColumn, computeWidths, fitRow, formatRow, renderTable } from "./_table";
 
 export interface ListArgs {
   limit?: number;
@@ -46,8 +46,14 @@ export async function runList<T>(
   const interactive =
     Boolean(process.stdout.isTTY) && !args.ci && !explicitPaging;
 
+  // Capture the terminal width now, while stdout is still the tty — once the
+  // pager is spawned we are writing into a pipe and `columns` is gone. Piped
+  // and --ci output stays untruncated so scripts get whole values.
+  const maxWidth =
+    process.stdout.isTTY && !args.ci ? process.stdout.columns : undefined;
+
   if (interactive && args.output !== "json") {
-    await streamInteractive(config, args);
+    await streamInteractive(config, args, maxWidth);
     return;
   }
 
@@ -67,7 +73,7 @@ export async function runList<T>(
   }
 
   process.stdout.write(
-    `${renderTable(config.headers, items.map(config.toRow))}\n`,
+    `${renderTable(config.headers, items.map(config.toRow), maxWidth)}\n`,
   );
   if (nextCursor !== null) {
     process.stderr.write(`More results — use --cursor ${nextCursor}\n`);
@@ -82,6 +88,7 @@ export async function runList<T>(
 async function streamInteractive<T>(
   config: ListConfig<T>,
   args: ListArgs,
+  maxWidth?: number,
 ): Promise<void> {
   const { fetchPage, headers, toRow } = config;
   const { sink, child } = await openPager();
@@ -122,11 +129,12 @@ async function streamInteractive<T>(
       const rows = page.data.map(toRow);
       if (widths === null) {
         widths = computeWidths(headers, rows);
+        if (maxWidth !== undefined) widths = capLastColumn(widths, maxWidth);
         await write(`${formatRow(headers, widths)}\n`);
       }
       for (const row of rows) {
         if (!alive) break;
-        await write(`${formatRow(row, widths)}\n`);
+        await write(`${formatRow(fitRow(row, widths), widths)}\n`);
       }
       if (!alive || !page.hasNextPage()) break;
       // Lazily fetch the next page only once the current one is flushed.
