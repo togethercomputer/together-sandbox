@@ -79,7 +79,6 @@ class CreateContextSnapshotParams:
     dockerfile: str | None = None
     alias: str | None = None
     on_progress: Callable[[SnapshotProgress], None] | None = None
-    memory_snapshot: bool | None = None
     # Seconds after creation before the snapshot is automatically retired.
     ttl: int | None = None
     tags: dict[str, str] | None = None
@@ -90,7 +89,6 @@ class CreateImageSnapshotParams:
     image: str
     alias: str | None = None
     on_progress: Callable[[SnapshotProgress], None] | None = None
-    memory_snapshot: bool | None = None
     # Seconds after creation before the snapshot is automatically retired.
     ttl: int | None = None
     tags: dict[str, str] | None = None
@@ -262,7 +260,6 @@ class SnapshotsNamespace:
         *,
         limit: int | None = None,
         cursor: str | None = None,
-        project_id: str | None = None,
         exclude_retired: bool | None = None,
         tags: dict[str, str] | None = None,
     ) -> Page[Snapshot]:
@@ -277,7 +274,6 @@ class SnapshotsNamespace:
             limit: Max items per page (1–100, default 20).
             cursor: A ``next_cursor`` value returned by a previous page (omit
                 to start from the first page).
-            project_id: Restrict results to a specific project.
             exclude_retired: When true, retired snapshots are excluded
                 (default false — retired snapshots are included).
             tags: Filter by tags; matches snapshots whose tags contain all the
@@ -303,7 +299,6 @@ class SnapshotsNamespace:
                     client=self._api_client,
                     limit=limit if limit is not None else UNSET,
                     cursor=cursor if cursor is not None else UNSET,
-                    project_id=project_id if project_id is not None else UNSET,
                     exclude_retired=(
                         exclude_retired if exclude_retired is not None else UNSET
                     ),
@@ -373,7 +368,6 @@ class SnapshotsNamespace:
                 CreateContextSnapshotParams(
                     context=str(context_dir),
                     alias=params.alias,
-                    memory_snapshot=params.memory_snapshot,
                     on_progress=params.on_progress,
                 )
             )

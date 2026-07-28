@@ -21,24 +21,18 @@ class TerminationSnapshot:
     """The snapshot captured when a sandbox terminates.
 
     Attributes:
-        memory (bool | Unset): When true both the filesystem and memory are snapshotted (hibernate); when false only the
-            filesystem is snapshotted (stop).
-             Default: False.
         aliases (list[str] | Unset): Aliases to apply to the produced snapshot.
         ttl (int | Unset): Seconds after which the snapshot produced on termination expires. Must be > 0. Omit to keep
             the snapshot indefinitely.
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
     """
 
-    memory: bool | Unset = False
     aliases: list[str] | Unset = UNSET
     ttl: int | Unset = UNSET
     tags: Tags | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        memory = self.memory
-
         aliases: list[str] | Unset = UNSET
         if not isinstance(self.aliases, Unset):
             aliases = self.aliases
@@ -52,8 +46,6 @@ class TerminationSnapshot:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
-        if memory is not UNSET:
-            field_dict["memory"] = memory
         if aliases is not UNSET:
             field_dict["aliases"] = aliases
         if ttl is not UNSET:
@@ -68,8 +60,6 @@ class TerminationSnapshot:
         from ..models.tags import Tags
 
         d = dict(src_dict)
-        memory = d.pop("memory", UNSET)
-
         aliases = cast(list[str], d.pop("aliases", UNSET))
 
         ttl = d.pop("ttl", UNSET)
@@ -82,7 +72,6 @@ class TerminationSnapshot:
             tags = Tags.from_dict(_tags)
 
         termination_snapshot = cls(
-            memory=memory,
             aliases=aliases,
             ttl=ttl,
             tags=tags,

@@ -42,7 +42,7 @@ const SANDBOX_STATUSES = [
 function formatTerminationPolicy(s: SandboxInfo): string {
   const snapshot = s.terminationPolicy?.snapshot;
   if (!snapshot) return "<ephemeral>";
-  const parts = [snapshot.memory ? "filesystem+memory" : "filesystem"];
+  const parts = ["filesystem"];
   if (snapshot.aliases?.length) parts.push(`aliases=${snapshot.aliases.join(",")}`);
   if (snapshot.ttl !== undefined) parts.push(`ttl=${snapshot.ttl}s`);
   return parts.join(" ");
@@ -312,7 +312,6 @@ interface CreateOptions {
   ttl?: number;
   tag?: string[];
   snapshotOnTerminate?: boolean;
-  memorySnapshot?: boolean;
   snapshotAlias?: string[];
   snapshotTtl?: number;
 }
@@ -343,12 +342,6 @@ function createOptionsBuilder<T>(yargs: yargs.Argv<T>) {
       describe:
         "Snapshot the sandbox when it terminates. Without this the sandbox is " +
         "ephemeral: no snapshot is taken and it is deleted on termination",
-    })
-    .option("memory-snapshot", {
-      type: "boolean",
-      default: false,
-      describe:
-        "With --snapshot-on-terminate, capture memory as well as the filesystem",
     })
     .option("snapshot-alias", {
       type: "string",
@@ -383,7 +376,6 @@ function buildCreateParams(argv: CreateOptions, ref: string) {
     terminationPolicy: argv.snapshotOnTerminate
       ? {
           snapshot: {
-            memory: argv.memorySnapshot ?? false,
             aliases: argv.snapshotAlias,
             ttl: argv.snapshotTtl,
           },
@@ -427,10 +419,9 @@ export const createCommand: yargs.CommandModule<
             command: "$0 sandboxes create @my-app@v1 --ttl 3600 --tag env=dev",
           },
           {
-            describe:
-              "Keep a resumable fs+memory snapshot on teardown, aliased my-app@v2",
+            describe: "Snapshot on teardown, aliased my-app@v2",
             command:
-              "$0 sandboxes create @my-app@v1 --snapshot-on-terminate --memory-snapshot --snapshot-alias my-app@v2",
+              "$0 sandboxes create @my-app@v1 --snapshot-on-terminate --snapshot-alias my-app@v2",
           },
         ]),
       ) as unknown as yargs.Argv<CreateArgs>,
@@ -458,7 +449,6 @@ export const createCommand: yargs.CommandModule<
 
 interface TerminateArgs {
   id: string;
-  memory?: boolean;
   ephemeral?: boolean;
   snapshotAlias?: string[];
   snapshotTtl?: number;
@@ -475,13 +465,11 @@ function terminateSnapshotOverride(
 ): TerminationSnapshotParams | null | undefined {
   if (argv.ephemeral) return null;
   const overridden =
-    argv.memory !== undefined ||
     argv.snapshotAlias !== undefined ||
     argv.snapshotTtl !== undefined ||
     argv.snapshotTag !== undefined;
   if (!overridden) return undefined;
   return {
-    memory: argv.memory ?? false,
     aliases: argv.snapshotAlias,
     ttl: argv.snapshotTtl,
     tags: parseKeyValues(argv.snapshotTag, "--snapshot-tag"),
@@ -503,12 +491,6 @@ export const terminateCommand: yargs.CommandModule<
         describe: "Sandbox id",
         demandOption: true,
       })
-      .option("memory", {
-        type: "boolean",
-        describe:
-          "Snapshot memory as well as the filesystem, so a sandbox created " +
-          "from the produced snapshot resumes where this one left off",
-      })
       .option("ephemeral", {
         type: "boolean",
         describe: "Take no snapshot at all, overriding the stored policy",
@@ -527,7 +509,7 @@ export const terminateCommand: yargs.CommandModule<
         array: true,
         describe: "Tag the produced snapshot, KEY=VALUE (repeatable)",
       })
-      .conflicts("ephemeral", ["memory", "snapshot-alias", "snapshot-ttl", "snapshot-tag"])
+      .conflicts("ephemeral", ["snapshot-alias", "snapshot-ttl", "snapshot-tag"])
       .epilogue(
         examples(
           [
@@ -541,9 +523,9 @@ export const terminateCommand: yargs.CommandModule<
               command: "$0 sandboxes terminate <sandbox-id> --ephemeral",
             },
             {
-              describe: "Capture fs+memory so a new sandbox can resume in place",
+              describe: "Snapshot on teardown under a known alias",
               command:
-                "$0 sandboxes terminate <sandbox-id> --memory --snapshot-alias my-app@paused",
+                "$0 sandboxes terminate <sandbox-id> --snapshot-alias my-app@paused",
             },
           ],
           "With no snapshot flags, the sandbox's stored termination policy applies.",

@@ -30,7 +30,7 @@ class TestSnapshotsList:
         api = AsyncMock(return_value=_page_response([item], "next-token"))
         with patch("together_sandbox._snapshots.list_snapshots_api", api):
             ns = SnapshotsNamespace(MagicMock(), "https://x", api_key="key")
-            page = await ns.list(limit=5, cursor="c", project_id="p")
+            page = await ns.list(limit=5, cursor="c")
 
         assert isinstance(page, Page)
         assert page.data == [item]
@@ -38,7 +38,6 @@ class TestSnapshotsList:
         _, kwargs = api.call_args
         assert kwargs["limit"] == 5
         assert kwargs["cursor"] == "c"
-        assert kwargs["project_id"] == "p"
 
     async def test_forwards_filters(self):
         api = AsyncMock(return_value=_page_response([], None))
@@ -62,7 +61,6 @@ class TestSnapshotsList:
         _, kwargs = api.call_args
         assert kwargs["limit"] is UNSET
         assert kwargs["cursor"] is UNSET
-        assert kwargs["project_id"] is UNSET
         assert kwargs["exclude_retired"] is UNSET
         assert kwargs["tags"] is UNSET
 
@@ -81,7 +79,6 @@ class TestSandboxesList:
         _, kwargs = api.call_args
         assert kwargs["limit"] == 10
         assert kwargs["cursor"] is UNSET
-        assert kwargs["project_id"] is UNSET
         assert kwargs["statuses"] is UNSET
         assert kwargs["tags"] is UNSET
 
@@ -92,14 +89,12 @@ class TestSandboxesList:
             await ns.list(
                 limit=10,
                 cursor="page-2",
-                project_id="p",
                 statuses=["running"],
                 tags={"env": "prod"},
             )
 
         _, kwargs = api.call_args
         assert kwargs["cursor"] == "page-2"
-        assert kwargs["project_id"] == "p"
         assert [s.value for s in kwargs["statuses"]] == ["running"]
         assert kwargs["tags"].to_dict() == {"tags[env]": "prod"}
 

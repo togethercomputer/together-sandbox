@@ -5,7 +5,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from together_sandbox._sandboxes import SandboxesNamespace, _resolve_connection
+from together_sandbox._sandboxes import (
+    SandboxesNamespace,
+    _connect_running_sandbox,
+    _resolve_connection,
+)
+from together_sandbox._lifecycle import is_transient_status
 from together_sandbox.sandbox.models.error import Error
 from together_sandbox.api.models.sandbox import Sandbox as SandboxModel
 
@@ -108,7 +113,7 @@ class TestSandboxesCreate:
             result = await ns.create(snapshot_id="snap-1")
 
         assert result is expected_sandbox
-        mock_connect.assert_awaited_once_with("abc123", ns._api_client, ns._retry)
+        mock_connect.assert_awaited_once_with(created_model, ns._api_client, ns._retry)
 
     @pytest.mark.asyncio
     async def test_create_forwards_snapshot_id_to_api(self):
@@ -133,6 +138,99 @@ class TestSandboxesCreate:
 
         # Verified indirectly: no exception means the lambda was constructed and called
         assert captured_body["body"] is not None
+
+
+# ─── _connect_running_sandbox ────────────────────────────────────────────────
+
+
+class TestConnectRunningSandbox:
+    @pytest.mark.asyncio
+    async def test_waits_when_status_is_transient(self):
+        starting = _make_sandbox_model(id="abc123", status="starting")
+        running = _make_sandbox_model(id="abc123", status="running")
+
+        with (
+            patch(
+                "together_sandbox._sandboxes._call_api",
+                new=AsyncMock(return_value=running),
+            ) as mock_call,
+            patch("together_sandbox._sandboxes.SandboxClient"),
+            patch("together_sandbox._sandboxes.Sandbox", return_value=MagicMock()),
+        ):
+            await _connect_running_sandbox(starting, MagicMock(), None)
+
+        mock_call.assert_awaited_once()
+        assert mock_call.call_args[0][0] == "api.wait_for_sandbox"
+
+    @pytest.mark.asyncio
+    async def test_skips_wait_when_already_running(self):
+        running = _make_sandbox_model(id="abc123", status="running")
+        expected = MagicMock()
+
+        with (
+            patch("together_sandbox._sandboxes._call_api", new=AsyncMock()) as mock_call,
+            patch("together_sandbox._sandboxes.SandboxClient"),
+            patch(
+                "together_sandbox._sandboxes.Sandbox", return_value=expected
+            ) as mock_sandbox,
+        ):
+            result = await _connect_running_sandbox(running, MagicMock(), None)
+
+        mock_call.assert_not_awaited()
+        assert result is expected
+        # The create response itself is what gets wired into the Sandbox.
+        assert mock_sandbox.call_args[0][0] is running
+
+    @pytest.mark.asyncio
+    async def test_skips_wait_and_raises_for_settled_failure(self):
+        failed = _make_sandbox_model(
+            id="abc123", status="failed_to_start", status_reason="out_of_capacity"
+        )
+
+        with (
+            patch("together_sandbox._sandboxes._call_api", new=AsyncMock()) as mock_call,
+            pytest.raises(RuntimeError, match="failed to start"),
+        ):
+            await _connect_running_sandbox(failed, MagicMock(), None)
+
+        mock_call.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_waits_when_terminating(self):
+        terminating = _make_sandbox_model(id="abc123", status="terminating")
+        terminated = _make_sandbox_model(id="abc123", status="terminated")
+
+        with (
+            patch(
+                "together_sandbox._sandboxes._call_api",
+                new=AsyncMock(return_value=terminated),
+            ) as mock_call,
+            pytest.raises(RuntimeError, match="terminated instead of reaching"),
+        ):
+            await _connect_running_sandbox(terminating, MagicMock(), None)
+
+        mock_call.assert_awaited_once()
+
+
+# ─── is_transient_status ─────────────────────────────────────────────────────
+
+
+class TestIsTransientStatus:
+    @pytest.mark.parametrize("status", ["starting", "terminating"])
+    def test_transient_statuses(self, status):
+        assert is_transient_status(status) is True
+
+    @pytest.mark.parametrize(
+        "status",
+        ["running", "terminated", "failed_to_start", "recovering", "unrecovered", None],
+    )
+    def test_settled_statuses(self, status):
+        assert is_transient_status(status) is False
+
+    def test_unwraps_enum_like_values(self):
+        enum_like = MagicMock()
+        enum_like.value = "starting"
+        assert is_transient_status(enum_like) is True
 
 
 # ─── RetryConfig docstring integrity ──────────────────────────────────────────

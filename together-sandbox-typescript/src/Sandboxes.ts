@@ -4,6 +4,7 @@ import {
   createConfig as createSandboxConfig,
 } from "./api-clients/sandbox/client/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
+import type { Sandbox as RawSandbox } from "./api-clients/api/types.gen.js";
 import { Sandbox } from "./Sandbox.js";
 import {
   type SandboxInfo,
@@ -18,7 +19,7 @@ import {
   terminationPolicyBody,
   terminationSnapshotBody,
 } from "./utils.js";
-import { describeLifecycleFailure } from "./lifecycle.js";
+import { describeLifecycleFailure, isTransientStatus } from "./lifecycle.js";
 import { Page } from "./pagination.js";
 
 /**
@@ -36,21 +37,27 @@ function resolveConnectionDetails(sandbox: SandboxInfo): {
 /**
  * Wait for a sandbox to reach "running", wire up its client, and return a
  * connected {@link Sandbox}.
+ *
+ * `sandbox` is the sandbox as last seen (e.g. the createSandbox response). The
+ * wait phase is skipped when it has already settled on a non-transient status —
+ * waiting would just echo that status back.
  */
 async function connectRunningSandbox(
-  sandboxId: string,
+  sandbox: RawSandbox,
   apiClient: ApiClient,
   retryConfig: RetryConfig | undefined,
 ): Promise<Sandbox> {
-  const waitResult = await callApi(
-    "api.waitForSandbox",
-    () =>
-      api.waitForSandbox({
-        client: apiClient,
-        path: { id: sandboxId },
-      }),
-    retryConfig,
-  );
+  const waitResult = isTransientStatus(sandbox.status)
+    ? await callApi(
+        "api.waitForSandbox",
+        () =>
+          api.waitForSandbox({
+            client: apiClient,
+            path: { id: sandbox.id },
+          }),
+        retryConfig,
+      )
+    : sandbox;
 
   if (waitResult.status !== "running") {
     throw new Error(describeLifecycleFailure(waitResult, "running"));
@@ -85,6 +92,9 @@ export class SandboxesNamespace {
 
   /**
    * Create a sandbox and wait for it to be running, returning a connected {@link Sandbox}.
+   *
+   * The wait is skipped when the create response already reports a settled
+   * status (e.g. the sandbox came back `running`).
    */
   async create(params: CreateSandboxParams = {}): Promise<Sandbox> {
     const data = await callApi(
@@ -105,7 +115,7 @@ export class SandboxesNamespace {
       this._retryConfig,
     );
 
-    return connectRunningSandbox(data.id, this._apiClient, this._retryConfig);
+    return connectRunningSandbox(data, this._apiClient, this._retryConfig);
   }
 
   /**
@@ -116,7 +126,6 @@ export class SandboxesNamespace {
    * manual page-by-page control.
    *
    * @param options.limit Max items per page (1–100, default 20).
-   * @param options.projectId Filter to a single project.
    * @param options.cursor Resume from a cursor returned by a previous page's
    *   {@link Page.nextCursor} (omit to start from the first page).
    * @param options.statuses Filter by status; matches sandboxes in any of the
@@ -126,7 +135,6 @@ export class SandboxesNamespace {
    */
   async list(options?: {
     limit?: number;
-    projectId?: string;
     cursor?: string;
     statuses?: SandboxStatus[];
     tags?: Record<string, string>;
@@ -140,7 +148,6 @@ export class SandboxesNamespace {
             query: {
               limit: options?.limit,
               cursor,
-              project_id: options?.projectId,
               "statuses[]": options?.statuses,
               tags: options?.tags,
             },

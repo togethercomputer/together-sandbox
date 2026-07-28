@@ -40,7 +40,6 @@ describe("Snapshots.list", () => {
         query: {
           limit: 5,
           cursor: undefined,
-          project_id: undefined,
           exclude_retired: undefined,
           tags: undefined,
         },
@@ -68,7 +67,6 @@ describe("Snapshots.list", () => {
         query: {
           limit: 5,
           cursor: "page-2",
-          project_id: undefined,
           exclude_retired: true,
           tags: { env: "prod" },
         },
@@ -93,7 +91,6 @@ describe("Snapshots.list", () => {
         query: {
           limit: undefined,
           cursor: undefined,
-          project_id: undefined,
           exclude_retired: undefined,
           tags: undefined,
         },
@@ -128,7 +125,6 @@ describe("Sandboxes.list", () => {
         query: {
           limit: 10,
           cursor: undefined,
-          project_id: undefined,
           "statuses[]": undefined,
           tags: undefined,
         },
@@ -156,7 +152,6 @@ describe("Sandboxes.list", () => {
         query: {
           limit: 10,
           cursor: "page-2",
-          project_id: undefined,
           "statuses[]": ["running"],
           tags: { env: "prod" },
         },
