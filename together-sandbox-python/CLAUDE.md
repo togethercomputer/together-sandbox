@@ -116,8 +116,8 @@ return result
 ### Async context manager support
 
 Both `TogetherSandbox` and `Sandbox` must support `async with`. The context
-manager closes the HTTP client connection but does **not** shut down the VM —
-callers must call `.shutdown()` explicitly.
+manager closes the HTTP client connection but does **not** terminate the VM —
+callers must call `.terminate()` explicitly.
 
 ### Always unwrap API responses with `_unwrap_or_raise`
 

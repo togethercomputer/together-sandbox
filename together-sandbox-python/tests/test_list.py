@@ -40,6 +40,17 @@ class TestSnapshotsList:
         assert kwargs["cursor"] == "c"
         assert kwargs["project_id"] == "p"
 
+    async def test_forwards_filters(self):
+        api = AsyncMock(return_value=_page_response([], None))
+        with patch("together_sandbox._snapshots.list_snapshots_api", api):
+            ns = SnapshotsNamespace(MagicMock(), "https://x", api_key="key")
+            await ns.list(exclude_retired=True, tags={"env": "prod"})
+
+        _, kwargs = api.call_args
+        assert kwargs["exclude_retired"] is True
+        # deepObject keys are pre-bracketed by ``deep_object_tags``.
+        assert kwargs["tags"].to_dict() == {"tags[env]": "prod"}
+
     async def test_omitted_params_are_unset(self):
         api = AsyncMock(return_value=_page_response([], None))
         with patch("together_sandbox._snapshots.list_snapshots_api", api):
@@ -52,6 +63,8 @@ class TestSnapshotsList:
         assert kwargs["limit"] is UNSET
         assert kwargs["cursor"] is UNSET
         assert kwargs["project_id"] is UNSET
+        assert kwargs["exclude_retired"] is UNSET
+        assert kwargs["tags"] is UNSET
 
 
 class TestSandboxesList:
@@ -69,6 +82,26 @@ class TestSandboxesList:
         assert kwargs["limit"] == 10
         assert kwargs["cursor"] is UNSET
         assert kwargs["project_id"] is UNSET
+        assert kwargs["statuses"] is UNSET
+        assert kwargs["tags"] is UNSET
+
+    async def test_forwards_cursor_and_filters(self):
+        api = AsyncMock(return_value=_page_response([], None))
+        with patch("together_sandbox._sandboxes.list_sandboxes_api", api):
+            ns = SandboxesNamespace(MagicMock())
+            await ns.list(
+                limit=10,
+                cursor="page-2",
+                project_id="p",
+                statuses=["running"],
+                tags={"env": "prod"},
+            )
+
+        _, kwargs = api.call_args
+        assert kwargs["cursor"] == "page-2"
+        assert kwargs["project_id"] == "p"
+        assert [s.value for s in kwargs["statuses"]] == ["running"]
+        assert kwargs["tags"].to_dict() == {"tags[env]": "prod"}
 
 
 class TestSandboxesGet:

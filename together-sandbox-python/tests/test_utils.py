@@ -12,17 +12,26 @@ from together_sandbox.api.models.sandbox import Sandbox as SandboxModel
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _make_sandbox_model(**overrides) -> MagicMock:
-    """Build a mock SandboxModel with sensible defaults."""
-    defaults = dict(
-        id="test-sandbox-123",
-        agent_url="https://agent.example.com",
-        agent_token="agent-tok",
-    )
+def _make_sandbox_model(
+    *,
+    agent_url: str | None = "https://agent.example.com",
+    agent_token: str | None = "agent-tok",
+    **overrides,
+) -> MagicMock:
+    """Build a mock SandboxModel with sensible defaults.
+
+    The agent connection details live on the nested ``agent`` object
+    (``agent.url`` / ``agent.token``) to match the current Sandbox model.
+    """
+    defaults = dict(id="test-sandbox-123")
     defaults.update(overrides)
     mock = MagicMock(spec=SandboxModel)
     for k, v in defaults.items():
         setattr(mock, k, v)
+    agent = MagicMock()
+    agent.url = agent_url
+    agent.token = agent_token
+    mock.agent = agent
     return mock
 
 
@@ -54,7 +63,7 @@ class TestSandboxesCreate:
         return _make_sandbox_model(id=sandbox_id, status="running")
 
     @pytest.mark.asyncio
-    async def test_create_calls_create_api_with_autostart_true(self):
+    async def test_create_calls_create_api(self):
         running = self._make_running_model()
         with (
             patch(
@@ -73,11 +82,10 @@ class TestSandboxesCreate:
             ns = SandboxesNamespace(api_client=MagicMock())
             await ns.create(snapshot_id="snap-1")
 
-            # First _call_api call is create_sandbox; check autostart=True in body
-            create_call_kwargs = mock_call.call_args_list[0]
-            body_arg = create_call_kwargs[0][1]()  # call the lambda to get the body
-            # The body lambda was already called internally; just verify connect was reached
+            # First _call_api call is create_sandbox.
+            assert mock_call.call_args_list[0][0][0] == "api.create_sandbox"
             assert mock_call.call_count >= 1
+            mock_connect.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_create_returns_connected_sandbox(self):

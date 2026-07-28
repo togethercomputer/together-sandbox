@@ -77,13 +77,13 @@ async def sandbox(sdk: TogetherSandbox) -> AsyncGenerator[Sandbox, None]:
     try:
         yield sb
     finally:
-        # Cleanup: shutdown sandbox with timeout protection
+        # Cleanup: terminate the sandbox with timeout protection
         try:
-            await asyncio.wait_for(sdk.sandboxes.shutdown(sb.id), timeout=10.0)
+            await asyncio.wait_for(sdk.sandboxes.terminate(sb.id), timeout=10.0)
         except asyncio.TimeoutError:
-            print(f"Warning: Timeout while shutting down sandbox {sb.id}")
+            print(f"Warning: Timeout while terminating sandbox {sb.id}")
         except Exception as e:
-            print(f"Warning: Error shutting down sandbox {sb.id}: {e}")
+            print(f"Warning: Error terminating sandbox {sb.id}: {e}")
 
 
 async def retry_until(

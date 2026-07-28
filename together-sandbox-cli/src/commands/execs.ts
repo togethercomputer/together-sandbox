@@ -3,30 +3,10 @@ import { TogetherSandbox } from "together-sandbox";
 import {
   getExecOutput,
   listExecs,
+  resolveTarget,
   streamExecOutput,
-  type ExecTarget,
 } from "./_exec";
 import { cell, renderTable } from "./_table";
-
-/**
- * Resolve a running sandbox's agent connection details, erroring if the
- * sandbox is not running or exposes no agent endpoint.
- */
-async function resolveTarget(
-  sdk: TogetherSandbox,
-  sandboxId: string,
-): Promise<ExecTarget> {
-  const sandbox = await sdk.sandboxes.get(sandboxId);
-  if (sandbox.status !== "running") {
-    throw new Error(
-      `sandbox ${sandboxId} is not running (status: ${sandbox.status})`,
-    );
-  }
-  if (!sandbox.agentUrl || !sandbox.agentToken) {
-    throw new Error(`sandbox ${sandboxId} has no agent connection details`);
-  }
-  return { agent: sandbox.agentUrl, token: sandbox.agentToken };
-}
 
 interface LsArgs {
   id: string;

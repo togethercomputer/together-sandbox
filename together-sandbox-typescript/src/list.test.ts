@@ -37,7 +37,13 @@ describe("Snapshots.list", () => {
     expect(page.hasNextPage()).toBe(true);
     expect(api.listSnapshots).toHaveBeenCalledWith(
       expect.objectContaining({
-        query: { limit: 5, cursor: undefined },
+        query: {
+          limit: 5,
+          cursor: undefined,
+          project_id: undefined,
+          exclude_retired: undefined,
+          tags: undefined,
+        },
       }),
     );
   });
@@ -50,11 +56,22 @@ describe("Snapshots.list", () => {
     });
 
     const ns = new SnapshotsNamespace(fakeClient, "https://x", "key");
-    await ns.list({ limit: 5, cursor: "page-2" });
+    await ns.list({
+      limit: 5,
+      cursor: "page-2",
+      excludeRetired: true,
+      tags: { env: "prod" },
+    });
 
     expect(api.listSnapshots).toHaveBeenCalledWith(
       expect.objectContaining({
-        query: { limit: 5, cursor: "page-2" },
+        query: {
+          limit: 5,
+          cursor: "page-2",
+          project_id: undefined,
+          exclude_retired: true,
+          tags: { env: "prod" },
+        },
       }),
     );
   });
@@ -73,7 +90,13 @@ describe("Snapshots.list", () => {
     expect(page.hasNextPage()).toBe(false);
     expect(api.listSnapshots).toHaveBeenCalledWith(
       expect.objectContaining({
-        query: { limit: undefined, cursor: undefined },
+        query: {
+          limit: undefined,
+          cursor: undefined,
+          project_id: undefined,
+          exclude_retired: undefined,
+          tags: undefined,
+        },
       }),
     );
   });
@@ -85,7 +108,10 @@ describe("Sandboxes.list", () => {
   it("returns a Page of camelCased records and forwards pagination params", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (api.listSandboxes as any).mockResolvedValue({
-      data: { data: [{ id: "sb_1", cluster_name: "c1" }], next_cursor: null },
+      data: {
+        data: [{ id: "sb_1", status: "running", created_at: "2026-01-01" }],
+        next_cursor: null,
+      },
       response: new Response(null, { status: 200 }),
     });
 
@@ -93,11 +119,19 @@ describe("Sandboxes.list", () => {
     const page = await ns.list({ limit: 10 });
 
     expect(page).toBeInstanceOf(Page);
-    expect(page.data).toEqual([{ id: "sb_1", clusterName: "c1" }]);
+    expect(page.data).toEqual([
+      { id: "sb_1", status: "running", createdAt: "2026-01-01" },
+    ]);
     expect(page.nextCursor).toBeNull();
     expect(api.listSandboxes).toHaveBeenCalledWith(
       expect.objectContaining({
-        query: { project_id: undefined, limit: 10, cursor: undefined },
+        query: {
+          limit: 10,
+          cursor: undefined,
+          project_id: undefined,
+          "statuses[]": undefined,
+          tags: undefined,
+        },
       }),
     );
   });
@@ -110,11 +144,22 @@ describe("Sandboxes.list", () => {
     });
 
     const ns = new SandboxesNamespace(fakeClient);
-    await ns.list({ limit: 10, cursor: "page-2" });
+    await ns.list({
+      limit: 10,
+      cursor: "page-2",
+      statuses: ["running"],
+      tags: { env: "prod" },
+    });
 
     expect(api.listSandboxes).toHaveBeenCalledWith(
       expect.objectContaining({
-        query: { project_id: undefined, limit: 10, cursor: "page-2" },
+        query: {
+          limit: 10,
+          cursor: "page-2",
+          project_id: undefined,
+          "statuses[]": ["running"],
+          tags: { env: "prod" },
+        },
       }),
     );
   });
@@ -126,17 +171,25 @@ describe("Sandboxes.get", () => {
   it("returns the camelCased record and forwards the id in the path", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (api.getSandbox as any).mockResolvedValue({
-      data: { id: "sb_1", status: "running", agent_url: "https://agent" },
+      data: {
+        id: "sb_1",
+        status: "running",
+        status_reason: "cold_started",
+        agent: { version: "1", token: "tok", url: "https://agent" },
+      },
       response: new Response(null, { status: 200 }),
     });
 
     const ns = new SandboxesNamespace(fakeClient);
     const result = await ns.get("sb_1");
 
+    // camelCaseKeys is shallow: top-level keys are converted, the nested
+    // `agent` object is passed through as-is.
     expect(result).toEqual({
       id: "sb_1",
       status: "running",
-      agentUrl: "https://agent",
+      statusReason: "cold_started",
+      agent: { version: "1", token: "tok", url: "https://agent" },
     });
     expect(api.getSandbox).toHaveBeenCalledWith(
       expect.objectContaining({ path: { id: "sb_1" } }),

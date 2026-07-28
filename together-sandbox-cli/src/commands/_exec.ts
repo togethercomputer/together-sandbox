@@ -3,6 +3,8 @@
 // SSE stream (exit code arrives inline); interactive execs use the websocket
 // (bidirectional stdin + PTY resize), polling for the exit code on close.
 
+import type { TogetherSandbox, SandboxInfo } from "together-sandbox";
+
 export interface ExecTarget {
   /** Agent base URL (e.g. https://host:port). */
   agent: string;
@@ -25,6 +27,30 @@ interface ExecItem {
 }
 
 /**
+ * Turn sandbox metadata into an {@link ExecTarget}, erroring if the sandbox is
+ * not running or exposes no agent endpoint. The agent's `url`/`token` are only
+ * populated while the sandbox is running.
+ */
+export function execTarget(sandbox: SandboxInfo): ExecTarget {
+  const id = sandbox.id ?? "<unknown>";
+  if (sandbox.status !== "running") {
+    throw new Error(`sandbox ${id} is not running (status: ${sandbox.status})`);
+  }
+  if (!sandbox.agent?.url || !sandbox.agent?.token) {
+    throw new Error(`sandbox ${id} has no agent connection details`);
+  }
+  return { agent: sandbox.agent.url, token: sandbox.agent.token };
+}
+
+/** Fetch a sandbox by id and resolve its agent connection details. */
+export async function resolveTarget(
+  sdk: TogetherSandbox,
+  sandboxId: string,
+): Promise<ExecTarget> {
+  return execTarget(await sdk.sandboxes.get(sandboxId));
+}
+
+/**
  * Resolve the command + args from a parsed argv, combining the variadic
  * `[command..]` positional (args before `--`) with everything after `--`
  * (yargs puts those in `argv["--"]` when `populate--` is enabled). This lets
@@ -36,18 +62,30 @@ export function fullCommand(argv: Record<string, unknown>): string[] {
   return [...pre, ...post].map(String);
 }
 
+/**
+ * Parse repeated `KEY=VALUE` strings into a record. `flag` only shapes the
+ * error message, so `--env`/`--tag`/`--snapshot-tag` all report accurately.
+ */
+export function parseKeyValues(
+  pairs: string[] | undefined,
+  flag: string,
+): Record<string, string> | undefined {
+  if (!pairs || pairs.length === 0) return undefined;
+  const parsed: Record<string, string> = {};
+  for (const pair of pairs) {
+    const eq = pair.indexOf("=");
+    if (eq === -1)
+      throw new Error(`invalid ${flag} "${pair}" (expected KEY=VALUE)`);
+    parsed[pair.slice(0, eq)] = pair.slice(eq + 1);
+  }
+  return parsed;
+}
+
 /** Parse repeated `KEY=VALUE` strings into an env record. */
 export function parseEnv(
   pairs: string[] | undefined,
 ): Record<string, string> | undefined {
-  if (!pairs || pairs.length === 0) return undefined;
-  const env: Record<string, string> = {};
-  for (const pair of pairs) {
-    const eq = pair.indexOf("=");
-    if (eq === -1) throw new Error(`invalid --env "${pair}" (expected KEY=VALUE)`);
-    env[pair.slice(0, eq)] = pair.slice(eq + 1);
-  }
-  return env;
+  return parseKeyValues(pairs, "--env");
 }
 
 /**

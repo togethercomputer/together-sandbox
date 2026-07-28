@@ -1,9 +1,50 @@
 import type * as yargs from "yargs";
 import { TogetherSandbox } from "together-sandbox";
-import type { SandboxInfo } from "together-sandbox";
+import type {
+  SandboxInfo,
+  SandboxStatus,
+  TerminationSnapshotParams,
+} from "together-sandbox";
 import { runList, type ListArgs } from "./_list";
 import { cell, humanBytes, renderDescribe } from "./_table";
-import { fullCommand, parseEnv, runExec } from "./_exec";
+import {
+  execTarget,
+  fullCommand,
+  parseEnv,
+  parseKeyValues,
+  runExec,
+} from "./_exec";
+
+/** The statuses a sandbox can report, for `--status` validation. */
+const SANDBOX_STATUSES = [
+  "starting",
+  "running",
+  "terminating",
+  "terminated",
+  "failed_to_start",
+  "recovering",
+  "unrecovered",
+] as const satisfies readonly SandboxStatus[];
+
+/** Render `tags` as a compact `k=v,k=v` string. */
+function formatTags(tags: Record<string, string> | undefined): string {
+  const entries = Object.entries(tags ?? {});
+  if (entries.length === 0) return cell(undefined);
+  return entries.map(([k, v]) => `${k}=${v}`).join(",");
+}
+
+/**
+ * Summarise the termination policy. A sandbox created without one is
+ * ephemeral: it takes no snapshot and is deleted when it terminates.
+ */
+function formatTerminationPolicy(s: SandboxInfo): string {
+  const snapshot = s.terminationPolicy?.snapshot;
+  if (!snapshot) return "<ephemeral>";
+  const parts = [snapshot.memory ? "filesystem+memory" : "filesystem"];
+  if (snapshot.aliases?.length) parts.push(`aliases=${snapshot.aliases.join(",")}`);
+  if (snapshot.ttl !== undefined) parts.push(`ttl=${snapshot.ttl}s`);
+  return parts.join(" ");
+}
 
 function describeSandbox(s: SandboxInfo): {
   title: string;
@@ -14,42 +55,38 @@ function describeSandbox(s: SandboxInfo): {
       title: "Identity",
       rows: [
         ["ID", cell(s.id)],
+        ["Organization", cell(s.organizationId)],
         ["Project", cell(s.projectId)],
-        ["Ephemeral", cell(s.ephemeral)],
-        ["Cluster", cell(s.clusterName)],
+        ["Snapshot", cell(s.snapshotId)],
       ],
     },
     {
       title: "Status",
       rows: [
         ["Status", cell(s.status)],
-        ["Stop reason", cell(s.stopReason)],
-        ["Recovery", cell(s.recoveryStatus)],
+        ["Reason", cell(s.statusReason)],
       ],
     },
     {
       title: "Resources",
       rows: [
-        ["Millicpu", cell(s.millicpu)],
+        ["CPU", cell(s.cpu)],
         ["Memory", humanBytes(s.memoryBytes)],
-        ["Disk", humanBytes(s.diskBytes)],
-        ["GPU", cell(s.gpu)],
       ],
     },
     {
-      title: "Versions",
+      title: "Termination",
       rows: [
-        ["Current", cell(s.currentVersionNumber)],
-        ["Next", cell(s.nextVersionNumber)],
-        ["Count", cell(s.versionCount)],
+        ["TTL", s.ttl !== null && s.ttl !== undefined ? `${s.ttl}s` : cell(undefined)],
+        ["Policy", formatTerminationPolicy(s)],
+        ["Tags", formatTags(s.tags)],
       ],
     },
     {
       title: "Agent",
       rows: [
-        ["Type", cell(s.agentType)],
-        ["Version", cell(s.agentVersion)],
-        ["URL", cell(s.agentUrl)],
+        ["Version", cell(s.agent?.version)],
+        ["URL", cell(s.agent?.url)],
       ],
     },
     {
@@ -57,71 +94,94 @@ function describeSandbox(s: SandboxInfo): {
       rows: [
         ["Created", cell(s.createdAt)],
         ["Started", cell(s.startedAt)],
-        ["Stopped", cell(s.stoppedAt)],
+        ["Terminated", cell(s.terminatedAt)],
+        ["Resized", cell(s.resizedAt)],
+        ["Recovered", cell(s.recoveryAt)],
         ["Updated", cell(s.updatedAt)],
-        ["Start type", cell(s.startType)],
-        ["Requested stop", cell(s.requestedStopType)],
       ],
     },
   ];
 }
 
-export const listCommand: yargs.CommandModule<Record<string, never>, ListArgs> =
-  {
-    command: "list",
-    describe: "List sandboxes.",
-    builder: (yargs) =>
-      yargs
-        .option("limit", {
-          type: "number",
-          describe: "Maximum number of items per page (1–100)",
-        })
-        .option("cursor", {
-          type: "string",
-          describe:
-            "Resume from a cursor (from a prior page); shows a single page and " +
-            "disables the interactive pager",
-        })
-        .option("output", {
-          alias: "o",
-          type: "string",
-          choices: ["table", "json"] as const,
-          default: "table",
-          describe: "Output format",
-        })
-        .option("ci", {
-          type: "boolean",
-          default: false,
-          describe: "Plain output, no interactive pager",
-        }) as yargs.Argv<ListArgs>,
+interface SandboxListArgs extends ListArgs {
+  status?: string[];
+  tag?: string[];
+}
 
-    handler: async (argv) => {
-      const sdk = new TogetherSandbox();
-      try {
-        await runList(
-          {
-            fetchPage: (params) => sdk.sandboxes.list(params),
-            headers: ["ID", "STATUS", "CLUSTER", "CREATED"],
-            toRow: (s) => [
-              cell(s.id),
-              cell(s.status),
-              cell(s.clusterName),
-              cell(s.createdAt),
-            ],
-          },
-          argv,
-        );
-        process.exit(0);
-      } catch (error) {
-        console.error(
-          error instanceof Error
-            ? error.message
-            : `Unknown error: ${JSON.stringify(error)}`,
-        );
-        process.exit(1);
-      }
-    },
-  };
+export const listCommand: yargs.CommandModule<
+  Record<string, never>,
+  SandboxListArgs
+> = {
+  command: "list",
+  describe: "List sandboxes.",
+  builder: (yargs) =>
+    yargs
+      .option("limit", {
+        type: "number",
+        describe: "Maximum number of items per page (1–100)",
+      })
+      .option("cursor", {
+        type: "string",
+        describe:
+          "Resume from a cursor (from a prior page); shows a single page and " +
+          "disables the interactive pager",
+      })
+      .option("status", {
+        type: "string",
+        array: true,
+        choices: SANDBOX_STATUSES,
+        describe: "Only show sandboxes in this status (repeatable)",
+      })
+      .option("tag", {
+        type: "string",
+        array: true,
+        describe:
+          "Only show sandboxes carrying this tag, KEY=VALUE (repeatable; all must match)",
+      })
+      .option("output", {
+        alias: "o",
+        type: "string",
+        choices: ["table", "json"] as const,
+        default: "table",
+        describe: "Output format",
+      })
+      .option("ci", {
+        type: "boolean",
+        default: false,
+        describe: "Plain output, no interactive pager",
+      }) as unknown as yargs.Argv<SandboxListArgs>,
+
+  handler: async (argv) => {
+    const sdk = new TogetherSandbox();
+    try {
+      const statuses = argv.status as SandboxStatus[] | undefined;
+      const tags = parseKeyValues(argv.tag, "--tag");
+      await runList(
+        {
+          fetchPage: (params) =>
+            sdk.sandboxes.list({ ...params, statuses, tags }),
+          headers: ["ID", "STATUS", "REASON", "CPU", "CREATED"],
+          toRow: (s) => [
+            cell(s.id),
+            cell(s.status),
+            cell(s.statusReason),
+            cell(s.cpu),
+            cell(s.createdAt),
+          ],
+        },
+        argv,
+      );
+      process.exit(0);
+    } catch (error) {
+      console.error(
+        error instanceof Error
+          ? error.message
+          : `Unknown error: ${JSON.stringify(error)}`,
+      );
+      process.exit(1);
+    }
+  },
+};
 
 interface GetArgs {
   id: string;
@@ -167,147 +227,123 @@ export const getCommand: yargs.CommandModule<Record<string, never>, GetArgs> = {
   },
 };
 
-// ─── Lifecycle commands (start / stop / hibernate) ──────────────────────────
+// ─── Creation ────────────────────────────────────────────────────────────────
 
-interface IdArgs {
-  id: string;
-}
-
-/** Build a `<verb> <id>` command that calls a lifecycle action and confirms. */
-function lifecycleCommand(
-  verb: string,
-  describe: string,
-  action: (sdk: TogetherSandbox, id: string) => Promise<unknown>,
-  done: (id: string) => string,
-  aliases: string[] = [],
-): yargs.CommandModule<Record<string, never>, IdArgs> {
-  return {
-    command: `${verb} <id>`,
-    aliases,
-    describe,
-    builder: (yargs) =>
-      yargs.positional("id", {
-        type: "string",
-        describe: "Sandbox id",
-        demandOption: true,
-      }) as unknown as yargs.Argv<IdArgs>,
-    handler: async (argv) => {
-      try {
-        const sdk = new TogetherSandbox();
-        await action(sdk, argv.id);
-        console.log(done(argv.id));
-        process.exit(0);
-      } catch (error) {
-        console.error(
-          error instanceof Error
-            ? error.message
-            : `Unknown error: ${JSON.stringify(error)}`,
-        );
-        process.exit(1);
-      }
-    },
-  };
-}
-
-interface StartArgs {
-  id: string;
-  versionNumber?: number;
-}
-
-export const startCommand: yargs.CommandModule<Record<string, never>, StartArgs> =
-  {
-    command: "start <id>",
-    describe: "Start an existing sandbox and wait until it is running.",
-    builder: (yargs) =>
-      yargs
-        .positional("id", {
-          type: "string",
-          describe: "Sandbox id",
-          demandOption: true,
-        })
-        .option("version-number", {
-          type: "number",
-          describe: "Version number to start (defaults to the current version)",
-        }) as unknown as yargs.Argv<StartArgs>,
-    handler: async (argv) => {
-      try {
-        const sdk = new TogetherSandbox();
-        const sandbox = await sdk.sandboxes.start(
-          argv.id,
-          argv.versionNumber !== undefined
-            ? { versionNumber: argv.versionNumber }
-            : undefined,
-        );
-        console.log(`sandbox ${sandbox.id} started (running)`);
-        process.exit(0);
-      } catch (error) {
-        console.error(
-          error instanceof Error
-            ? error.message
-            : `Unknown error: ${JSON.stringify(error)}`,
-        );
-        process.exit(1);
-      }
-    },
-  };
-
-interface StartFromSnapshotArgs {
-  ref: string;
-  ephemeral?: boolean;
-  millicpu?: number;
+/** Options shared by `create` and `run` for shaping the new sandbox. */
+interface CreateOptions {
+  cpu?: number;
   memoryBytes?: number;
-  diskBytes?: number;
+  ttl?: number;
+  tag?: string[];
+  snapshotOnTerminate?: boolean;
+  memorySnapshot?: boolean;
+  snapshotAlias?: string[];
+  snapshotTtl?: number;
 }
 
-export const startFromSnapshotCommand: yargs.CommandModule<
+function createOptionsBuilder<T>(yargs: yargs.Argv<T>) {
+  return yargs
+    .option("cpu", {
+      type: "number",
+      describe: "CPU allocation in cores (0.1–16, default 1)",
+    })
+    .option("memory-bytes", {
+      type: "number",
+      describe: "Memory allocation in bytes (default 2 GiB)",
+    })
+    .option("ttl", {
+      type: "number",
+      describe:
+        "Seconds after creation before the sandbox is automatically terminated",
+    })
+    .option("tag", {
+      type: "string",
+      array: true,
+      describe: "Tag the sandbox, KEY=VALUE (repeatable)",
+    })
+    .option("snapshot-on-terminate", {
+      type: "boolean",
+      default: false,
+      describe:
+        "Snapshot the sandbox when it terminates. Without this the sandbox is " +
+        "ephemeral: no snapshot is taken and it is deleted on termination",
+    })
+    .option("memory-snapshot", {
+      type: "boolean",
+      default: false,
+      describe:
+        "With --snapshot-on-terminate, capture memory as well as the filesystem",
+    })
+    .option("snapshot-alias", {
+      type: "string",
+      array: true,
+      describe:
+        "With --snapshot-on-terminate, alias to apply to the produced snapshot " +
+        "(repeatable)",
+    })
+    .option("snapshot-ttl", {
+      type: "number",
+      describe:
+        "With --snapshot-on-terminate, seconds before the produced snapshot expires",
+    });
+}
+
+/**
+ * Build the `create` params. A sandbox is ephemeral unless a termination
+ * policy is supplied, so `--snapshot-on-terminate` is what turns the snapshot
+ * on — the other `--snapshot-*` flags only shape it.
+ */
+function buildCreateParams(argv: CreateOptions, ref: string) {
+  // A leading `@` selects the snapshot by alias (matches the API's
+  // /snapshots/@{alias} convention); anything else is a raw snapshot id.
+  const fromAlias = ref.startsWith("@");
+  return {
+    snapshotId: fromAlias ? undefined : ref,
+    snapshotAlias: fromAlias ? ref.slice(1) : undefined,
+    cpu: argv.cpu,
+    memoryBytes: argv.memoryBytes,
+    ttl: argv.ttl,
+    tags: parseKeyValues(argv.tag, "--tag"),
+    terminationPolicy: argv.snapshotOnTerminate
+      ? {
+          snapshot: {
+            memory: argv.memorySnapshot ?? false,
+            aliases: argv.snapshotAlias,
+            ttl: argv.snapshotTtl,
+          },
+        }
+      : undefined,
+  };
+}
+
+interface CreateArgs extends CreateOptions {
+  ref: string;
+}
+
+export const createCommand: yargs.CommandModule<
   Record<string, never>,
-  StartFromSnapshotArgs
+  CreateArgs
 > = {
-  command: "start-from-snapshot <ref>",
+  command: "create <ref>",
   describe:
-    "Create a sandbox from a snapshot (by id or @alias) and start it.",
+    "Create a sandbox from a snapshot (by id or @alias) and wait until it is " +
+    "running.",
   builder: (yargs) =>
-    yargs
-      .positional("ref", {
+    createOptionsBuilder(
+      yargs.positional("ref", {
         type: "string",
         describe: "Snapshot id, or @alias to resolve by alias",
         demandOption: true,
-      })
-      .option("ephemeral", {
-        type: "boolean",
-        describe: "Mark the created sandbox as ephemeral",
-      })
-      .option("millicpu", {
-        type: "number",
-        describe: "CPU allocation in millicpu",
-      })
-      .option("memory-bytes", {
-        type: "number",
-        describe: "Memory allocation in bytes",
-      })
-      .option("disk-bytes", {
-        type: "number",
-        describe: "Disk allocation in bytes",
-      }) as unknown as yargs.Argv<StartFromSnapshotArgs>,
+      }),
+    ) as unknown as yargs.Argv<CreateArgs>,
+
   handler: async (argv) => {
     try {
       const sdk = new TogetherSandbox();
-
-      // A leading `@` selects the snapshot by alias (matches the API's
-      // /snapshots/@{alias} convention); anything else is a raw snapshot id.
-      const fromAlias = argv.ref.startsWith("@");
-      const created = await sdk.sandboxes.create({
-        snapshotId: fromAlias ? undefined : argv.ref,
-        snapshotAlias: fromAlias ? argv.ref.slice(1) : undefined,
-        ephemeral: argv.ephemeral,
-        millicpu: argv.millicpu,
-        memoryBytes: argv.memoryBytes,
-        diskBytes: argv.diskBytes,
-      });
-      console.log(`created sandbox ${created.id}`);
-
-      const sandbox = await sdk.sandboxes.start(created.id);
-      console.log(`sandbox ${sandbox.id} started (running)`);
+      const sandbox = await sdk.sandboxes.create(
+        buildCreateParams(argv, argv.ref),
+      );
+      console.log(`created sandbox ${sandbox.id} (running)`);
       process.exit(0);
     } catch (error) {
       console.error(
@@ -320,22 +356,108 @@ export const startFromSnapshotCommand: yargs.CommandModule<
   },
 };
 
-export const stopCommand = lifecycleCommand(
-  "stop",
-  "Stop (shut down) a sandbox.",
-  (sdk, id) => sdk.sandboxes.shutdown(id),
-  (id) => `sandbox ${id} stopped`,
-  ["shutdown"],
-);
+// ─── Termination ─────────────────────────────────────────────────────────────
 
-export const hibernateCommand = lifecycleCommand(
-  "hibernate",
-  "Hibernate (suspend) a sandbox.",
-  (sdk, id) => sdk.sandboxes.hibernate(id),
-  (id) => `sandbox ${id} hibernated`,
-);
+interface TerminateArgs {
+  id: string;
+  memory?: boolean;
+  ephemeral?: boolean;
+  snapshotAlias?: string[];
+  snapshotTtl?: number;
+  snapshotTag?: string[];
+}
 
-interface RunArgs {
+/**
+ * Resolve the `snapshot` override for a teardown. The three states are
+ * distinct on the wire: `undefined` keeps the sandbox's stored termination
+ * policy, `null` makes this teardown ephemeral, and an object overrides it.
+ */
+function terminateSnapshotOverride(
+  argv: TerminateArgs,
+): TerminationSnapshotParams | null | undefined {
+  if (argv.ephemeral) return null;
+  const overridden =
+    argv.memory !== undefined ||
+    argv.snapshotAlias !== undefined ||
+    argv.snapshotTtl !== undefined ||
+    argv.snapshotTag !== undefined;
+  if (!overridden) return undefined;
+  return {
+    memory: argv.memory ?? false,
+    aliases: argv.snapshotAlias,
+    ttl: argv.snapshotTtl,
+    tags: parseKeyValues(argv.snapshotTag, "--snapshot-tag"),
+  };
+}
+
+export const terminateCommand: yargs.CommandModule<
+  Record<string, never>,
+  TerminateArgs
+> = {
+  command: "terminate <id>",
+  describe:
+    "Terminate a sandbox and wait until it is torn down. Terminating is " +
+    "permanent — create a new sandbox from the produced snapshot to continue.",
+  builder: (yargs) =>
+    yargs
+      .positional("id", {
+        type: "string",
+        describe: "Sandbox id",
+        demandOption: true,
+      })
+      .option("memory", {
+        type: "boolean",
+        describe:
+          "Snapshot memory as well as the filesystem, so a sandbox created " +
+          "from the produced snapshot resumes where this one left off",
+      })
+      .option("ephemeral", {
+        type: "boolean",
+        describe: "Take no snapshot at all, overriding the stored policy",
+      })
+      .option("snapshot-alias", {
+        type: "string",
+        array: true,
+        describe: "Alias to apply to the produced snapshot (repeatable)",
+      })
+      .option("snapshot-ttl", {
+        type: "number",
+        describe: "Seconds before the produced snapshot expires",
+      })
+      .option("snapshot-tag", {
+        type: "string",
+        array: true,
+        describe: "Tag the produced snapshot, KEY=VALUE (repeatable)",
+      })
+      .conflicts("ephemeral", ["memory", "snapshot-alias", "snapshot-ttl", "snapshot-tag"])
+      .epilogue(
+        "With no snapshot flags, the sandbox's stored termination policy applies.",
+      ) as unknown as yargs.Argv<TerminateArgs>,
+
+  handler: async (argv) => {
+    try {
+      const sdk = new TogetherSandbox();
+      const snapshot = terminateSnapshotOverride(argv);
+      await sdk.sandboxes.terminate(
+        argv.id,
+        snapshot === undefined ? {} : { snapshot },
+      );
+      console.log(`sandbox ${argv.id} terminated`);
+      process.exit(0);
+    } catch (error) {
+      console.error(
+        error instanceof Error
+          ? error.message
+          : `Unknown error: ${JSON.stringify(error)}`,
+      );
+      process.exit(1);
+    }
+  },
+};
+
+// ─── Run ─────────────────────────────────────────────────────────────────────
+
+interface RunArgs extends CreateOptions {
   ref: string;
   command: string[];
   interactive?: boolean;
@@ -344,111 +466,90 @@ interface RunArgs {
   env?: string[];
   user?: string;
   rm?: boolean;
-  ephemeral?: boolean;
-  millicpu?: number;
-  memoryBytes?: number;
-  diskBytes?: number;
 }
 
 export const runCommand: yargs.CommandModule<Record<string, never>, RunArgs> = {
   command: "run <ref> [command..]",
   describe:
-    "Create a sandbox from a snapshot (id or @alias), start it, and run a " +
-    "command in it (docker run-style).",
+    "Create a sandbox from a snapshot (id or @alias) and run a command in it " +
+    "(docker run-style).",
   builder: (yargs) =>
-    yargs
-      .positional("ref", {
-        type: "string",
-        describe: "Snapshot id, or @alias to resolve by alias",
-        demandOption: true,
-      })
-      .positional("command", {
-        type: "string",
-        describe: "Command and arguments (use -- to separate from flags)",
-        array: true,
-        default: [] as string[],
-      })
-      .option("rm", {
-        type: "boolean",
-        default: false,
-        describe: "Stop the sandbox when the command exits",
-      })
-      .option("interactive", {
-        alias: "i",
-        type: "boolean",
-        default: false,
-        describe: "Keep stdin open / run interactively",
-      })
-      .option("tty", {
-        alias: "t",
-        type: "boolean",
-        default: false,
-        describe: "Allocate a pseudo-TTY (interactive session)",
-      })
-      .option("cwd", { type: "string", describe: "Working directory" })
-      .option("env", {
-        type: "string",
-        array: true,
-        describe: "Environment variable KEY=VALUE (repeatable)",
-      })
-      .option("user", {
-        type: "string",
-        describe: 'Run as user[:group] (e.g. "1000:1000" or "node")',
-      })
-      .option("ephemeral", {
-        type: "boolean",
-        describe: "Mark the created sandbox as ephemeral",
-      })
-      .option("millicpu", { type: "number", describe: "CPU allocation in millicpu" })
-      .option("memory-bytes", { type: "number", describe: "Memory allocation in bytes" })
-      .option("disk-bytes", { type: "number", describe: "Disk allocation in bytes" })
-      .check((argv) => {
-        if (fullCommand(argv as Record<string, unknown>).length === 0)
-          throw new Error("Provide a command to run, e.g. run @my-image -- ls -la");
-        return true;
-      }) as unknown as yargs.Argv<RunArgs>,
+    createOptionsBuilder(
+      yargs
+        .positional("ref", {
+          type: "string",
+          describe: "Snapshot id, or @alias to resolve by alias",
+          demandOption: true,
+        })
+        .positional("command", {
+          type: "string",
+          describe: "Command and arguments (use -- to separate from flags)",
+          array: true,
+          default: [] as string[],
+        })
+        .option("rm", {
+          type: "boolean",
+          default: false,
+          describe: "Terminate the sandbox when the command exits",
+        })
+        .option("interactive", {
+          alias: "i",
+          type: "boolean",
+          default: false,
+          describe: "Keep stdin open / run interactively",
+        })
+        .option("tty", {
+          alias: "t",
+          type: "boolean",
+          default: false,
+          describe: "Allocate a pseudo-TTY (interactive session)",
+        })
+        .option("cwd", { type: "string", describe: "Working directory" })
+        .option("env", {
+          type: "string",
+          array: true,
+          describe: "Environment variable KEY=VALUE (repeatable)",
+        })
+        .option("user", {
+          type: "string",
+          describe: 'Run as user[:group] (e.g. "1000:1000" or "node")',
+        }),
+    ).check((argv) => {
+      if (fullCommand(argv as Record<string, unknown>).length === 0)
+        throw new Error("Provide a command to run, e.g. run @my-image -- ls -la");
+      return true;
+    }) as unknown as yargs.Argv<RunArgs>,
 
   handler: async (argv) => {
     const sdk = new TogetherSandbox();
     let sandboxId: string | undefined;
     try {
-      // A leading `@` selects the snapshot by alias; otherwise it's a raw id.
-      const fromAlias = argv.ref.startsWith("@");
-      const created = await sdk.sandboxes.create({
-        snapshotId: fromAlias ? undefined : argv.ref,
-        snapshotAlias: fromAlias ? argv.ref.slice(1) : undefined,
-        ephemeral: argv.ephemeral,
-        millicpu: argv.millicpu,
-        memoryBytes: argv.memoryBytes,
-        diskBytes: argv.diskBytes,
-      });
-      sandboxId = created.id;
+      // `create` autostarts and waits, so the returned sandbox is running.
+      const sandbox = await sdk.sandboxes.create(
+        buildCreateParams(argv, argv.ref),
+      );
+      sandboxId = sandbox.id;
       // Progress notices go to stderr so stdout stays clean for command output.
       process.stderr.write(`created sandbox ${sandboxId}\n`);
 
-      const sandbox = await sdk.sandboxes.start(sandboxId);
-      if (!sandbox.vmInfo.agentUrl || !sandbox.vmInfo.agentToken) {
-        throw new Error(`sandbox ${sandboxId} has no agent connection details`);
-      }
-
       const [cmd, ...args] = fullCommand(argv as Record<string, unknown>);
       const exitCode = await runExec(
-        { agent: sandbox.vmInfo.agentUrl, token: sandbox.vmInfo.agentToken },
+        execTarget(sandbox.vmInfo),
         { cmd, args, cwd: argv.cwd, env: parseEnv(argv.env), user: argv.user },
         { interactive: argv.interactive, tty: argv.tty },
       );
 
       if (argv.rm) {
-        await sdk.sandboxes.shutdown(sandboxId);
-        process.stderr.write(`stopped sandbox ${sandboxId}\n`);
+        await sdk.sandboxes.terminate(sandboxId);
+        process.stderr.write(`terminated sandbox ${sandboxId}\n`);
       }
       process.exit(exitCode);
     } catch (error) {
       // Best-effort cleanup if --rm and the sandbox was created.
       if (argv.rm && sandboxId) {
         try {
-          await sdk.sandboxes.shutdown(sandboxId);
-          process.stderr.write(`stopped sandbox ${sandboxId}\n`);
+          await sdk.sandboxes.terminate(sandboxId);
+          process.stderr.write(`terminated sandbox ${sandboxId}\n`);
         } catch {
           /* best effort */
         }

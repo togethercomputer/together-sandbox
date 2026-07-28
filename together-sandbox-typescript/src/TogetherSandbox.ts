@@ -13,7 +13,7 @@
  * const sandbox = await sdk.sandboxes.create({ snapshotId: "my-snapshot-id" });
  *
  * const file = await sandbox.files.read("/package.json");
- * await sandbox.shutdown();
+ * await sandbox.terminate();
  * ```
  *
  * @module
@@ -47,11 +47,11 @@ import type { TogetherSandboxConfig } from "./types.js";
  * const file = await sandbox.files.read("/package.json");
  * console.log(file.data);
  *
- * await sandbox.shutdown();
+ * await sandbox.terminate();
  * ```
  */
 export class TogetherSandbox {
-  /** Sandbox lifecycle operations (create, hibernate, shutdown). */
+  /** Sandbox lifecycle operations (create, list, terminate). */
   readonly sandboxes: SandboxesNamespace;
 
   /** Snapshot build and management operations. */
@@ -69,7 +69,7 @@ export class TogetherSandbox {
     const baseUrl = config?.baseUrl ?? getInferredBaseUrl();
     const apiClient = createApiClient(
       createApiConfig({
-        baseUrl: `${baseUrl}/api/v1`,
+        baseUrl: `${baseUrl}/v1`,
         headers: { Authorization: `Bearer ${apiKey}` },
       }),
     );

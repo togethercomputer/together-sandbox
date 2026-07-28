@@ -1,6 +1,12 @@
 import type * as yargs from "yargs";
 import { TogetherSandbox } from "together-sandbox";
-import { fullCommand, parseEnv, runExec, type ExecSpec } from "./_exec";
+import {
+  fullCommand,
+  parseEnv,
+  resolveTarget,
+  runExec,
+  type ExecSpec,
+} from "./_exec";
 
 interface ExecArgs {
   id: string;
@@ -60,15 +66,7 @@ export const execCommand: yargs.CommandModule<Record<string, never>, ExecArgs> =
     handler: async (argv) => {
       try {
         const sdk = new TogetherSandbox();
-        const sandbox = await sdk.sandboxes.get(argv.id);
-        if (sandbox.status !== "running") {
-          throw new Error(
-            `sandbox ${argv.id} is not running (status: ${sandbox.status})`,
-          );
-        }
-        if (!sandbox.agentUrl || !sandbox.agentToken) {
-          throw new Error(`sandbox ${argv.id} has no agent connection details`);
-        }
+        const target = await resolveTarget(sdk, argv.id);
 
         const [cmd, ...args] = fullCommand(argv as Record<string, unknown>);
         const spec: ExecSpec = {
@@ -78,7 +76,6 @@ export const execCommand: yargs.CommandModule<Record<string, never>, ExecArgs> =
           env: parseEnv(argv.env),
           user: argv.user,
         };
-        const target = { agent: sandbox.agentUrl, token: sandbox.agentToken };
 
         const exitCode = await runExec(target, spec, {
           interactive: argv.interactive,

@@ -5,6 +5,7 @@ import type { CreateSnapshotParams, Snapshot } from "together-sandbox";
 import ora from "ora";
 import { runList, type ListArgs } from "./_list";
 import { cell, humanBytes, renderDescribe } from "./_table";
+import { parseKeyValues } from "./_exec";
 
 function describeSnapshot(s: Snapshot): {
   title: string;
@@ -15,6 +16,7 @@ function describeSnapshot(s: Snapshot): {
       title: "Identity",
       rows: [
         ["ID", cell(s.id)],
+        ["Organization", cell(s.organization_id)],
         ["Project", cell(s.project_id)],
       ],
     },
@@ -22,25 +24,34 @@ function describeSnapshot(s: Snapshot): {
       title: "Storage",
       rows: [
         ["Size", humanBytes(s.byte_size)],
-        ["Memory snapshot", cell(s.includes_memory_snapshot)],
+        ["Memory snapshot", cell(s.memory)],
       ],
     },
     {
-      title: "Flags",
+      title: "Retention",
       rows: [
-        ["Protected", cell(s.protected)],
-        ["Optimized", cell(s.optimized)],
+        ["TTL", s.ttl !== null && s.ttl !== undefined ? `${s.ttl}s` : cell(undefined)],
+        ["Tags", formatTags(s.tags)],
       ],
     },
     {
       title: "Lifecycle",
       rows: [
         ["Created", cell(s.created_at)],
-        ["Optimized at", cell(s.optimized_at)],
+        // A retired snapshot can no longer create sandboxes and is eventually
+        // deleted, once no sandbox still references it.
+        ["Retired", cell(s.retired_at)],
         ["Updated", cell(s.updated_at)],
       ],
     },
   ];
+}
+
+/** Render `tags` as a compact `k=v,k=v` string. */
+function formatTags(tags: Record<string, string> | undefined): string {
+  const entries = Object.entries(tags ?? {});
+  if (entries.length === 0) return cell(undefined);
+  return entries.map(([k, v]) => `${k}=${v}`).join(",");
 }
 
 export type CreateArgs = {
@@ -159,62 +170,84 @@ export const createCommand: yargs.CommandModule<
   },
 };
 
-export const listCommand: yargs.CommandModule<Record<string, never>, ListArgs> =
-  {
-    command: "list",
-    describe: "List snapshots.",
-    builder: (yargs) =>
-      yargs
-        .option("limit", {
-          type: "number",
-          describe: "Maximum number of items per page (1–100)",
-        })
-        .option("cursor", {
-          type: "string",
-          describe:
-            "Resume from a cursor (from a prior page); shows a single page and " +
-            "disables the interactive pager",
-        })
-        .option("output", {
-          alias: "o",
-          type: "string",
-          choices: ["table", "json"] as const,
-          default: "table",
-          describe: "Output format",
-        })
-        .option("ci", {
-          type: "boolean",
-          default: false,
-          describe: "Plain output, no interactive pager",
-        }) as yargs.Argv<ListArgs>,
+interface SnapshotListArgs extends ListArgs {
+  excludeRetired?: boolean;
+  tag?: string[];
+}
 
-    handler: async (argv) => {
-      const sdk = new TogetherSandbox();
-      try {
-        await runList(
-          {
-            fetchPage: (params) => sdk.snapshots.list(params),
-            headers: ["ID", "SIZE", "OPTIMIZED", "CREATED"],
-            toRow: (s) => [
-              cell(s.id),
-              humanBytes(s.byte_size),
-              cell(s.optimized),
-              cell(s.created_at),
-            ],
-          },
-          argv,
-        );
-        process.exit(0);
-      } catch (error) {
-        console.error(
-          error instanceof Error
-            ? error.message
-            : `Unknown error: ${JSON.stringify(error)}`,
-        );
-        process.exit(1);
-      }
-    },
-  };
+export const listCommand: yargs.CommandModule<
+  Record<string, never>,
+  SnapshotListArgs
+> = {
+  command: "list",
+  describe: "List snapshots.",
+  builder: (yargs) =>
+    yargs
+      .option("limit", {
+        type: "number",
+        describe: "Maximum number of items per page (1–100)",
+      })
+      .option("cursor", {
+        type: "string",
+        describe:
+          "Resume from a cursor (from a prior page); shows a single page and " +
+          "disables the interactive pager",
+      })
+      .option("exclude-retired", {
+        type: "boolean",
+        default: false,
+        describe: "Hide retired snapshots (they are included by default)",
+      })
+      .option("tag", {
+        type: "string",
+        array: true,
+        describe:
+          "Only show snapshots carrying this tag, KEY=VALUE (repeatable; all must match)",
+      })
+      .option("output", {
+        alias: "o",
+        type: "string",
+        choices: ["table", "json"] as const,
+        default: "table",
+        describe: "Output format",
+      })
+      .option("ci", {
+        type: "boolean",
+        default: false,
+        describe: "Plain output, no interactive pager",
+      }) as unknown as yargs.Argv<SnapshotListArgs>,
+
+  handler: async (argv) => {
+    const sdk = new TogetherSandbox();
+    try {
+      const excludeRetired = argv.excludeRetired;
+      const tags = parseKeyValues(argv.tag, "--tag");
+      await runList(
+        {
+          fetchPage: (params) =>
+            sdk.snapshots.list({ ...params, excludeRetired, tags }),
+          headers: ["ID", "SIZE", "MEMORY", "RETIRED", "CREATED"],
+          toRow: (s) => [
+            cell(s.id),
+            humanBytes(s.byte_size),
+            cell(s.memory),
+            cell(s.retired_at),
+            cell(s.created_at),
+          ],
+        },
+        argv,
+      );
+      process.exit(0);
+    } catch (error) {
+      console.error(
+        error instanceof Error
+          ? error.message
+          : `Unknown error: ${JSON.stringify(error)}`,
+      );
+      process.exit(1);
+    }
+  },
+};
 
 interface GetArgs {
   ref: string;

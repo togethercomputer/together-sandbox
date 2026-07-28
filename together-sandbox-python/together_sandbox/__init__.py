@@ -33,7 +33,6 @@ from ._snapshots import (
     SnapshotProgress,
     Snapshot,
 )
-from ._pagination import Page
 from ._sandbox import Sandbox
 from together_sandbox.sandbox.models.create_exec_request import CreateExecRequest
 from together_sandbox.sandbox.models.exec_stdout_type import ExecStdoutType
@@ -45,6 +44,7 @@ from .errors import HttpError
 __all__ = [
     "TogetherSandbox",
     "Sandbox",
+    "SandboxRecord",
     "Page",
     "SandboxesNamespace",
     "SnapshotsNamespace",

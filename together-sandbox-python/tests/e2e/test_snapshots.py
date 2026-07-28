@@ -66,7 +66,7 @@ class TestSnapshots:
             assert "e2e-local" in result.alias
         finally:
             if result is not None:
-                await sdk.snapshots.delete_by_id(result.snapshot_id)
+                await sdk.snapshots.retire_by_id(result.snapshot_id)
 
     @pytest.mark.timeout(300)
     async def test_create_from_context_remote(
@@ -95,4 +95,4 @@ class TestSnapshots:
             assert "e2e-remote" in result.alias
         finally:
             if result is not None:
-                await sdk.snapshots.delete_by_id(result.snapshot_id)
+                await sdk.snapshots.retire_by_id(result.snapshot_id)

@@ -9,10 +9,8 @@ import {
 import {
   listCommand as sandboxesListCommand,
   getCommand as sandboxesGetCommand,
-  startCommand as sandboxesStartCommand,
-  startFromSnapshotCommand as sandboxesStartFromSnapshotCommand,
-  stopCommand as sandboxesStopCommand,
-  hibernateCommand as sandboxesHibernateCommand,
+  createCommand as sandboxesCreateCommand,
+  terminateCommand as sandboxesTerminateCommand,
   runCommand as sandboxesRunCommand,
 } from "./commands/sandboxes";
 import { execCommand as sandboxesExecCommand } from "./commands/exec";
@@ -57,10 +55,8 @@ yargs(hideBin(process.argv))
         .recommendCommands()
         .command(sandboxesListCommand)
         .command(sandboxesGetCommand)
-        .command(sandboxesStartCommand)
-        .command(sandboxesStartFromSnapshotCommand)
-        .command(sandboxesStopCommand)
-        .command(sandboxesHibernateCommand)
+        .command(sandboxesCreateCommand)
+        .command(sandboxesTerminateCommand)
         .command(sandboxesExecCommand)
         .command(sandboxesRunCommand)
         .command({

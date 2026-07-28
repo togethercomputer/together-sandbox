@@ -33,12 +33,12 @@ async def main():
     async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
         content = await sandbox.files.read("/package.json")
         print(content)
-        await sandbox.shutdown()
+        await sandbox.terminate()
 
 asyncio.run(main())
 ```
 
-> **Note:** The `async with` block closes the HTTP connection on exit. It does **not** automatically shut down the VM — call `await sandbox.shutdown()` explicitly when you're done.
+> **Note:** The `async with` block closes the HTTP connection on exit. It does **not** automatically terminate the VM — call `await sandbox.terminate()` explicitly when you're done.
 
 ---
 
@@ -69,7 +69,7 @@ async with TogetherSandbox() as sdk:
 
 Sandbox lifecycle namespace.
 
-#### `sdk.sandboxes.create(*, millicpu=1000, memory_bytes=2*1024**3, disk_bytes=10*1024**3, id=None, snapshot_id=None, snapshot_alias=None, ephemeral=None) -> Sandbox`
+#### `sdk.sandboxes.create(*, cpu=1.0, memory_bytes=2*1024**3, snapshot_id=None, snapshot_alias=None, ttl=None, tags=None, termination_policy=None) -> Sandbox`
 
 Creates a new sandbox from a snapshot, starts the VM, and returns a connected [`Sandbox`](#sandbox) instance. This is the primary way to get a running sandbox — no separate `start()` call is needed.
 
@@ -77,34 +77,27 @@ Creates a new sandbox from a snapshot, starts the VM, and returns a connected [`
 sandbox = await sdk.sandboxes.create(snapshot_alias="my-app@v1")
 ```
 
-Resource params (`millicpu`, `memory_bytes`, `disk_bytes`) default to **1 vCPU / 2 GiB memory / 10 GiB disk** if omitted.
+Resource params (`cpu`, `memory_bytes`) default to **1 vCPU / 2 GiB memory** if omitted.
 
-| Parameter        | Type           | Required | Description                                                                                 |
-| ---------------- | -------------- | -------- | ------------------------------------------------------------------------------------------- |
-| `snapshot_id`    | `str \| None`  | \*       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.            |
-| `snapshot_alias` | `str \| None`  | \*       | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.         |
-| `millicpu`       | `int`          | No       | CPU allocation in millicpu (must be ≥ 250 and a multiple of 250). Default: `1000` (1 vCPU). |
-| `memory_bytes`   | `int`          | No       | Memory allocation in bytes. Default: `2 * 1024 ** 3` (2 GiB).                               |
-| `disk_bytes`     | `int`          | No       | Disk allocation in bytes. Default: `10 * 1024 ** 3` (10 GiB).                               |
-| `id`             | `str \| None`  | No       | Sandbox ID (6–8 characters). Generated if not provided.                                     |
-| `ephemeral`      | `bool \| None` | No       | Mark the sandbox as ephemeral.                                                              |
+| Parameter        | Type           | Required | Description                                                                            |
+| ---------------- | -------------- | -------- | -------------------------------------------------------------------------------------- |
+| `snapshot_id`    | `str \| None`  | \*       | ID of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.       |
+| `snapshot_alias` | `str \| None`  | \*       | Alias of the snapshot to use. One of `snapshot_id` or `snapshot_alias` is required.    |
+| `cpu`            | `float`        | No       | CPU allocation in cores (0.1–16). Default: `1.0` (1 vCPU).                             |
+| `memory_bytes`   | `int`          | No       | Memory allocation in bytes (1–8 GB per CPU). Default: `2 * 1024 ** 3` (2 GiB).         |
+| `ttl`            | `int \| None`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
+| `tags`           | `dict \| None` | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
+| `termination_policy` | `dict \| None` | No   | Termination policy `{"snapshot": {"memory": bool, "aliases": [...], "ttl": int, "tags": {...}}}`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
-Sandboxes autostart on creation, so there is no separate start step. A stopped sandbox is terminal and cannot be started again — to continue from its state, create a new sandbox from its snapshot (`snapshot_id`).
+Sandboxes start automatically on creation, so there is no separate start step. 
+A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshot_alias="sandbox:<id>"`).
 
-#### `sdk.sandboxes.hibernate(sandbox_id): Coroutine[None]`
+#### `sdk.sandboxes.terminate(sandbox_id, *, snapshot=UNSET): Coroutine[None]`
 
-Suspends (hibernates) a VM by sandbox ID.
-
-```python
-await sdk.sandboxes.hibernate("your-sandbox-id")
-```
-
-#### `sdk.sandboxes.shutdown(sandbox_id): Coroutine[None]`
-
-Shuts down a VM by sandbox ID.
+Terminates a VM by sandbox ID. `snapshot` (`{"memory": ..., "aliases": [...], "ttl": ..., "tags": {...}}`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `None` for an ephemeral teardown (no snapshot).
 
 ```python
-await sdk.sandboxes.shutdown("your-sandbox-id")
+await sdk.sandboxes.terminate("your-sandbox-id", snapshot={"memory": False})
 ```
 
 ---
@@ -128,6 +121,7 @@ result = await sdk.snapshots.create(CreateContextSnapshotParams(
     context="./my-app",
     dockerfile="./my-app/Dockerfile.prod",  # optional
     alias="my-app@v1",                      # optional
+    ttl=86400,                              # optional — auto-retire after N seconds
     on_progress=lambda e: print(e.output),
 ))
 
@@ -146,6 +140,7 @@ sandbox = await sdk.sandboxes.create(snapshot_id=result.snapshot_id)
 | `context`     | `str`                                        | Path to the Docker build context directory.                                                                 |
 | `dockerfile`  | `str \| None`                                | Path to a Dockerfile. Defaults to `Dockerfile` inside `context`.                                            |
 | `alias`       | `str \| None`                                | Alias for the snapshot. Format: `tag` or `namespace@tag`. Namespace defaults to the context directory name. |
+| `ttl`         | `int \| None`                                | Seconds after creation before the snapshot is automatically retired. Omit to keep it indefinitely.          |
 | `on_progress` | `Callable[[SnapshotProgress], None] \| None` | Optional progress callback. Receives a `SnapshotProgress` at each stage.                                    |
 
 **From a public Docker image:**
@@ -199,12 +194,17 @@ Fetch snapshot metadata by alias.
 snapshot = await sdk.snapshots.get_by_alias("my-app@v1")
 ```
 
-#### `sdk.snapshots.list(*, limit=None) -> Page[Snapshot]`
+#### `sdk.snapshots.list(*, limit=None, exclude_retired=None, tags=None) -> Page[Snapshot]`
 
 List snapshots. Returns a `Page` that is async-iterable across all pages —
 iterate it directly to walk every snapshot, or use `get_next_page()` /
-`next_cursor` for manual page-by-page control. `limit` sets the page size
-(1–100, default 20).
+`next_cursor` for manual page-by-page control.
+
+| Parameter         | Type                  | Description                                               |
+| ----------------- | --------------------- | ----------------------------------------------------------- |
+| `limit`           | `int \| None`         | Page size (1–100, default 20).                            |
+| `exclude_retired` | `bool \| None`        | When true, retired snapshots are excluded. Default false. |
+| `tags`            | `dict \| None`        | Matches snapshots whose tags contain all the given pairs. |
 
 ```python
 # Iterate every snapshot across all pages
@@ -216,17 +216,31 @@ page = await sdk.snapshots.list(limit=50)
 while page.has_next_page():
     print(page.data, page.next_cursor)
     page = await page.get_next_page()
+
+# Only live snapshots for one service
+live = await sdk.snapshots.list(exclude_retired=True, tags={"service": "api"})
 ```
 
-#### `sdk.sandboxes.list(*, limit=None, project_id=None) -> Page[Sandbox]`
+#### `sdk.sandboxes.list(*, limit=None, project_id=None, statuses=None, tags=None) -> Page[Sandbox]`
 
-List sandboxes. Returns a `Page` (same shape as `snapshots.list()`). `limit`
-sets the page size (1–100, default 20); `project_id` filters to a single
-project.
+List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
+
+| Parameter    | Type                  | Description                                              |
+| ------------ | --------------------- | ---------------------------------------------------------- |
+| `limit`      | `int \| None`         | Page size (1–100, default 20).                           |
+| `project_id` | `str \| None`         | Filter to a single project.                              |
+| `statuses`   | `list[str] \| None`   | Matches sandboxes in any of the given statuses.          |
+| `tags`       | `dict \| None`        | Matches sandboxes whose tags contain all the given pairs. |
+
+A status is one of `starting`, `running`, `terminating`, `terminated`,
+`failed_to_start`, `recovering`, `unrecovered`.
 
 ```python
 async for sandbox in await sdk.sandboxes.list():
     print(sandbox.id)
+
+# Running sandboxes for one team
+running = await sdk.sandboxes.list(statuses=["running"], tags={"team": "platform"})
 ```
 
 #### `sdk.snapshots.alias(snapshot_id, alias) -> None`
@@ -237,20 +251,12 @@ Assign (or update) an alias on an existing snapshot.
 await sdk.snapshots.alias("snapshot-id", "my-app@v2")
 ```
 
-#### `sdk.snapshots.delete_by_id(id) -> None`
+#### `sdk.snapshots.retire_by_id(id) -> Snapshot`
 
-Delete a snapshot by ID.
-
-```python
-await sdk.snapshots.delete_by_id("snapshot-id")
-```
-
-#### `sdk.snapshots.delete_by_alias(alias) -> None`
-
-Delete a snapshot by alias. A leading `@` is stripped automatically.
+Retire a snapshot by ID and return the retired snapshot. Once retired, the snapshot can no longer be used to create new sandboxes, and it is eventually deleted, but only once no sandbox still references it.
 
 ```python
-await sdk.snapshots.delete_by_alias("my-app@v1")
+retired = await sdk.snapshots.retire_by_id("snapshot-id")
 ```
 
 ---
@@ -269,7 +275,7 @@ async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
 | Property  | Type           | Description                                 |
 | --------- | -------------- | ------------------------------------------- |
 | `id`      | `str`          | The sandbox/VM ID.                          |
-| `vm_info` | `SandboxModel` | Raw VM start response (id, agent_url, etc.) |
+| `vm_info` | `SandboxModel` | Raw sandbox record (id, status, agent, etc.) |
 
 ---
 
@@ -526,20 +532,20 @@ async for event in sandbox.ports.stream_list():
 
 ### Lifecycle methods
 
-#### `sandbox.hibernate() -> None`
+#### `sandbox.terminate(*, snapshot=UNSET) -> None`
 
-Suspend (hibernate) this VM.
+Terminate this VM. After this the sandbox is terminal and cannot be used again.
 
-```python
-await sandbox.hibernate()
-```
-
-#### `sandbox.shutdown() -> None`
-
-Shut down this VM.
+`snapshot` (`{"memory": ..., "aliases": [...], "ttl": ..., "tags": {...}}`)
+overrides what this teardown snapshots — omit it to use the sandbox's stored
+termination policy, or pass `None` for an ephemeral teardown (no snapshot).
 
 ```python
-await sandbox.shutdown()
+# Use the stored termination policy
+await sandbox.terminate()
+
+# Snapshot the filesystem and memory, so a new sandbox can resume from it
+await sandbox.terminate(snapshot={"memory": True})
 ```
 
 #### `sandbox.close() -> None`
@@ -550,12 +556,12 @@ Close the underlying sandbox HTTP client connection without affecting the VM sta
 
 ### Async context manager
 
-`Sandbox` supports use as an async context manager. Exiting the block closes the HTTP connection but does **not** shut down the VM.
+`Sandbox` supports use as an async context manager. Exiting the block closes the HTTP connection but does **not** terminate the VM.
 
 ```python
 async with await sdk.sandboxes.create(snapshot_alias="my-app@v1") as sandbox:
     content = await sandbox.files.read("/README.md")
-    await sandbox.shutdown()
+    await sandbox.terminate()
 ```
 
 ---
@@ -572,17 +578,8 @@ Creates a sandbox from a snapshot, starts the VM, and returns a connected [`Sand
 sandbox = await Sandbox.create(snapshot_id="your-snapshot-id", api_key="your-key")
 ```
 
-### `Sandbox.hibernate(sandbox_id, *, api_key=None, base_url=...)`
-
-```python
-await Sandbox.hibernate("sandbox-id", api_key="your-key")
-```
-
-### `Sandbox.shutdown(sandbox_id, *, api_key=None, base_url=...)`
-
-```python
-await Sandbox.shutdown("sandbox-id", api_key="your-key")
-```
+To terminate a sandbox by ID without a running `Sandbox` instance, use the
+namespace method: `await sdk.sandboxes.terminate("sandbox-id")`.
 
 ---
 
@@ -647,7 +644,7 @@ Pass a `RetryConfig` to `TogetherSandbox(retry=...)` to customise this behaviour
 
 | Field       | Type          | Description                                                                                  |
 | ----------- | ------------- | -------------------------------------------------------------------------------------------- |
-| `operation` | `str`         | The operation that failed, e.g. `'hibernateSandbox'`, `'files.read'`.                        |
+| `operation` | `str`         | The operation that failed, e.g. `'api.terminate_sandbox'`, `'files.read'`.                   |
 | `attempt`   | `int`         | 1-based number of the attempt that just failed.                                              |
 | `error`     | `Exception`   | The [`HttpError`](#httperror) that was raised.                                               |
 | `status`    | `int \| None` | HTTP status code, or `0` for transport-level failures.                                       |
