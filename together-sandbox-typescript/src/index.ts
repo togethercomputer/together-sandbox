@@ -30,7 +30,6 @@ export type {
   SandboxInfo,
   SandboxStatus,
   CreateSandboxParams,
-  TerminationPolicyParams,
   TerminationSnapshotParams,
 } from "./types.js";
 export { Sandbox } from "./Sandbox.js";

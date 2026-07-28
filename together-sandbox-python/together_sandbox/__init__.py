@@ -23,7 +23,7 @@ Catching errors::
 """
 
 from ._together_sandbox import TogetherSandbox
-from ._sandboxes import SandboxesNamespace, SandboxRecord
+from ._sandboxes import SandboxesNamespace
 from ._snapshots import (
     SnapshotsNamespace,
     CreateSnapshotParams,
@@ -44,7 +44,6 @@ from .errors import HttpError
 __all__ = [
     "TogetherSandbox",
     "Sandbox",
-    "SandboxRecord",
     "Page",
     "SandboxesNamespace",
     "SnapshotsNamespace",

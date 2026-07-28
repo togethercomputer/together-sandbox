@@ -34,11 +34,6 @@ from ._lifecycle import describe_lifecycle_failure, is_transient_status
 # ── Sandbox API client ────────────────────────────────────────────────────────
 from .sandbox.client import AuthenticatedClient as SandboxClient
 
-# Public alias for the raw sandbox metadata model returned by the list/get
-# endpoints. Named separately from the ``Sandbox`` runtime class (a wired
-# client) so callers can annotate the plain metadata record.
-SandboxRecord = SandboxModel
-
 # Default sandbox resource allocation. Match the TS SDK / CLI helper.
 DEFAULT_CPU = 1.0  # 1 vCPU (cores)
 DEFAULT_MEMORY_BYTES = 2048 * 1024 * 1024  # 2 GiB
@@ -195,8 +190,8 @@ class SandboxesNamespace:
     async def get(self, sandbox_id: str) -> SandboxModel:
         """Fetch a single sandbox by id.
 
-        Returns the raw :class:`SandboxRecord` metadata, consistent with
-        :meth:`list` — not a wired :class:`Sandbox` client.
+        Returns the raw sandbox metadata, consistent with :meth:`list` — not
+        a wired :class:`Sandbox` client.
 
         Args:
             sandbox_id: The sandbox to fetch.
