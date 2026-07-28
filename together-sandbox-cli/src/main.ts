@@ -47,7 +47,7 @@ const ROOT_EPILOGUE = examples(
     },
     {
       describe: "See what is running",
-      command: "$0 sandboxes list --status running",
+      command: "$0 sandboxes list",
     },
   ],
   "Run `$0 <command> --help` for the options and examples of any command.",

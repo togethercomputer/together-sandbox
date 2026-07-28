@@ -107,6 +107,19 @@ function describeSandbox(s: SandboxInfo): {
 interface SandboxListArgs extends ListArgs {
   status?: string[];
   tag?: string[];
+  all?: boolean;
+}
+
+/**
+ * Pick the status filter. An unfiltered list is dominated by terminated
+ * sandboxes, which are rarely what you are looking for, so default to running
+ * ones — as `docker ps` does. `--status` replaces the default and `--all` drops
+ * it; `--tag` narrows within it rather than opting out.
+ */
+function listStatuses(argv: SandboxListArgs): SandboxStatus[] | undefined {
+  if (argv.all) return undefined;
+  if (argv.status?.length) return argv.status as SandboxStatus[];
+  return ["running"];
 }
 
 export const listCommand: yargs.CommandModule<
@@ -114,7 +127,7 @@ export const listCommand: yargs.CommandModule<
   SandboxListArgs
 > = {
   command: "list",
-  describe: "List sandboxes.",
+  describe: "List running sandboxes (use --all or --status for the rest).",
   builder: (yargs) =>
     yargs
       .option("limit", {
@@ -139,6 +152,13 @@ export const listCommand: yargs.CommandModule<
         describe:
           "Only show sandboxes carrying this tag, KEY=VALUE (repeatable; all must match)",
       })
+      .option("all", {
+        alias: "a",
+        type: "boolean",
+        // No `default`: yargs' `conflicts` treats a defaulted key as present,
+        // which would make --status collide with an --all nobody passed.
+        describe: "Show sandboxes in every status, not just running ones",
+      })
       .option("output", {
         alias: "o",
         type: "string",
@@ -151,36 +171,50 @@ export const listCommand: yargs.CommandModule<
         default: false,
         describe: "Plain output, no interactive pager",
       })
+      .conflicts("all", "status")
       .epilogue(
-        examples([
-          {
-            describe: "Page through every sandbox in your pager",
-            command: "$0 sandboxes list",
-          },
-          {
-            describe: "Only sandboxes that are up or coming up",
-            command: "$0 sandboxes list --status running --status starting",
-          },
-          {
-            describe: "Only sandboxes carrying both tags",
-            command: "$0 sandboxes list --tag env=prod --tag team=core",
-          },
-          {
-            describe:
-              "Fetch one specific page (the next cursor is printed on stderr)",
-            command: "$0 sandboxes list --limit 50 --cursor <cursor>",
-          },
-          {
-            describe: "Machine-readable single page: { data, nextCursor }",
-            command: "$0 sandboxes list --ci -o json",
-          },
-        ]),
+        examples(
+          [
+            {
+              describe: "Running sandboxes only (the default)",
+              command: "$0 sandboxes list",
+            },
+            {
+              describe: "Every sandbox, including terminated ones",
+              command: "$0 sandboxes list --all",
+            },
+            {
+              describe: "Only sandboxes that are up or coming up",
+              command: "$0 sandboxes list --status running --status starting",
+            },
+            {
+              describe: "Running sandboxes carrying both tags",
+              command: "$0 sandboxes list --tag env=prod --tag team=core",
+            },
+            {
+              describe: "Tagged sandboxes in any status",
+              command: "$0 sandboxes list --all --tag env=prod",
+            },
+            {
+              describe:
+                "Fetch one specific page (the next cursor is printed on stderr)",
+              command: "$0 sandboxes list --limit 50 --cursor <cursor>",
+            },
+            {
+              describe: "Machine-readable single page: { data, nextCursor }",
+              command: "$0 sandboxes list --ci -o json",
+            },
+          ],
+          "By default only running sandboxes are listed. --status replaces that default\n" +
+            "and --all drops it; --tag narrows within it, so combine --tag with --all to\n" +
+            "search every status.",
+        ),
       ) as unknown as yargs.Argv<SandboxListArgs>,
 
   handler: async (argv) => {
     const sdk = new TogetherSandbox();
     try {
-      const statuses = argv.status as SandboxStatus[] | undefined;
+      const statuses = listStatuses(argv);
       const tags = parseKeyValues(argv.tag, "--tag");
       await runList(
         {

@@ -121,10 +121,23 @@ Sandbox management commands.
 
 List sandboxes. Same pagination and output behaviour as `snapshots list`, plus:
 
-| Option              | Type     | Description                                                                                                                                     |
-| ------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--status <status>` | `string` | Only show sandboxes in this status. Repeatable. One of `starting`, `running`, `terminating`, `terminated`, `failed_to_start`, `recovering`, `unrecovered`. |
-| `--tag KEY=VALUE`   | `string` | Only show sandboxes carrying this tag. Repeatable; all pairs must match.                                                                        |
+| Option              | Type      | Description                                                                                                                                     |
+| ------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--status <status>` | `string`  | Only show sandboxes in this status. Repeatable. One of `starting`, `running`, `terminating`, `terminated`, `failed_to_start`, `recovering`, `unrecovered`. |
+| `--tag KEY=VALUE`   | `string`  | Only show sandboxes carrying this tag. Repeatable; all pairs must match.                                                                        |
+| `-a, --all`         | `boolean` | Show sandboxes in every status. Cannot be combined with `--status`.                                                                             |
+
+> **Running only by default.** With no `--status` or `--all`, the CLI lists only `running` sandboxes — an unfiltered list is dominated by terminated ones, which are rarely what you're after. This mirrors `docker ps`. `--status` replaces the default and `--all` drops it; `--tag` narrows *within* it, so combine `--tag` with `--all` to search every status.
+>
+> The SDKs are unaffected: `sdk.sandboxes.list()` still returns every status, matching the API.
+
+```bash
+together-sandbox sandboxes list                           # running only
+together-sandbox sandboxes list --all                     # everything
+together-sandbox sandboxes list --status failed_to_start  # just failures
+together-sandbox sandboxes list --tag env=prod            # running, tagged env=prod
+together-sandbox sandboxes list --all --tag env=prod      # any status, tagged env=prod
+```
 
 ### `together-sandbox sandboxes get <id>`
 
