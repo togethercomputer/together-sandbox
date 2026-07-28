@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v3.2.0...together-sandbox-workspace-v3.3.0) (2026-07-28)
+
+
+### Features
+
+* Do not wait on create with transient statuses ([e272395](https://github.com/togethercomputer/together-sandbox/commit/e27239541b3e253315c12b7c5c410b547617364b))
+
 ## [3.2.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v3.1.0...together-sandbox-workspace-v3.2.0) (2026-07-27)
 
 
