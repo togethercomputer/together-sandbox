@@ -56,6 +56,7 @@ together-sandbox snapshots create [options]
 | `--dockerfile <file>` | `string`  | Path to a Dockerfile (only with `--context`). Defaults to `Dockerfile` inside `--context`.                  |
 | `--image <ref>`       | `string`  | Docker image reference. Mutually exclusive with `--context`.                                                |
 | `--alias <alias>`     | `string`  | Alias for the snapshot (`tag` or `namespace@tag`).                                                          |
+| `--cache-key <key>`   | `string`  | Share a build layer cache across builds using the same key. Requires `--context`. See below.               |
 | `--ci`                | `boolean` | CI mode: plain stdout with no spinner. On success, only the snapshot ID is written to stdout. Default: off. |
 
 > **Build mode.** By default, `--context` submits the build to Together's remote image-builder service — no local Docker is required for the build itself. Set `TOGETHER_LOCAL_BUILD=1` to fall back to building locally with your own Docker daemon and pushing to the registry from your machine:
@@ -89,6 +90,14 @@ Create a snapshot from a public image with an alias:
 ```bash
 together-sandbox snapshots create --image python:3.12-slim --alias my-python@latest
 ```
+
+Reuse the layer cache across rebuilds of the same project:
+
+```bash
+together-sandbox snapshots create --context ./my-app --cache-key my-app
+```
+
+> **Set `--cache-key` if you rebuild often.** Every snapshot is built under a freshly generated image name, so the server's default cache key — the image name minus its tag — is unique per build and never matches a previous one. Passing a stable key of your own is what makes the remote builder reuse layers. Give a family of related images the same key to have them share a cache.
 
 ---
 

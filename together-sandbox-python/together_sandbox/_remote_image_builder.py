@@ -31,6 +31,7 @@ class RemoteImageBuilderClient:
         dockerfile: str = "Dockerfile",
         build_args: dict[str, str] | None = None,
         nydus: bool = True,
+        cache_key: str | None = None,
     ) -> str:
         """
         Build and push a container image.
@@ -43,6 +44,11 @@ class RemoteImageBuilderClient:
             dockerfile: Dockerfile path relative to context_dir.
             build_args: Optional build arguments.
             nydus: Produce a nydus-compressed image (default True).
+            cache_key: Groups builds that share a registry-backed layer cache;
+                builds given the same key reuse each other's layers. Omit to
+                let the server default it to the image name without its tag.
+                Must be a lowercase path of alphanumerics, '.', '_', '-' and
+                '/' (no tag), at most 255 characters.
 
         Returns:
             str: Full image reference returned by the service (e.g. "registry/namespace/name:tag").
@@ -82,6 +88,10 @@ class RemoteImageBuilderClient:
             "build_args": json.dumps(build_args or {}),
             "nydus_convert": "true" if nydus else "false",
         }
+        # Omitted rather than sent empty: the server defaults an absent
+        # cache_key to the image name without its tag.
+        if cache_key:
+            data["cache_key"] = cache_key
 
         async def _submit():
             buf.seek(0)

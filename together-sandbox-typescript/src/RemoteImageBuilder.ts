@@ -52,6 +52,16 @@ export interface RemoteBuildOptions {
   buildArgs?: Record<string, string>;
   /** Produce a nydus-compressed image (default `true`). */
   nydus?: boolean;
+  /**
+   * Groups builds that share a registry-backed layer cache. Builds using the
+   * same key reuse each other's layers, so give a family of related images one
+   * key to let them share a cache.
+   *
+   * Omit to let the server default it to the image name without its tag, which
+   * caches per logical image. Must be a lowercase path of alphanumerics, `.`,
+   * `_`, `-` and `/` (no tag), at most 255 characters.
+   */
+  cacheKey?: string;
 }
 
 interface SubmitResponse {
@@ -137,6 +147,9 @@ export class RemoteImageBuilderClient {
         form.append("dockerfile", dockerfile);
         form.append("build_args", JSON.stringify(opts.buildArgs ?? {}));
         form.append("nydus_convert", nydus ? "true" : "false");
+        // Omitted rather than sent empty: the server defaults an absent
+        // cache_key to the image name without its tag.
+        if (opts.cacheKey) form.append("cache_key", opts.cacheKey);
         form.append(
           "context",
           new Blob([new Uint8Array(tarBuffer)], { type: "application/gzip" }),
