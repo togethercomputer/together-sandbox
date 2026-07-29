@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.2](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.0.1...together-sandbox-workspace-v4.0.2) (2026-07-29)
+
+
+### Bug Fixes
+
+* update cli, docs and examples ([ebd8979](https://github.com/togethercomputer/together-sandbox/commit/ebd89797585471a3c9809473b71ee1498513863f))
+
 ## [4.0.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.0.0...together-sandbox-workspace-v4.0.1) (2026-07-28)
 
 
