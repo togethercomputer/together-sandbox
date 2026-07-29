@@ -2,7 +2,7 @@
 
 Tools for working with Together AI sandboxes: a CLI, a TypeScript SDK, and a Python SDK.
 
-## Quick Start
+## Install
 
 ```bash
 # CLI
@@ -14,6 +14,10 @@ npm install together-sandbox
 # Python SDK
 pip install together-sandbox
 ```
+
+The CLI installs to `~/.local/bin` and never needs `sudo`; if that directory
+isn't on your `PATH`, the installer prints the line to add. See the
+[CLI docs](./docs/cli.md#installation) for `INSTALL_DIR` and version pinning.
 
 ## Get an API key
 
@@ -27,6 +31,48 @@ All three packages authenticate via the `TOGETHER_API_KEY` environment variable.
    ```bash
    export TOGETHER_API_KEY="your-key-here"
    ```
+
+## Quick start
+
+Build a snapshot from a Dockerfile, then run a command inside a sandbox created
+from it. This uses the Dockerfile in
+[`examples/read-file-python-sdk/template`](./examples/read-file-python-sdk/template)
+— an Ubuntu image with `curl` and `git`, and a `/workspace/hello.txt`.
+
+**1. Build the snapshot.** The build runs on Together's image-builder service,
+so no local Docker is needed:
+
+```bash
+together-sandbox snapshot create \
+  --context examples/read-file-python-sdk/template \
+  --alias quickstart@v1
+```
+
+**2. Run a command in it.** `sandbox run` creates a sandbox from the snapshot,
+runs the command, and with `--rm` tears it down afterwards. A leading `@`
+resolves the reference as an alias:
+
+```bash
+together-sandbox sandbox run @quickstart@v1 --rm -- uname -a
+```
+
+**Or keep the sandbox and exec into it repeatedly:**
+
+```bash
+SANDBOX_ID=$(together-sandbox sandbox create @quickstart@v1 | awk '{print $3}')
+
+together-sandbox sandbox exec run "$SANDBOX_ID" -- uname -a
+together-sandbox sandbox exec run "$SANDBOX_ID" -it -- bash   # interactive shell
+
+together-sandbox sandbox terminate "$SANDBOX_ID"
+```
+
+Sandboxes are **not** reaped automatically unless you pass `--rm` or a `--ttl`,
+so terminate what you start — `together-sandbox sandbox list` shows what is
+still running. Every command group also accepts its plural form (`sandboxes`,
+`snapshots`, `execs`).
+
+Full command reference: [CLI docs](./docs/cli.md).
 
 ## Documentation
 
