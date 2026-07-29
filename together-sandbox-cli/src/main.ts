@@ -15,8 +15,9 @@ import {
   terminateCommand as sandboxesTerminateCommand,
   runCommand as sandboxesRunCommand,
 } from "./commands/sandboxes";
-import { execCommand as sandboxesExecCommand } from "./commands/exec";
 import {
+  createCommand as execsCreateCommand,
+  runCommand as execsRunCommand,
   lsCommand as execsLsCommand,
   logsCommand as execsLogsCommand,
 } from "./commands/execs";
@@ -43,7 +44,7 @@ const ROOT_EPILOGUE = examples(
     },
     {
       describe: "Open a shell in a running sandbox",
-      command: "$0 sandboxes exec <sandbox-id> -it -- bash",
+      command: "$0 sandbox exec run <sandbox-id> -it -- bash",
     },
     {
       describe: "See what is running",
@@ -53,9 +54,22 @@ const ROOT_EPILOGUE = examples(
   "Run `$0 <command> --help` for the options and examples of any command.",
 );
 
+/**
+ * Print help and exit non-zero.
+ *
+ * `showHelp()` defaults to `console.error`, which paints the whole help block
+ * in stderr colouring and reads like a crash. Naming a command group without an
+ * action is not a malformed command, so the help goes to stdout — as git, npm,
+ * gh and kubectl all do — while the exit code stays non-zero because nothing
+ * ran, which is what a script needs to see.
+ */
+function showHelpAndExit(instance: ReturnType<typeof yargs>): void {
+  instance.showHelp("log");
+  process.exit(1);
+}
+
 const cli = yargs(argv)
   .usage("together-sandbox CLI - Manage your Together Sandbox projects")
-  .demandCommand(1, "Usage: together-sandbox <command> [options]")
   .scriptName("together-sandbox")
   .strict()
   // Keep args after `--` available (in argv["--"]) so `exec`/`run` can pass a
@@ -67,6 +81,7 @@ const cli = yargs(argv)
   .recommendCommands()
   .command({
     command: "snapshots",
+    aliases: ["snapshot"],
     describe: "Manage snapshots",
     builder: (yargs) => {
       snapshotsYargs = yargs
@@ -77,11 +92,12 @@ const cli = yargs(argv)
       return snapshotsYargs;
     },
     handler: () => {
-      snapshotsYargs.showHelp();
+      showHelpAndExit(snapshotsYargs);
     },
   })
   .command({
     command: "sandboxes",
+    aliases: ["sandbox"],
     describe: "Manage sandboxes",
     builder: (yargs) => {
       sandboxesYargs = yargs
@@ -90,26 +106,28 @@ const cli = yargs(argv)
         .command(sandboxesGetCommand)
         .command(sandboxesCreateCommand)
         .command(sandboxesTerminateCommand)
-        .command(sandboxesExecCommand)
         .command(sandboxesRunCommand)
         .command({
-          command: "execs",
-          describe: "Inspect execs running in a sandbox",
+          command: "exec",
+          aliases: ["execs"],
+          describe: "Run and inspect commands inside a sandbox",
           builder: (yargs) => {
             execsYargs = yargs
               .recommendCommands()
+              .command(execsCreateCommand)
+              .command(execsRunCommand)
               .command(execsLsCommand)
               .command(execsLogsCommand);
             return execsYargs;
           },
           handler: () => {
-            execsYargs.showHelp();
+            showHelpAndExit(execsYargs);
           },
         });
       return sandboxesYargs;
     },
     handler: () => {
-      sandboxesYargs.showHelp();
+      showHelpAndExit(sandboxesYargs);
     },
   });
 
@@ -121,3 +139,10 @@ if (!argv.some((arg) => !arg.startsWith("-"))) {
 }
 
 cli.parse();
+
+// A bare invocation parses cleanly (there is nothing to validate), so handle it
+// here rather than via `demandCommand`, whose failure path writes to stderr.
+// `--help` / `--version` exit inside `parse()` and never reach this.
+if (argv.length === 0) {
+  showHelpAndExit(cli);
+}

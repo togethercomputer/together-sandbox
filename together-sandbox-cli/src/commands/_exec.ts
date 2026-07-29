@@ -20,7 +20,7 @@ export interface ExecSpec {
   user?: string;
 }
 
-interface ExecItem {
+export interface ExecItem {
   id: string;
   status: string;
   exitCode?: number;
@@ -107,7 +107,11 @@ function authHeaders(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
 
-async function createExec(
+/**
+ * Create an exec and start it. Returns the created exec, whose `id` addresses it
+ * for `getExecOutput` / `streamExecOutput` afterwards.
+ */
+export async function createExec(
   target: ExecTarget,
   spec: ExecSpec,
   pty: boolean,
