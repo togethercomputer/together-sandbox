@@ -1,11 +1,8 @@
 [project]
-name = "together-sandbox-sdk"
+name = "read-file-python-sdk"
 version = "0.1.0"
-description = "Add your description here"
+description = "Build a snapshot from a Dockerfile, run a sandbox, and read a file from it"
 requires-python = ">=3.11"
 dependencies = [
-    "together-sandbox",
+    "together-sandbox>=4.0.1",
 ]
-
-[tool.uv.sources]
-together-sandbox = { git = "https://github.com/togethercomputer/together-sandbox.git", subdirectory = "together-sandbox-python", rev = "together-sandbox-v1.10.0" }

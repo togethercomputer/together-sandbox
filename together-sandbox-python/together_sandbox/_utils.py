@@ -17,6 +17,7 @@ from .api.models.tags import Tags
 from .api.types import UNSET, Response, Unset
 from .errors import HttpError
 from .sandbox.models.error import Error as SandboxError
+from .sandbox.types import Unset as SandboxUnset
 from .api.models.sandbox import Sandbox as SandboxModel
 
 
@@ -28,7 +29,9 @@ def build_termination_snapshot(snapshot: dict | None | Unset = UNSET):
     ``UNSET`` (the default) to leave it unset, or ``None`` to send an explicit
     null (an ephemeral teardown that takes no snapshot).
     """
-    if isinstance(snapshot, Unset):
+    # Both generated clients define their own Unset class, and either can reach
+    # here depending on which the caller imported; treat both as "leave unset".
+    if isinstance(snapshot, (Unset, SandboxUnset)):
         return UNSET
     if snapshot is None:
         return None

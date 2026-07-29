@@ -35,6 +35,65 @@ curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/m
 
 ---
 
+## Quick start
+
+Build a snapshot from a Dockerfile, then run a command inside a sandbox made
+from it. This uses the Dockerfile in
+[`examples/read-file-python-sdk/template`](../examples/read-file-python-sdk/template),
+which is an Ubuntu image with `curl` and `git`, and a `/workspace/hello.txt`.
+
+```bash
+export TOGETHER_API_KEY="your-key-here"
+```
+
+**1. Build the snapshot.** The build runs on Together's image-builder service,
+so no local Docker is needed:
+
+```bash
+together-sandbox snapshot create \
+  --context examples/read-file-python-sdk/template \
+  --alias quickstart@v1
+```
+
+```
+✔ Snapshot created: 4490bbc0-3f3a-4866-b1ea-2aa7f1069920 (quickstart@v1)
+```
+
+**2. Run a command in it.** `sandbox run` creates a sandbox from the snapshot,
+runs the command, and with `--rm` tears the sandbox down afterwards. A leading
+`@` means "resolve this as an alias":
+
+```bash
+together-sandbox sandbox run @quickstart@v1 --rm -- uname -a
+```
+
+```
+Linux 6.1.0 #1 SMP x86_64 GNU/Linux
+```
+
+Progress notices go to stderr, so stdout carries only the command's output —
+`together-sandbox sandbox run @quickstart@v1 --rm -- uname -a 2>/dev/null`
+gives you just the `uname` line.
+
+**Or keep the sandbox and exec into it repeatedly.** `sandbox create` prints the
+new sandbox's id, and `exec run` streams a command inside it:
+
+```bash
+SANDBOX_ID=$(together-sandbox sandbox create @quickstart@v1 | awk '{print $3}')
+
+together-sandbox sandbox exec run "$SANDBOX_ID" -- uname -a
+together-sandbox sandbox exec run "$SANDBOX_ID" -- cat /workspace/hello.txt
+together-sandbox sandbox exec run "$SANDBOX_ID" -it -- bash   # interactive shell
+
+together-sandbox sandbox terminate "$SANDBOX_ID"
+```
+
+Sandboxes are **not** cleaned up on their own unless you pass `--rm` or a
+`--ttl`, so terminate what you start. `together-sandbox sandbox list` shows
+what is still running.
+
+---
+
 ## Resource tagging
 
 Every sandbox and snapshot the CLI creates is tagged `client=together-sandbox-cli`, so
@@ -61,6 +120,10 @@ This must be set before running any command. The CLI will exit with an error if 
 ---
 
 ## Commands
+
+Every command group accepts both its plural and singular name, so `sandbox` and
+`sandboxes`, `snapshot` and `snapshots`, `exec` and `execs` are interchangeable.
+This page uses whichever reads better in context.
 
 ### `together-sandbox snapshots`
 
@@ -227,28 +290,47 @@ Terminate a sandbox and wait until it is torn down. Termination is permanent —
 
 With no snapshot flags, the termination policy the sandbox was created with applies. `--ephemeral` cannot be combined with the other snapshot flags.
 
-### `together-sandbox sandboxes exec <id> [command..]`
+### `together-sandbox sandbox exec`
 
-Run a command inside a running sandbox, docker-exec style.
+Run and inspect commands inside a sandbox. Four subcommands: `create`, `run`, `ls`, `logs`.
 
-| Option              | Type      | Description                                             |
-| ------------------- | --------- | --------------------------------------------------------- |
-| `-i, --interactive` | `boolean` | Keep stdin open.                                        |
-| `-t, --tty`         | `boolean` | Allocate a pseudo-TTY. With `-i` and a TTY stdin, the session runs over a websocket. |
-| `--cwd <dir>`       | `string`  | Working directory.                                      |
-| `--env KEY=VALUE`   | `string`  | Environment variable. Repeatable.                       |
-| `--user <user>`     | `string`  | Run as `user[:group]`.                                  |
+All of them accept:
 
-The CLI exits with the remote command's exit code. Use `--` to separate the command from CLI flags:
+| Option            | Type     | Description                       |
+| ----------------- | -------- | --------------------------------- |
+| `--cwd <dir>`     | `string` | Working directory.                |
+| `--env KEY=VALUE` | `string` | Environment variable. Repeatable. |
+| `--user <user>`   | `string` | Run as `user[:group]`.            |
+
+Use `--` to separate the command from CLI flags.
+
+### `together-sandbox sandbox exec create <id> [command..]`
+
+Start a command and print its **exec id**, without attaching. The process keeps running after the command exits, so this is the detached form — read its output later with `exec logs`. Only the id goes to stdout, so it captures cleanly:
 
 ```bash
-together-sandbox sandboxes exec sb-123 -- ls -la /app
-together-sandbox sandboxes exec sb-123 -it -- bash
+EXEC_ID=$(together-sandbox sandbox exec create sb-123 -- npm run build)
+together-sandbox sandbox exec logs sb-123 "$EXEC_ID" -f
+```
+
+### `together-sandbox sandbox exec run <id> [command..]`
+
+Run a command and stream it, ssh-style. Exits with the remote command's exit code.
+
+| Option              | Type      | Description                                                                          |
+| ------------------- | --------- | ------------------------------------------------------------------------------------ |
+| `-i, --interactive` | `boolean` | Keep stdin open.                                                                     |
+| `-t, --tty`         | `boolean` | Allocate a pseudo-TTY. With `-i` and a TTY stdin, the session runs over a websocket. |
+
+```bash
+together-sandbox sandbox exec run sb-123 -- ls -la /app
+together-sandbox sandbox exec run sb-123 -it -- bash
+cat data.json | together-sandbox sandbox exec run sb-123 -i -- jq .name
 ```
 
 ### `together-sandbox sandboxes run <ref> [command..]`
 
-Create a sandbox from a snapshot, run a command in it, and exit with the command's exit code — docker-run style. Accepts every option from both `sandboxes create` and `sandboxes exec`, plus `--rm` to terminate the sandbox when the command exits.
+Create a sandbox from a snapshot, run a command in it, and exit with the command's exit code — docker-run style. Accepts every option from both `sandboxes create` and `sandbox exec run`, plus `--rm` to terminate the sandbox when the command exits.
 
 Progress notices go to stderr, so stdout carries only the command's output.
 
@@ -256,11 +338,11 @@ Progress notices go to stderr, so stdout carries only the command's output.
 together-sandbox sandboxes run @my-app@v1 --rm -- npm test
 ```
 
-### `together-sandbox sandboxes execs ls <id>`
+### `together-sandbox sandbox exec ls <id>`
 
-List execs running (or recently run) in a sandbox. Supports `-o json`.
+List execs running (or recently run) in a sandbox. Alias `list`. Supports `-o json`.
 
-### `together-sandbox sandboxes execs logs <id> <execId> [-f]`
+### `together-sandbox sandbox exec logs <id> <execId> [-f]`
 
 Print an exec's output. `-f`/`--follow` streams it until the exec exits.
 

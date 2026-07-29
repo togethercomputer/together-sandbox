@@ -55,6 +55,13 @@ from .sandbox.models.exec_stdout import ExecStdout
 from .sandbox.models.exec_start import ExecStart
 from .sandbox.types import UNSET, File, Unset
 
+# The management API and the in-VM sandbox API are generated as separate
+# clients, each with its own Unset sentinel class. Methods on this class mostly
+# talk to the in-VM API (above), but `terminate` hits the management API and
+# must use its sentinel — passing the wrong one makes the isinstance guard in
+# `build_termination_snapshot` miss.
+from .api.types import UNSET as API_UNSET, Unset as ApiUnset
+
 # ── SSE streaming helper ─────────────────────────────────────────────────────
 from ._streaming import stream_sse_json
 
@@ -607,7 +614,9 @@ class Sandbox:
 
     # ── Lifecycle methods ─────────────────────────────────────────────────────
 
-    async def terminate(self, *, snapshot: dict | None | Unset = UNSET) -> None:
+    async def terminate(
+        self, *, snapshot: dict | None | ApiUnset = API_UNSET
+    ) -> None:
         """Terminate this VM. After this the sandbox is terminal and cannot be used again.
 
         Args:

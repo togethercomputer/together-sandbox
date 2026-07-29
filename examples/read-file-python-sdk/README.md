@@ -1,6 +1,6 @@
-# together-sandbox-sdk
+# read-file-python-sdk
 
-Example of using the [Together Sandbox Python SDK](https://github.com/togethercomputer/together-sandbox/tree/together-sandbox-v1.10.0#subdirectory=together-sandbox-python) to build a snapshot and run a sandbox.
+Example of using the [Together Sandbox Python SDK](https://pypi.org/project/together-sandbox/) to build a snapshot and run a sandbox. Uses `together-sandbox >= 4.0.1` from PyPI.
 
 ## What it does
 
@@ -8,7 +8,8 @@ Example of using the [Together Sandbox Python SDK](https://github.com/togetherco
 2. If not found, builds one remotely from `template/Dockerfile`.
 3. Creates a sandbox from the snapshot (it starts automatically).
 4. Reads `/workspace/hello.txt` from the running sandbox and prints it.
-5. Shuts the sandbox down.
+5. Terminates the sandbox. It was created without a termination policy, so it is
+   ephemeral: no snapshot is taken and it is deleted on teardown.
 
 ## Structure
 
