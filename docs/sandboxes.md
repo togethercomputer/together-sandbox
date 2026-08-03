@@ -131,7 +131,7 @@ const result = await sdk.snapshots.create({
 
 **From an existing image:**
 
-If you already have a Docker image (public or in a registry you can access), you can register it directly without a build step:
+If you already have a Docker image (public or in a registry you can access), you can create a snapshot directly from it:
 
 ```typescript
 const result = await sdk.snapshots.create({

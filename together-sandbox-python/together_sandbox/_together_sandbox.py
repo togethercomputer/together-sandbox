@@ -58,8 +58,11 @@ class TogetherSandbox:
             # _call_api owns all error handling and retry logic.
         )
         self.sandboxes = SandboxesNamespace(self._api_client, retry=retry)
+        # Pass the un-suffixed base URL: the snapshots namespace derives the
+        # image-builder URL from it by host substitution, which must not carry
+        # the management API's "/v1" path. Mirrors the TypeScript SDK.
         self.snapshots = SnapshotsNamespace(
-            self._api_client, self._base_url, retry=retry, api_key=resolved_key
+            self._api_client, resolved_url, retry=retry, api_key=resolved_key
         )
 
     # NOTE: sdk.api_client is removed from the public surface.
