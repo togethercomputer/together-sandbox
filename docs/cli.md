@@ -143,7 +143,7 @@ Under the hood for `--context`, this command:
 4. Registers a snapshot backed by that image.
 5. Optionally assigns an alias to the snapshot.
 
-For `--image`, the image reference is registered directly as a snapshot without a local build.
+For `--image`, the snapshot is created from the given image reference.
 
 ```bash
 together-sandbox snapshots create [options]

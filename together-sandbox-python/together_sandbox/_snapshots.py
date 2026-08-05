@@ -17,7 +17,7 @@ from ._utils import (
     _with_retry,
     deep_object_tags,
 )
-from ._configuration import get_inferred_base_url, is_local_environment
+from ._configuration import is_local_environment
 from ._pagination import Page
 from .api.types import UNSET
 
@@ -393,8 +393,7 @@ class SnapshotsNamespace:
         """
         from pathlib import Path
 
-        csb_base_url = get_inferred_base_url()
-        ib_api_url = csb_base_url.replace("api.bartender.", "builder.")
+        ib_api_url = self._base_url.replace("api.bartender.", "builder.")
 
         context_dir = Path(os.path.realpath(params.context))
         dockerfile_path = (
