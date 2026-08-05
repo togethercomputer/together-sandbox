@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.3](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.0.2...together-sandbox-workspace-v4.0.3) (2026-08-05)
+
+
+### Bug Fixes
+
+* make base url construction same as typescript ([1db7fd3](https://github.com/togethercomputer/together-sandbox/commit/1db7fd375903382ab67ef65d1eb0948b68c5864e))
+
 ## [4.0.2](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.0.1...together-sandbox-workspace-v4.0.2) (2026-07-29)
 
 
