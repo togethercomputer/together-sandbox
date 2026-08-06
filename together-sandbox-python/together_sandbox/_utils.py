@@ -362,6 +362,41 @@ async def _call_api(
                     )
                 except Exception:
                     raw_body = content
+
+            # Attempt to extract a human-readable message before falling back
+            # to a raw dump. Some server responses carry a ``message`` (or
+            # ``error``) string at the top level but omit a field required by
+            # the typed model checks (e.g. missing ``errors[]`` or a
+            # non-string ``code``). Surfacing that string keeps the error
+            # readable without losing the raw body via ``body=``.
+            if isinstance(raw_body, str) and raw_body.strip():
+                import json as _json
+
+                try:
+                    parsed_body = _json.loads(raw_body)
+                    if isinstance(parsed_body, dict):
+                        raw_msg = parsed_body.get("message") or parsed_body.get("error")
+                        msg = raw_msg.strip() if isinstance(raw_msg, str) else None
+                        if msg:
+                            code_val = parsed_body.get("code")
+                            code_str = (
+                                str(code_val)
+                                if isinstance(code_val, (str, int))
+                                else None
+                            )
+                            raise HttpError(
+                                f"Failed to {operation}{suffix}: {msg}"
+                                + (f" (code: {code_str})" if code_str else ""),
+                                status,
+                                code=code_str,
+                                body=raw_body,
+                                hint=_hint_for(status, operation, target),
+                            )
+                except HttpError:
+                    raise
+                except Exception:
+                    pass
+
             dump = (
                 raw_body.strip()
                 if isinstance(raw_body, str) and raw_body.strip()

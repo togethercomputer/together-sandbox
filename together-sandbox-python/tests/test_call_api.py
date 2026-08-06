@@ -42,6 +42,17 @@ def make_error_response(status: int) -> Response:
     return make_response(status, None)
 
 
+def make_raw_error_response(status: int, body: bytes) -> Response:
+    """Response with None parsed and a raw body — simulates an undocumented non-2xx."""
+    r = make_response(status, None)
+    return Response(
+        status_code=r.status_code,
+        content=body,
+        headers={},
+        parsed=None,
+    )
+
+
 def make_api_error_response(
     status: int, message: str = "error", code: str = "ERROR"
 ) -> Response:
@@ -499,6 +510,76 @@ class TestCallApiAsyncCallbacks:
             )
 
         assert received_delays == [3.0]
+
+
+# ─── Unknown error payload fallback ──────────────────────────────────────────
+
+
+class TestCallApiUnknownErrorFallback:
+    @pytest.mark.asyncio
+    async def test_extracts_message_field(self):
+        body = b'{"message": "quota exceeded", "request_id": "abc123"}'
+        fn = AsyncMock(return_value=make_raw_error_response(402, body))
+
+        with pytest.raises(HttpError) as exc_info:
+            await _call_api("createSandbox", fn, RetryConfig(max_attempts=1))
+
+        err = exc_info.value
+        assert err.status == 402
+        assert "quota exceeded" in str(err)
+
+    @pytest.mark.asyncio
+    async def test_extracts_message_and_code_when_both_present(self):
+        body = b'{"message": "quota exceeded", "code": "QUOTA_EXCEEDED"}'
+        fn = AsyncMock(return_value=make_raw_error_response(402, body))
+
+        with pytest.raises(HttpError) as exc_info:
+            await _call_api("createSandbox", fn, RetryConfig(max_attempts=1))
+
+        err = exc_info.value
+        assert "quota exceeded" in str(err)
+        assert "QUOTA_EXCEEDED" in str(err)
+        assert err.code == "QUOTA_EXCEEDED"
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_error_field_when_message_absent(self):
+        body = b'{"error": "service unavailable"}'
+        fn = AsyncMock(return_value=make_raw_error_response(503, body))
+
+        with pytest.raises(HttpError) as exc_info:
+            await _call_api("createSandbox", fn, RetryConfig(max_attempts=1))
+
+        assert "service unavailable" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_raw_dump_when_message_is_whitespace_only(self):
+        body = b'{"message": "   "}'
+        fn = AsyncMock(return_value=make_raw_error_response(500, body))
+
+        with pytest.raises(HttpError) as exc_info:
+            await _call_api("createSandbox", fn, RetryConfig(max_attempts=1))
+
+        assert '{"message": "   "}' in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_raw_dump_when_no_message_or_error_field(self):
+        body = b'{"unexpected": "shape"}'
+        fn = AsyncMock(return_value=make_raw_error_response(500, body))
+
+        with pytest.raises(HttpError) as exc_info:
+            await _call_api("createSandbox", fn, RetryConfig(max_attempts=1))
+
+        assert '{"unexpected": "shape"}' in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_raw_dump_for_non_json_body(self):
+        body = b"<html>Bad Gateway</html>"
+        fn = AsyncMock(return_value=make_raw_error_response(502, body))
+
+        with pytest.raises(HttpError) as exc_info:
+            await _call_api("createSandbox", fn, RetryConfig(max_attempts=1))
+
+        assert "<html>Bad Gateway</html>" in str(exc_info.value)
 
 
 # ─── 204 / no-body path ────────────────────────────────────────────────────────────
