@@ -768,6 +768,20 @@ describe("callApi", () => {
       expect((err as HttpError).message).toContain("service unavailable");
     });
 
+    it("falls back to JSON dump when message field is whitespace-only", async () => {
+      const fn = vi
+        .fn()
+        .mockResolvedValue(
+          createApiResult(undefined, { message: "   " }, 500),
+        );
+
+      const err = await callApi("createSandbox", fn, {
+        maxAttempts: 1,
+      }).catch((e) => e);
+
+      expect((err as HttpError).message).toContain('{"message":"   "}');
+    });
+
     it("falls back to JSON dump when no message or error field is present", async () => {
       const fn = vi
         .fn()

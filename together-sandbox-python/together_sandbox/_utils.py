@@ -375,8 +375,9 @@ async def _call_api(
                 try:
                     parsed_body = _json.loads(raw_body)
                     if isinstance(parsed_body, dict):
-                        msg = parsed_body.get("message") or parsed_body.get("error")
-                        if isinstance(msg, str) and msg:
+                        raw_msg = parsed_body.get("message") or parsed_body.get("error")
+                        msg = raw_msg.strip() if isinstance(raw_msg, str) else None
+                        if msg:
                             code_val = parsed_body.get("code")
                             code_str = (
                                 str(code_val)

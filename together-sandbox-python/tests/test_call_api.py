@@ -552,6 +552,16 @@ class TestCallApiUnknownErrorFallback:
         assert "service unavailable" in str(exc_info.value)
 
     @pytest.mark.asyncio
+    async def test_falls_back_to_raw_dump_when_message_is_whitespace_only(self):
+        body = b'{"message": "   "}'
+        fn = AsyncMock(return_value=make_raw_error_response(500, body))
+
+        with pytest.raises(HttpError) as exc_info:
+            await _call_api("createSandbox", fn, RetryConfig(max_attempts=1))
+
+        assert '{"message": "   "}' in str(exc_info.value)
+
+    @pytest.mark.asyncio
     async def test_falls_back_to_raw_dump_when_no_message_or_error_field(self):
         body = b'{"unexpected": "shape"}'
         fn = AsyncMock(return_value=make_raw_error_response(500, body))

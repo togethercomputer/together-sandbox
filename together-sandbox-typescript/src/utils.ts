@@ -250,12 +250,13 @@ export async function callApi<T>(
         // without losing the raw body via `.body`.
         if (typeof err === "object" && err !== null) {
           const rec = err as Record<string, unknown>;
-          const msg =
+          const raw =
             typeof rec.message === "string"
               ? rec.message
               : typeof rec.error === "string"
                 ? rec.error
                 : undefined;
+          const msg = raw?.trim() || undefined;
           if (msg !== undefined) {
             const code =
               typeof rec.code === "string" || typeof rec.code === "number"
