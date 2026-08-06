@@ -242,11 +242,35 @@ export async function callApi<T>(
             cause: err,
           });
         }
-        // Unknown error payload — `String(err)` on a plain object would
-        // produce the useless `"[object Object]"`, hiding the actual server
-        // response. JSON-serialise the body instead so the real cause is
-        // visible in logs. Falls back to `String(err)` for values that
-        // cannot be stringified (e.g. cyclic references, BigInt).
+        // Unknown error payload — attempt to extract a human-readable message
+        // before falling back to a raw dump. Some server responses carry a
+        // `message` (or `error`) string at the top level but omit one of the
+        // fields required by the typed guards (e.g. missing `errors[]` or a
+        // non-string `code`). Surfacing that string keeps the error readable
+        // without losing the raw body via `.body`.
+        if (typeof err === "object" && err !== null) {
+          const rec = err as Record<string, unknown>;
+          const msg =
+            typeof rec.message === "string"
+              ? rec.message
+              : typeof rec.error === "string"
+                ? rec.error
+                : undefined;
+          if (msg !== undefined) {
+            const code =
+              typeof rec.code === "string" || typeof rec.code === "number"
+                ? String(rec.code)
+                : undefined;
+            throw new HttpError(
+              `Failed to ${operation}${suffix}: ${msg}${code ? ` (code: ${code})` : ""}`,
+              status,
+              { code, body: err, hint: fallbackHint },
+            );
+          }
+        }
+        // Last resort: JSON-serialise so the body is visible in logs rather
+        // than the useless `"[object Object]"`. Falls back to `String(err)`
+        // for values that cannot be stringified (cyclic references, BigInt).
         let dump: string;
         try {
           dump = JSON.stringify(err);
