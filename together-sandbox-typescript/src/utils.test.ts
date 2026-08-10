@@ -713,6 +713,90 @@ describe("callApi", () => {
     });
   });
 
+  // ─── Unknown error payload fallback ──────────────────────────────────────────
+
+  describe("unknown error payload fallback", () => {
+    it("extracts message from a plain object with a message field", async () => {
+      const fn = vi
+        .fn()
+        .mockResolvedValue(
+          createApiResult(undefined, { message: "quota exceeded" }, 402),
+        );
+
+      const err = await callApi("createSandbox", fn, {
+        maxAttempts: 1,
+      }).catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpError);
+      expect((err as HttpError).status).toBe(402);
+      expect((err as HttpError).message).toContain("quota exceeded");
+      expect((err as HttpError).message).not.toContain("[object Object]");
+    });
+
+    it("extracts message and code when both are present", async () => {
+      const fn = vi
+        .fn()
+        .mockResolvedValue(
+          createApiResult(
+            undefined,
+            { message: "quota exceeded", code: "QUOTA_EXCEEDED" },
+            402,
+          ),
+        );
+
+      const err = await callApi("createSandbox", fn, {
+        maxAttempts: 1,
+      }).catch((e) => e);
+
+      expect((err as HttpError).message).toContain(
+        "quota exceeded (code: QUOTA_EXCEEDED)",
+      );
+      expect((err as HttpError).code).toBe("QUOTA_EXCEEDED");
+    });
+
+    it("falls back to the error field when message is absent", async () => {
+      const fn = vi
+        .fn()
+        .mockResolvedValue(
+          createApiResult(undefined, { error: "service unavailable" }, 503),
+        );
+
+      const err = await callApi("createSandbox", fn, {
+        maxAttempts: 1,
+      }).catch((e) => e);
+
+      expect((err as HttpError).message).toContain("service unavailable");
+    });
+
+    it("falls back to JSON dump when message field is whitespace-only", async () => {
+      const fn = vi
+        .fn()
+        .mockResolvedValue(
+          createApiResult(undefined, { message: "   " }, 500),
+        );
+
+      const err = await callApi("createSandbox", fn, {
+        maxAttempts: 1,
+      }).catch((e) => e);
+
+      expect((err as HttpError).message).toContain('{"message":"   "}');
+    });
+
+    it("falls back to JSON dump when no message or error field is present", async () => {
+      const fn = vi
+        .fn()
+        .mockResolvedValue(
+          createApiResult(undefined, { unexpected: "shape" }, 500),
+        );
+
+      const err = await callApi("createSandbox", fn, {
+        maxAttempts: 1,
+      }).catch((e) => e);
+
+      expect((err as HttpError).message).toContain('{"unexpected":"shape"}');
+    });
+  });
+
   // ─── 204 / no-body path ────────────────────────────────────────────────────────────
 
   describe("204 / no-body path", () => {
