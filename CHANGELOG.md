@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.0.3](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.0.2...together-sandbox-workspace-v4.0.3) (2026-08-10)
+
+
+### Bug Fixes
+
+* extract a human-readable error message from unknown server errors ([0a694f7](https://github.com/togethercomputer/together-sandbox/commit/0a694f75de1b9cf49108e0d54e1cc5d513445de8))
+* make base url construction same as typescript ([1db7fd3](https://github.com/togethercomputer/together-sandbox/commit/1db7fd375903382ab67ef65d1eb0948b68c5864e))
+
 ## [4.0.2](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.0.1...together-sandbox-workspace-v4.0.2) (2026-07-29)
 
 
