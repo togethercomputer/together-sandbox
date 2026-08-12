@@ -1,9 +1,10 @@
-name: e2e (PR)
+name: e2e
 
 on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
