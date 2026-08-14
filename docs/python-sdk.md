@@ -222,15 +222,16 @@ while page.has_next_page():
 live = await sdk.snapshots.list(exclude_retired=True, tags={"service": "api"})
 ```
 
-#### `sdk.sandboxes.list(*, limit=None, statuses=None, tags=None) -> Page[Sandbox]`
+#### `sdk.sandboxes.list(*, limit=None, statuses=None, snapshot_id=None, tags=None) -> Page[Sandbox]`
 
 List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
 
-| Parameter  | Type                | Description                                               |
-| ---------- | ------------------- | --------------------------------------------------------- |
-| `limit`    | `int \| None`       | Page size (1–100, default 20).                            |
-| `statuses` | `list[str] \| None` | Matches sandboxes in any of the given statuses.           |
-| `tags`     | `dict \| None`      | Matches sandboxes whose tags contain all the given pairs. |
+| Parameter     | Type                | Description                                               |
+| ------------- | ------------------- | --------------------------------------------------------- |
+| `limit`       | `int \| None`       | Page size (1–100, default 20).                            |
+| `statuses`    | `list[str] \| None` | Matches sandboxes in any of the given statuses.           |
+| `snapshot_id` | `str \| None`       | Matches sandboxes created from the given snapshot.         |
+| `tags`        | `dict \| None`      | Matches sandboxes whose tags contain all the given pairs. |
 
 A status is one of `starting`, `running`, `terminating`, `terminated`,
 `failed_to_start`, `recovering`, `unrecovered`.
@@ -241,6 +242,9 @@ async for sandbox in await sdk.sandboxes.list():
 
 # Running sandboxes for one team
 running = await sdk.sandboxes.list(statuses=["running"], tags={"team": "platform"})
+
+# Every sandbox booted from one snapshot
+from_snapshot = await sdk.sandboxes.list(snapshot_id="snapshot-id")
 ```
 
 #### `sdk.snapshots.alias(snapshot_id, alias) -> None`

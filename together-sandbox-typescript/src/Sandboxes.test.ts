@@ -186,11 +186,12 @@ describe("SandboxesNamespace.list", () => {
     } as never);
   });
 
-  it("passes the status and tag filters through to the query", async () => {
+  it("passes the status, snapshot and tag filters through to the query", async () => {
     const ns = new SandboxesNamespace(makeApiClient());
     await ns.list({
       limit: 50,
       statuses: ["running", "starting"],
+      snapshotId: "snap-1",
       tags: { team: "platform" },
     });
 
@@ -198,6 +199,7 @@ describe("SandboxesNamespace.list", () => {
       limit: 50,
       cursor: undefined,
       "statuses[]": ["running", "starting"],
+      snapshot_id: "snap-1",
       tags: { team: "platform" },
     });
   });
@@ -208,6 +210,7 @@ describe("SandboxesNamespace.list", () => {
 
     const query = vi.mocked(api.listSandboxes).mock.calls[0][0]?.query;
     expect(query?.["statuses[]"]).toBeUndefined();
+    expect(query?.snapshot_id).toBeUndefined();
     expect(query?.tags).toBeUndefined();
   });
 });

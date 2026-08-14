@@ -142,6 +142,7 @@ class SandboxesNamespace:
         limit: int | None = None,
         cursor: str | None = None,
         statuses: list[str] | None = None,
+        snapshot_id: str | None = None,
         tags: dict[str, str] | None = None,
     ) -> Page[SandboxModel]:
         """List sandboxes.
@@ -156,6 +157,8 @@ class SandboxesNamespace:
                 to start from the first page).
             statuses: Filter by status; matches sandboxes in any of the given
                 statuses.
+            snapshot_id: Filter by snapshot; matches sandboxes created from the
+                given snapshot.
             tags: Filter by tags; matches sandboxes whose tags contain all the
                 given pairs.
 
@@ -179,6 +182,7 @@ class SandboxesNamespace:
                         if statuses is not None
                         else UNSET
                     ),
+                    snapshot_id=snapshot_id if snapshot_id is not None else UNSET,
                     tags=deep_object_tags(tags),
                 ),
                 self._retry,

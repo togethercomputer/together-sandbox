@@ -130,6 +130,8 @@ export class SandboxesNamespace {
    *   {@link Page.nextCursor} (omit to start from the first page).
    * @param options.statuses Filter by status; matches sandboxes in any of the
    *   given statuses.
+   * @param options.snapshotId Filter by snapshot; matches sandboxes created
+   *   from the given snapshot.
    * @param options.tags Filter by tags; matches sandboxes whose tags contain
    *   all the given pairs.
    */
@@ -137,6 +139,7 @@ export class SandboxesNamespace {
     limit?: number;
     cursor?: string;
     statuses?: SandboxStatus[];
+    snapshotId?: string;
     tags?: Record<string, string>;
   }): Promise<Page<SandboxInfo>> {
     const fetchPage = async (cursor?: string): Promise<Page<SandboxInfo>> => {
@@ -149,6 +152,7 @@ export class SandboxesNamespace {
               limit: options?.limit,
               cursor,
               "statuses[]": options?.statuses,
+              snapshot_id: options?.snapshotId,
               tags: options?.tags,
             },
           }),

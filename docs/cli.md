@@ -241,6 +241,7 @@ List sandboxes. Columns: `ID`, `STATUS`, `REASON`, `CPU`, `AGE`, `TAGS`. Same pa
 | ------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `--status <status>` | `string`  | Only show sandboxes in this status. Repeatable. One of `starting`, `running`, `terminating`, `terminated`, `failed_to_start`, `recovering`, `unrecovered`. |
 | `--tag KEY=VALUE`   | `string`  | Only show sandboxes carrying this tag. Repeatable; all pairs must match.                                                                        |
+| `--snapshot <ref>`  | `string`  | Only show sandboxes created from this snapshot. A snapshot id, or `@alias` to resolve by alias first.                                            |
 | `-a, --all`         | `boolean` | Show sandboxes in every status. Cannot be combined with `--status`.                                                                             |
 
 > **Running only by default.** With no `--status` or `--all`, the CLI lists only `running` sandboxes — an unfiltered list is dominated by terminated ones, which are rarely what you're after. This mirrors `docker ps`. `--status` replaces the default and `--all` drops it; `--tag` narrows *within* it, so combine `--tag` with `--all` to search every status.
@@ -253,6 +254,7 @@ together-sandbox sandboxes list --all                     # everything
 together-sandbox sandboxes list --status failed_to_start  # just failures
 together-sandbox sandboxes list --tag env=prod            # running, tagged env=prod
 together-sandbox sandboxes list --all --tag env=prod      # any status, tagged env=prod
+together-sandbox sandboxes list --snapshot @my-app@v1     # running, booted from that snapshot
 ```
 
 ### `together-sandbox sandboxes get <id>`

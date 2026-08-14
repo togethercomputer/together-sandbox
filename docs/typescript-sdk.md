@@ -221,11 +221,12 @@ const live = await sdk.snapshots.list({
 
 List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
 
-| Option     | Type                     | Description                                               |
-| ---------- | ------------------------ | --------------------------------------------------------- |
-| `limit`    | `number`                 | Page size (1–100, default 20).                            |
-| `statuses` | `SandboxStatus[]`        | Matches sandboxes in any of the given statuses.           |
-| `tags`     | `Record<string, string>` | Matches sandboxes whose tags contain all the given pairs. |
+| Option       | Type                     | Description                                               |
+| ------------ | ------------------------ | --------------------------------------------------------- |
+| `limit`      | `number`                 | Page size (1–100, default 20).                            |
+| `statuses`   | `SandboxStatus[]`        | Matches sandboxes in any of the given statuses.           |
+| `snapshotId` | `string`                 | Matches sandboxes created from the given snapshot.        |
+| `tags`       | `Record<string, string>` | Matches sandboxes whose tags contain all the given pairs. |
 
 `SandboxStatus` is one of `starting`, `running`, `terminating`, `terminated`,
 `failed_to_start`, `recovering`, `unrecovered`.
@@ -240,6 +241,9 @@ const running = await sdk.sandboxes.list({
   statuses: ["running"],
   tags: { team: "platform" },
 });
+
+// Every sandbox booted from one snapshot
+const fromSnapshot = await sdk.sandboxes.list({ snapshotId: "snapshot-id" });
 ```
 
 #### `sdk.snapshots.alias(snapshotId, alias): Promise<void>`
