@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.4](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.0.3...together-sandbox-workspace-v4.0.4) (2026-08-18)
+
+
+### Bug Fixes
+
+* add snapshot ID filter on list sandboxes ([a6d9c05](https://github.com/togethercomputer/together-sandbox/commit/a6d9c05b23d55fe9e3fe386d0a7af6ff3085ca14))
+
 ## [4.0.3](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.0.2...together-sandbox-workspace-v4.0.3) (2026-08-10)
 
 
