@@ -239,6 +239,10 @@ export type ListSandboxesData = {
          */
         'statuses[]'?: Array<'starting' | 'running' | 'terminating' | 'terminated' | 'failed_to_start' | 'recovering' | 'unrecovered'>;
         /**
+         * Filter by snapshot; matches sandboxes created from the given snapshot.
+         */
+        snapshot_id?: string;
+        /**
          * Filter by tags; matches sandboxes whose tags contain all given pairs.
          */
         tags?: Tags;
@@ -299,6 +303,10 @@ export type CreateSandboxData = {
          *
          */
         ttl?: number;
+        /**
+         * User-defined key-value labels (both keys and values are strings). Keys must be at most 59 letters, digits, hyphens, underscores, and dots, and must start and end with a letter or a digit.
+         *
+         */
         tags?: Tags;
         /**
          * The termination policy. Omit for an ephemeral sandbox (no snapshot, deleted on termination).

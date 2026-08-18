@@ -17,6 +17,7 @@ def _get_kwargs(
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
+    snapshot_id: str | Unset = UNSET,
     tags: Tags | Unset = UNSET,
 ) -> dict[str, Any]:
 
@@ -34,6 +35,8 @@ def _get_kwargs(
             json_statuses.append(statuses_item)
 
     params["statuses[]"] = json_statuses
+
+    params["snapshot_id"] = snapshot_id
 
     json_tags: dict[str, Any] | Unset = UNSET
     if not isinstance(tags, Unset):
@@ -98,6 +101,7 @@ def sync_detailed(
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
+    snapshot_id: str | Unset = UNSET,
     tags: Tags | Unset = UNSET,
 ) -> Response[Error | SandboxPage]:
     """List sandboxes
@@ -106,6 +110,7 @@ def sync_detailed(
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         statuses (list[ListSandboxesStatusesItem] | Unset):
+        snapshot_id (str | Unset):
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
 
     Raises:
@@ -120,6 +125,7 @@ def sync_detailed(
         limit=limit,
         cursor=cursor,
         statuses=statuses,
+        snapshot_id=snapshot_id,
         tags=tags,
     )
 
@@ -136,6 +142,7 @@ def sync(
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
+    snapshot_id: str | Unset = UNSET,
     tags: Tags | Unset = UNSET,
 ) -> Error | SandboxPage | None:
     """List sandboxes
@@ -144,6 +151,7 @@ def sync(
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         statuses (list[ListSandboxesStatusesItem] | Unset):
+        snapshot_id (str | Unset):
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
 
     Raises:
@@ -159,6 +167,7 @@ def sync(
         limit=limit,
         cursor=cursor,
         statuses=statuses,
+        snapshot_id=snapshot_id,
         tags=tags,
     ).parsed
 
@@ -169,6 +178,7 @@ async def asyncio_detailed(
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
+    snapshot_id: str | Unset = UNSET,
     tags: Tags | Unset = UNSET,
 ) -> Response[Error | SandboxPage]:
     """List sandboxes
@@ -177,6 +187,7 @@ async def asyncio_detailed(
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         statuses (list[ListSandboxesStatusesItem] | Unset):
+        snapshot_id (str | Unset):
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
 
     Raises:
@@ -191,6 +202,7 @@ async def asyncio_detailed(
         limit=limit,
         cursor=cursor,
         statuses=statuses,
+        snapshot_id=snapshot_id,
         tags=tags,
     )
 
@@ -205,6 +217,7 @@ async def asyncio(
     limit: int | Unset = 20,
     cursor: str | Unset = UNSET,
     statuses: list[ListSandboxesStatusesItem] | Unset = UNSET,
+    snapshot_id: str | Unset = UNSET,
     tags: Tags | Unset = UNSET,
 ) -> Error | SandboxPage | None:
     """List sandboxes
@@ -213,6 +226,7 @@ async def asyncio(
         limit (int | Unset):  Default: 20.
         cursor (str | Unset):
         statuses (list[ListSandboxesStatusesItem] | Unset):
+        snapshot_id (str | Unset):
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
 
     Raises:
@@ -229,6 +243,7 @@ async def asyncio(
             limit=limit,
             cursor=cursor,
             statuses=statuses,
+            snapshot_id=snapshot_id,
             tags=tags,
         )
     ).parsed

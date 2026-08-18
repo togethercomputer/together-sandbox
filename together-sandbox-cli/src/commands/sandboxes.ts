@@ -108,6 +108,7 @@ function describeSandbox(s: SandboxInfo): {
 interface SandboxListArgs extends ListArgs {
   status?: string[];
   tag?: string[];
+  snapshot?: string;
   all?: boolean;
 }
 
@@ -121,6 +122,20 @@ function listStatuses(argv: SandboxListArgs): SandboxStatus[] | undefined {
   if (argv.all) return undefined;
   if (argv.status?.length) return argv.status as SandboxStatus[];
   return ["running"];
+}
+
+/**
+ * Resolve `--snapshot` to a snapshot id. The API filters by id only, so a
+ * leading `@` (the CLI's alias convention) costs one alias lookup first.
+ */
+async function listSnapshotId(
+  sdk: TogetherSandbox,
+  ref: string | undefined,
+): Promise<string | undefined> {
+  if (ref === undefined) return undefined;
+  if (!ref.startsWith("@")) return ref;
+  const snapshot = await sdk.snapshots.getByAlias(ref.slice(1));
+  return snapshot.id;
 }
 
 export const listCommand: yargs.CommandModule<
@@ -152,6 +167,11 @@ export const listCommand: yargs.CommandModule<
         array: true,
         describe:
           "Only show sandboxes carrying this tag, KEY=VALUE (repeatable; all must match)",
+      })
+      .option("snapshot", {
+        type: "string",
+        describe:
+          "Only show sandboxes created from this snapshot, by id or @alias",
       })
       .option("all", {
         alias: "a",
@@ -197,6 +217,10 @@ export const listCommand: yargs.CommandModule<
               command: "$0 sandboxes list --all --tag env=prod",
             },
             {
+              describe: "Sandboxes booted from one snapshot (id or @alias)",
+              command: "$0 sandboxes list --snapshot @my-app@v1",
+            },
+            {
               describe:
                 "Fetch one specific page (the next cursor is printed on stderr)",
               command: "$0 sandboxes list --limit 50 --cursor <cursor>",
@@ -217,10 +241,11 @@ export const listCommand: yargs.CommandModule<
     try {
       const statuses = listStatuses(argv);
       const tags = parseKeyValues(argv.tag, "--tag");
+      const snapshotId = await listSnapshotId(sdk, argv.snapshot);
       await runList(
         {
           fetchPage: (params) =>
-            sdk.sandboxes.list({ ...params, statuses, tags }),
+            sdk.sandboxes.list({ ...params, statuses, snapshotId, tags }),
           // TAGS is last: it is the only unbounded-width column, and
           // `renderTable` truncates the final column to fit the terminal.
           headers: ["ID", "STATUS", "REASON", "CPU", "AGE", "TAGS"],

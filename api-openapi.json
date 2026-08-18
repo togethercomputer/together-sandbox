@@ -586,6 +586,14 @@
             }
           },
           {
+            "name": "snapshot_id",
+            "in": "query",
+            "description": "Filter by snapshot; matches sandboxes created from the given snapshot.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "tags",
             "in": "query",
             "description": "Filter by tags; matches sandboxes whose tags contain all given pairs.",
@@ -671,7 +679,8 @@
                     "minimum": 1
                   },
                   "tags": {
-                    "$ref": "#/components/schemas/Tags"
+                    "$ref": "#/components/schemas/Tags",
+                    "description": "User-defined key-value labels (both keys and values are strings). Keys must be at most 59 letters, digits, hyphens, underscores, and dots, and must start and end with a letter or a digit.\n"
                   },
                   "termination_policy": {
                     "description": "The termination policy. Omit for an ephemeral sandbox (no snapshot, deleted on termination).\n",
