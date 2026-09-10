@@ -92,6 +92,18 @@ Resource params (`cpu`, `memory_bytes`) default to **1 vCPU / 2 GiB memory** if 
 Sandboxes start automatically on creation, so there is no separate start step. 
 A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshot_alias="sandbox:<id>"`).
 
+#### `sdk.sandboxes.get(sandbox_id) -> SandboxModel`
+
+Fetches a single sandbox's metadata by ID. Returns the same raw `SandboxModel`
+record that `sdk.sandboxes.list()` yields — not a connected [`Sandbox`](#sandbox)
+client, so it does not give you `.files`, `.execs`, or the other in-VM
+namespaces.
+
+```python
+info = await sdk.sandboxes.get("your-sandbox-id")
+print(info.status, info.status_reason)
+```
+
 #### `sdk.sandboxes.terminate(sandbox_id, *, snapshot=UNSET): Coroutine[None]`
 
 Terminates a VM by sandbox ID. `snapshot` (`{"aliases": [...], "ttl": ..., "tags": {...}}`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `None` for an ephemeral teardown (no snapshot).
@@ -128,12 +140,6 @@ result = await sdk.snapshots.create(CreateContextSnapshotParams(
 # Use the snapshot ID to create a sandbox:
 sandbox = await sdk.sandboxes.create(snapshot_id=result.snapshot_id)
 ```
-
-> **Local build opt-in.** Set `TOGETHER_LOCAL_BUILD=1` in the environment to build the image with your own Docker daemon and push it to the registry from your machine instead of using the remote image-builder. This requires Docker to be installed and running. Useful for debugging build issues locally or when working in restricted network environments.
->
-> ```bash
-> export TOGETHER_LOCAL_BUILD=1
-> ```
 
 | Parameter     | Type                                         | Description                                                                                                 |
 | ------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -195,7 +201,7 @@ Fetch snapshot metadata by alias.
 snapshot = await sdk.snapshots.get_by_alias("my-app@v1")
 ```
 
-#### `sdk.snapshots.list(*, limit=None, exclude_retired=None, tags=None) -> Page[Snapshot]`
+#### `sdk.snapshots.list(*, limit=None, cursor=None, exclude_retired=None, tags=None) -> Page[Snapshot]`
 
 List snapshots. Returns a `Page` that is async-iterable across all pages —
 iterate it directly to walk every snapshot, or use `get_next_page()` /
@@ -204,6 +210,7 @@ iterate it directly to walk every snapshot, or use `get_next_page()` /
 | Parameter         | Type                  | Description                                               |
 | ----------------- | --------------------- | ----------------------------------------------------------- |
 | `limit`           | `int \| None`         | Page size (1–100, default 20).                            |
+| `cursor`          | `str \| None`         | Start from an opaque cursor instead of the first page.    |
 | `exclude_retired` | `bool \| None`        | When true, retired snapshots are excluded. Default false. |
 | `tags`            | `dict \| None`        | Matches snapshots whose tags contain all the given pairs. |
 
@@ -222,13 +229,14 @@ while page.has_next_page():
 live = await sdk.snapshots.list(exclude_retired=True, tags={"service": "api"})
 ```
 
-#### `sdk.sandboxes.list(*, limit=None, statuses=None, snapshot_id=None, tags=None) -> Page[Sandbox]`
+#### `sdk.sandboxes.list(*, limit=None, cursor=None, statuses=None, snapshot_id=None, tags=None) -> Page[SandboxModel]`
 
 List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
 
 | Parameter     | Type                | Description                                               |
 | ------------- | ------------------- | --------------------------------------------------------- |
 | `limit`       | `int \| None`       | Page size (1–100, default 20).                            |
+| `cursor`      | `str \| None`       | Start from an opaque cursor instead of the first page.    |
 | `statuses`    | `list[str] \| None` | Matches sandboxes in any of the given statuses.           |
 | `snapshot_id` | `str \| None`       | Matches sandboxes created from the given snapshot.         |
 | `tags`        | `dict \| None`      | Matches sandboxes whose tags contain all the given pairs. |
@@ -694,8 +702,7 @@ asyncio.run(main())
 
 ## Environment variables
 
-| Variable               | Description                                                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `TOGETHER_API_KEY`     | Required. Your Together AI API key.                                                                                                        |
-| `TOGETHER_BASE_URL`    | Optional. Override the management API base URL.                                                                                            |
-| `TOGETHER_LOCAL_BUILD` | Optional. Set to `1` to build context-based snapshots with your local Docker daemon instead of Together's remote image-builder. See above. |
+| Variable            | Description                                     |
+| ------------------- | ----------------------------------------------- |
+| `TOGETHER_API_KEY`  | Required. Your Together AI API key.             |
+| `TOGETHER_BASE_URL` | Optional. Override the management API base URL. |
