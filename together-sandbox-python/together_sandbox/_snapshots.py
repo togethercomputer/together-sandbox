@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import platform
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -17,7 +16,11 @@ from ._utils import (
     _with_retry,
     deep_object_tags,
 )
-from ._configuration import is_local_environment
+from ._configuration import (
+    get_builder_url,
+    get_host_architecture,
+    is_local_environment,
+)
 from ._pagination import Page
 from .api.types import UNSET
 
@@ -383,17 +386,17 @@ class SnapshotsNamespace:
         """
         Build a Docker image using the remote image-builder service.
 
-        Derives the image-builder URL from the configured base URL by replacing
-        "api.bartender." with "builder.". Uses the SDK's API key as
-        the auth token. Returns a dict with ``image`` and ``architecture`` keys,
-        compatible with ``create_snapshot``.
+        Derives the image-builder URL from the configured base URL (see
+        ``get_builder_url``). Uses the SDK's API key as the auth token. Returns a
+        dict with ``image`` and ``architecture`` keys, compatible with
+        ``create_snapshot``.
 
         Raises:
             RuntimeError: If the build fails.
         """
         from pathlib import Path
 
-        ib_api_url = self._base_url.replace("api.bartender.", "builder.")
+        ib_api_url = get_builder_url(self._base_url)
 
         context_dir = Path(os.path.realpath(params.context))
         dockerfile_path = (
@@ -443,6 +446,10 @@ class SnapshotsNamespace:
                     f"expected one of: "
                     f"{[a.value for a in CreateSnapshotBodyArchitecture]}"
                 ) from e
+        elif is_local_environment(self._base_url):
+            # Locally the image builder runs on this machine, so it produces an
+            # image for this machine's architecture.
+            architecture = CreateSnapshotBodyArchitecture(get_host_architecture())
         else:
             architecture = CreateSnapshotBodyArchitecture.AMD64
 
@@ -456,9 +463,8 @@ class SnapshotsNamespace:
         params: CreateContextSnapshotParams,
     ) -> dict[str, str | CreateSnapshotBodyArchitecture]:
         architecture = (
-            CreateSnapshotBodyArchitecture.ARM64
-            if platform.machine().lower() == "arm64"
-            and is_local_environment(self._base_url)
+            CreateSnapshotBodyArchitecture(get_host_architecture())
+            if is_local_environment(self._base_url)
             else CreateSnapshotBodyArchitecture.AMD64
         )
         context = os.path.realpath(params.context)
