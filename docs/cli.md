@@ -160,11 +160,7 @@ together-sandbox snapshots create [options]
 | `--cache-key <key>`   | `string`  | Share a build layer cache across builds using the same key. Requires `--context`. See below.               |
 | `--ci`                | `boolean` | CI mode: plain stdout with no spinner. On success, only the snapshot ID is written to stdout. Default: off. |
 
-> **Build mode.** By default, `--context` submits the build to Together's remote image-builder service — no local Docker is required for the build itself. Set `TOGETHER_LOCAL_BUILD=1` to fall back to building locally with your own Docker daemon and pushing to the registry from your machine:
->
-> ```bash
-> TOGETHER_LOCAL_BUILD=1 together-sandbox snapshots create --context ./my-app
-> ```
+> **Build mode.** `--context` submits the build to Together's remote image-builder service — no local Docker is required.
 
 #### Examples
 

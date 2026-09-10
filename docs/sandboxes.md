@@ -57,7 +57,7 @@ Sandboxes autostart on creation. `starting` and `terminating` are transient stat
 
 **Note!** A `starting` sandbox that cannot start moves to `failed_to_start` (terminal). If a running sandbox crashes it is auto-recovered (`recovering`); if recovery fails it ends in `unrecovered`.
 
-The `status_reason` field always records why the sandbox is in its current status — including while `starting` (`cold_start_requested`) and `running` (`cold_started` / `restored`).
+The `status_reason` field always records why the sandbox is in its current status — including while `starting` (`cold_start_requested` / `restore_requested`) and `running` (`cold_started` / `restored`).
 
 ### Failed-to-start reasons
 
@@ -118,7 +118,7 @@ Initial snapshots are created from a Docker image. There are two paths:
 
 **From a Dockerfile (build context):**
 
-The SDK (or CLI) builds a Docker image, authenticates with Together's container registry, pushes the image, and registers the snapshot. The build can happen remotely (default) or locally via `TOGETHER_LOCAL_BUILD=1`.
+The SDK (or CLI) submits the build to Together's remote image-builder service, which builds the image and pushes it to the internal registry; the snapshot is then registered. No local Docker installation is required.
 
 ```typescript
 const result = await sdk.snapshots.create({
@@ -240,26 +240,34 @@ const sandbox = await sdk.sandboxes.create({
 
 If a sandbox crashes or is lost due to infrastructure issues, the platform may attempt automatic recovery. It will ensure the files of the sandbox are persisted and a new snapshot is created.
 
-The sandbox model exposes three fields tracking this:
+The sandbox model exposes one field tracking this:
 
-| Field                  | Description                                            |
-| ---------------------- | ------------------------------------------------------ |
-| `recovery_status`      | `pending` → `recovered` / `canceled` / `unrecoverable` |
-| `recovery_started_at`  | When recovery was initiated                            |
-| `recovery_finished_at` | When recovery completed (success or failure)           |
+| Field           | Type                     | Description                                        |
+| --------------- | ------------------------ | -------------------------------------------------- |
+| `recovery_at`   | `string \| null`         | When recovery last ran, or `null` if it never has  |
+
+Progress is otherwise reflected in `status` and `status_reason`: a sandbox being
+recovered reports `recovering`, moves back to `running` with a `restored` reason
+on success, and lands on `unrecovered` if recovery could not complete.
 
 ---
 
 ## Sandbox IDs
 
-Every sandbox has a short ID (6–8 characters, e.g. `abc123`) that you use to reference it in API calls and SDK methods. You can supply your own ID at creation time or let the platform generate one.
+Every sandbox has a platform-generated UUID that you use to reference it in API
+calls and SDK methods. IDs cannot be chosen at creation time — read the assigned
+one off the created sandbox:
 
 ```typescript
 const sandbox = await sdk.sandboxes.create({
-  id: "my-box", // optional; auto-generated if omitted
   snapshotAlias: "my-app@v1",
 });
+
+console.log(sandbox.id); // e.g. "3f1c8a9e-5b2d-4e7a-9c10-6d8f2b4a1e33"
 ```
+
+To label sandboxes with names of your own, use `tags` and filter on them with
+`sandboxes.list({ tags: { … } })`.
 
 ---
 

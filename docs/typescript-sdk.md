@@ -82,6 +82,18 @@ Resource params (`cpu`, `memoryBytes`) default to **1 vCPU / 2 GiB memory** if o
 
 Sandboxes start automatically on creation, so there is no separate start step. A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshotAlias: "sandbox:<id>"`).
 
+#### `sdk.sandboxes.get(sandboxId): Promise<SandboxInfo>`
+
+Fetches a single sandbox's metadata by ID. Returns the same camelCased
+`SandboxInfo` record that `sdk.sandboxes.list()` yields — not a connected
+[`Sandbox`](#sandbox) instance, so it does not give you `.files`, `.execs`, or
+the other in-VM namespaces.
+
+```typescript
+const info = await sdk.sandboxes.get("your-sandbox-id");
+console.log(info.status, info.statusReason);
+```
+
 #### `sdk.sandboxes.terminate(sandboxId, options?): Promise<void>`
 
 Terminates a VM by sandbox ID. `options.snapshot` (`{ aliases, ttl, tags }`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `null` for an ephemeral teardown (no snapshot).
@@ -102,9 +114,9 @@ Snapshot creation namespace. Snapshots are images you can pass to `sdk.sandboxes
 
 Create a snapshot from either a Docker build context (built remotely by default) or an existing Docker image.
 
-**From a build context:**
+**From a build context (remote build):**
 
-Build a Docker image from a local context, push it to the registry, and register it as a snapshot. Docker must be installed and running locally. (The Python SDK supports a remote image-builder service via `TOGETHER_LOCAL_BUILD=0`; the TypeScript SDK currently always builds locally.)
+Submit a Docker build context to Together's remote image-builder service. The service builds the image, pushes it to the internal registry, and the SDK then registers it as a snapshot. No local Docker installation is required.
 
 ```typescript
 const result = await sdk.snapshots.create({
@@ -194,6 +206,7 @@ iterate it directly to walk every snapshot, or use `getNextPage()` /
 | Option           | Type                     | Description                                                             |
 | ---------------- | ------------------------ | ------------------------------------------------------------------------- |
 | `limit`          | `number`                 | Page size (1–100, default 20).                                          |
+| `cursor`         | `string`                 | Start from an opaque cursor instead of the first page.                  |
 | `excludeRetired` | `boolean`                | When true, retired snapshots are excluded. Default false.               |
 | `tags`           | `Record<string, string>` | Matches snapshots whose tags contain all the given pairs.               |
 
@@ -224,6 +237,7 @@ List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
 | Option       | Type                     | Description                                               |
 | ------------ | ------------------------ | --------------------------------------------------------- |
 | `limit`      | `number`                 | Page size (1–100, default 20).                            |
+| `cursor`     | `string`                 | Start from an opaque cursor instead of the first page.    |
 | `statuses`   | `SandboxStatus[]`        | Matches sandboxes in any of the given statuses.           |
 | `snapshotId` | `string`                 | Matches sandboxes created from the given snapshot.        |
 | `tags`       | `Record<string, string>` | Matches sandboxes whose tags contain all the given pairs. |
