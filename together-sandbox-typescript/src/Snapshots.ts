@@ -3,7 +3,11 @@ import * as os from "os";
 import * as path from "path";
 import * as api from "./api-clients/api/index.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
-import { isLocalEnvironment } from "./configuration.js";
+import {
+  getBuilderUrl,
+  getHostArchitecture,
+  isLocalEnvironment,
+} from "./configuration.js";
 import { callApi, withRetry } from "./utils.js";
 import { Page } from "./pagination.js";
 import {
@@ -333,15 +337,14 @@ export class SnapshotsNamespace {
    * Build a Docker image using the remote image-builder service.
    *
    * Mirrors the Python SDK's `_build_image_remotely`: derives the
-   * image-builder URL from the configured base URL by replacing
-   * `api.bartender.` with `builder.`, uses the SDK's API key as the
-   * auth token, and returns the image reference and architecture that should
-   * be passed to `snapshots.create`.
+   * image-builder URL from the configured base URL (see `getBuilderUrl`), uses
+   * the SDK's API key as the auth token, and returns the image reference and
+   * architecture that should be passed to `snapshots.create`.
    */
   private async _buildRemotely(
     params: CreateContextSnapshotParams,
   ): Promise<{ image: string; architecture: "amd64" | "arm64" }> {
-    const ibApiUrl = this._baseUrl.replace("api.bartender.", "builder.");
+    const ibApiUrl = getBuilderUrl(this._baseUrl);
 
     const contextDir = path.resolve(params.context);
     const dockerfilePath = params.dockerfile
@@ -375,7 +378,12 @@ export class SnapshotsNamespace {
       contextDir,
       imageName: imageRef,
       dockerfile: dockerfileRel,
-      nydus: true,
+      // Nydus conversion is off: a nydus image's layers are
+      // 'application/vnd.oci.image.layer.nydus.blob.v1' blobs, which only a nydus
+      // snapshotter can mount. Runners that materialize a rootfs by unpacking OCI tar
+      // layers themselves reject them outright ("unsupported layer media type") and fail
+      // the sandbox at its first layer.
+      nydus: false,
       cacheKey: params.cacheKey,
     });
 
@@ -389,6 +397,10 @@ export class SnapshotsNamespace {
         );
       }
       architecture = archEnv;
+    } else if (isLocalEnvironment(this._baseUrl)) {
+      // Locally the image builder runs on this machine, so it produces an image
+      // for this machine's architecture.
+      architecture = getHostArchitecture();
     } else {
       architecture = "amd64";
     }
@@ -402,10 +414,9 @@ export class SnapshotsNamespace {
   private async _buildAndRegister(
     params: CreateContextSnapshotParams,
   ): Promise<{ image: string; architecture: "amd64" | "arm64" }> {
-    const architecture: "amd64" | "arm64" =
-      process.arch === "arm64" && isLocalEnvironment(this._baseUrl)
-        ? "arm64"
-        : "amd64";
+    const architecture: "amd64" | "arm64" = isLocalEnvironment(this._baseUrl)
+      ? getHostArchitecture()
+      : "amd64";
     const dockerfilePath = params.dockerfile;
     const context = params.context;
 
