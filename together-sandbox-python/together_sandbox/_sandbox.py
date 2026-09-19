@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, AsyncIterator, TypedDict
 from types import TracebackType
+from urllib.parse import quote
 
 # ── Management API client ─────────────────────────────────────────────────────
 from .api.client import AuthenticatedClient as ApiClient
@@ -184,7 +185,7 @@ class Files:
             params["ignorePatterns"] = ignore_patterns
         return stream_sse_json(
             self._client.get_async_httpx_client(),
-            f"/api/v1/stream/directories/watcher/{path}",
+            f"/api/v1/stream/directories/watcher/{quote(path, safe='')}",
             params=params,
         )
 
@@ -365,7 +366,7 @@ class Execs:
             params["lastSequence"] = last_sequence
         return stream_sse_json(
             self._client.get_async_httpx_client(),
-            f"/api/v1/stream/execs/{id_}/io",
+            f"/api/v1/stream/execs/{quote(id_, safe='')}/io",
             params=params,
         )
 
