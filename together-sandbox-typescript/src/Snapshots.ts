@@ -6,6 +6,7 @@ import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import {
   getBuilderUrl,
   getHostArchitecture,
+  isErofsEnabled,
   isLocalEnvironment,
 } from "./configuration.js";
 import { callApi, withRetry } from "./utils.js";
@@ -378,12 +379,15 @@ export class SnapshotsNamespace {
       contextDir,
       imageName: imageRef,
       dockerfile: dockerfileRel,
-      // Nydus conversion is off: a nydus image's layers are
-      // 'application/vnd.oci.image.layer.nydus.blob.v1' blobs, which only a nydus
-      // snapshotter can mount. Runners that materialize a rootfs by unpacking OCI tar
-      // layers themselves reject them outright ("unsupported layer media type") and fail
-      // the sandbox at its first layer.
-      nydus: false,
+      // EROFS where the control plane serves it: the build writes the rootfs to
+      // object storage and returns a reference ending in `.erofs`, which
+      // `snapshots.create` resolves to the digests behind it. Otherwise plain
+      // OCI — never nydus, whose layers are
+      // 'application/vnd.oci.image.layer.nydus.blob.v1' blobs that only a nydus
+      // snapshotter can mount. Runners that materialize a rootfs by unpacking OCI
+      // tar layers themselves reject them outright ("unsupported layer media
+      // type") and fail the sandbox at its first layer.
+      optimization: isErofsEnabled(this._baseUrl) ? "erofs" : "none",
       cacheKey: params.cacheKey,
     });
 
