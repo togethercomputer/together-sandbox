@@ -52,6 +52,23 @@ def is_local_environment(base_url: str) -> bool:
     return host == "codesandbox.dev" or host.endswith(".codesandbox.dev")
 
 
+def is_erofs_enabled(base_url: str) -> bool:
+    """
+    Whether a build should convert its image to EROFS, so a node mounts it
+    lazily from object storage instead of pulling and unpacking it.
+
+    Two ways in. ``TOGETHER_EROFS_ENABLED=true`` opts a caller in explicitly,
+    and a v2 control plane is opted in by where it points: EROFS is what v2
+    serves, so a base URL on an "api.bartender-v2…" host implies it.
+    """
+    if os.environ.get("TOGETHER_EROFS_ENABLED") == "true":
+        return True
+
+    host = urlparse(base_url).hostname or ""
+
+    return host.startswith("api.bartender-v2")
+
+
 def get_host_architecture() -> str:
     """Architecture of the machine running the SDK, as "amd64" or "arm64"."""
     return "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "amd64"

@@ -19,6 +19,7 @@ from ._utils import (
 from ._configuration import (
     get_builder_url,
     get_host_architecture,
+    is_erofs_enabled,
     is_local_environment,
 )
 from ._pagination import Page
@@ -432,7 +433,12 @@ class SnapshotsNamespace:
             context_dir=context_dir,
             image_name=image_ref,
             dockerfile=dockerfile_rel,
-            nydus=True,
+            # EROFS where the control plane serves it: the build writes the
+            # rootfs to object storage and returns a reference ending in
+            # ".erofs", which snapshots.create resolves to the digests behind
+            # it. Otherwise plain OCI — never nydus, whose blob layers only a
+            # nydus snapshotter can mount.
+            optimization="erofs" if is_erofs_enabled(self._base_url) else "none",
             cache_key=params.cache_key,
         )
 
