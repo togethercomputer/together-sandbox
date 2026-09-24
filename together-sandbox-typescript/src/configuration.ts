@@ -53,6 +53,31 @@ export function isLocalEnvironment(apiBaseUrl: string): boolean {
   );
 }
 
+/**
+ * Whether a build should convert its image to EROFS, so a node mounts it
+ * lazily from object storage instead of pulling and unpacking it.
+ *
+ * Two ways in. `TOGETHER_EROFS_ENABLED=true` opts a caller in explicitly, and
+ * a v2 control plane is opted in by where it points: EROFS is what v2 serves,
+ * so a base URL on an `api.bartender-v2…` host implies it.
+ *
+ *   https://api.bartender-v2.codesandbox.io -> true
+ *   https://api.bartender.codesandbox.io    -> false, unless the env var is set
+ */
+export function isErofsEnabled(apiBaseUrl: string): boolean {
+  if (process.env.TOGETHER_EROFS_ENABLED === "true") {
+    return true;
+  }
+
+  try {
+    return new URL(apiBaseUrl).hostname.startsWith("api.bartender-v2");
+  } catch {
+    // An unparseable base URL is someone else's error to report; it is not a
+    // reason to convert.
+    return false;
+  }
+}
+
 /** Architecture of the machine running the SDK. */
 export function getHostArchitecture(): "amd64" | "arm64" {
   return process.arch === "arm64" ? "arm64" : "amd64";
