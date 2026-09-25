@@ -1,0 +1,8 @@
+[project]
+name = "computer-use-python-sdk"
+version = "0.1.0"
+description = "Start a sandbox running a full Linux desktop with a browser, accessible from a web URL"
+requires-python = ">=3.11"
+dependencies = [
+    "together-sandbox>=4.0.1",
+]
