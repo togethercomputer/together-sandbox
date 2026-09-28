@@ -64,6 +64,32 @@ export function isLocalEnvironment(apiBaseUrl: string): boolean {
  *   https://api.bartender-v2.codesandbox.io -> true
  *   https://api.bartender.codesandbox.io    -> false, unless the env var is set
  */
+/**
+ * Whether a build should produce a nydus-compressed image, which a nydus
+ * snapshotter mounts lazily.
+ *
+ * Read the same way as {@link isErofsEnabled}: `TOGETHER_NYDUS_ENABLED=true`
+ * opts a caller in explicitly, and the older control plane is opted in by where
+ * it points — nydus is what it has always consumed.
+ *
+ *   https://api.bartender.codesandbox.io    -> true
+ *   https://api.bartender-v2.codesandbox.io -> false (that one serves EROFS)
+ *   https://api.codesandbox.dev             -> false (devbox nodes unpack OCI
+ *                                              layers and reject nydus blobs)
+ */
+export function isNydusEnabled(apiBaseUrl: string): boolean {
+  if (process.env.TOGETHER_NYDUS_ENABLED === "true") {
+    return true;
+  }
+
+  try {
+    // The trailing dot is what keeps `api.bartender-v2…` out.
+    return new URL(apiBaseUrl).hostname.startsWith("api.bartender.");
+  } catch {
+    return false;
+  }
+}
+
 export function isErofsEnabled(apiBaseUrl: string): boolean {
   if (process.env.TOGETHER_EROFS_ENABLED === "true") {
     return true;
