@@ -52,6 +52,24 @@ def is_local_environment(base_url: str) -> bool:
     return host == "codesandbox.dev" or host.endswith(".codesandbox.dev")
 
 
+def is_nydus_enabled(base_url: str) -> bool:
+    """
+    Whether a build should produce a nydus-compressed image, which a nydus
+    snapshotter mounts lazily.
+
+    Read the same way as ``is_erofs_enabled``: ``TOGETHER_NYDUS_ENABLED=true``
+    opts a caller in explicitly, and the older control plane is opted in by
+    where it points — nydus is what it has always consumed. The trailing dot in
+    the prefix is what keeps "api.bartender-v2…" out.
+    """
+    if os.environ.get("TOGETHER_NYDUS_ENABLED") == "true":
+        return True
+
+    host = urlparse(base_url).hostname or ""
+
+    return host.startswith("api.bartender.")
+
+
 def is_erofs_enabled(base_url: str) -> bool:
     """
     Whether a build should convert its image to EROFS, so a node mounts it

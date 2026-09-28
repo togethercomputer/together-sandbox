@@ -7,6 +7,7 @@ import {
   getBuilderUrl,
   getHostArchitecture,
   isErofsEnabled,
+  isNydusEnabled,
   isLocalEnvironment,
 } from "./configuration.js";
 import { callApi, withRetry } from "./utils.js";
@@ -379,15 +380,27 @@ export class SnapshotsNamespace {
       contextDir,
       imageName: imageRef,
       dockerfile: dockerfileRel,
-      // EROFS where the control plane serves it: the build writes the rootfs to
-      // object storage and returns a reference ending in `.erofs`, which
-      // `snapshots.create` resolves to the digests behind it. Otherwise plain
-      // OCI — never nydus, whose layers are
-      // 'application/vnd.oci.image.layer.nydus.blob.v1' blobs that only a nydus
-      // snapshotter can mount. Runners that materialize a rootfs by unpacking OCI
-      // tar layers themselves reject them outright ("unsupported layer media
-      // type") and fail the sandbox at its first layer.
-      optimization: isErofsEnabled(this._baseUrl) ? "erofs" : "none",
+      // What the build does beyond pushing, decided by which control plane is
+      // being talked to.
+      //
+      // EROFS where it is served: the build writes the rootfs to object storage
+      // and returns a reference ending in `.erofs`, which `snapshots.create`
+      // resolves to the digests behind it.
+      //
+      // Nydus everywhere else, which is what the older control plane has always
+      // consumed. It is deliberately not the fallback for the other two: nydus
+      // layers are 'application/vnd.oci.image.layer.nydus.blob.v1' blobs that
+      // only a nydus snapshotter can mount, and a runner that materializes a
+      // rootfs by unpacking OCI tar layers rejects them outright ("unsupported
+      // layer media type"), failing the sandbox at its first layer.
+      //
+      // Plain OCI anywhere else, including devbox, whose nodes run that second
+      // kind of runner.
+      optimization: isErofsEnabled(this._baseUrl)
+        ? "erofs"
+        : isNydusEnabled(this._baseUrl)
+          ? "nydus"
+          : "none",
       cacheKey: params.cacheKey,
     });
 
