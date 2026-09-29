@@ -6,7 +6,7 @@ to Together Sandbox (`together-sandbox` on npm and PyPI, plus the
 `together-sandbox` CLI).
 
 - **[Part 1](#part-1--overview-for-humans)** is a human-readable overview: what
-  changed, a feature map, and what is no longer supported.
+  changed, a feature map, and what is coming soon.
 - **[Part 2](#part-2--migration-reference-for-ai-agents)** is a precise,
   mechanical reference meant for AI coding agents (and humans) performing the
   migration: detection patterns, an ordered procedure, and before/after rewrite
@@ -25,48 +25,24 @@ to Together Sandbox (`together-sandbox` on npm and PyPI, plus the
    `together-sandbox snapshots create`). Existing CodeSandbox templates and
    sandboxes cannot be imported — rebuild them. There is no default template;
    every sandbox must be created from a snapshot you specify.
-3. **No hibernate / resume.** The lifecycle is now
-   `create → running → terminate`. A terminated sandbox is gone for good.
-   "Hibernate" and "shutdown" both become *terminate with a snapshot*; "resume"
-   becomes *create a new sandbox from that snapshot*.
-4. **Sandbox IDs change on every "resume".** The new sandbox has a new ID.
-   Store the latest ID (or, better, a snapshot alias) instead of a fixed ID.
+3. **Hibernate becomes terminate with a snapshot; resume becomes create from
+   a previously created snapshot.** The lifecycle is
+   `create → running → terminate`. `terminate({ snapshot: { memory: true } })`
+   saves the sandbox's disk and memory (hibernate);
+   `terminate({ snapshot: { memory: false } })` saves only the disk (shutdown).
+   `create({ snapshotAlias })` starts a sandbox from that snapshot, resuming
+   its processes when the snapshot has memory.
+4. **A sandbox ID only lives until that sandbox terminates.** You no longer
+   start a sandbox by its ID. You start a new sandbox from the snapshot of a
+   previous sandbox run (`sandbox:<id>` or your own alias). Persist the
+   snapshot alias, not the sandbox ID, as the long-lived handle.
 5. **Ephemeral by default.** A sandbox created without a `terminationPolicy`
    takes no snapshot and is deleted on termination. Add `terminationPolicy` if
    you want its filesystem to survive.
-6. **Disk only (for now).** Snapshots capture the filesystem, not memory.
-   Running processes do not survive a terminate → create cycle; restart them
-   with execs. Memory snapshots (true hibernate) are **coming soon**.
-7. **No `connect()`.** `sdk.sandboxes.create()` returns an already-connected
+6. **No `connect()`.** `sdk.sandboxes.create()` returns an already-connected
    `Sandbox` with `files`, `directories`, `execs` and `ports`. Commands,
    terminals and interpreters are all unified into **execs**.
-8. **Specs are explicit.** `vmTier` → `cpu` + `memoryBytes`, fixed at creation.
-
-## Mental model: old vs new lifecycle
-
-```
-CodeSandbox SDK (old)                          Together Sandbox (new)
-─────────────────────                          ──────────────────────
-  create/fork ──► RUNNING ◄──┐                   create() ──► starting ──► running
-                    │        │ resume()                                      │
-       hibernate()  │        │ (same ID,                      terminate()    │
-       (auto after  ▼        │  memory restored)                             ▼
-       idle timeout) HIBERNATED ──(snapshot expires)─► disk-only      terminating
-                    │                                  (CLEAN boot)          │
-       shutdown()   ▼                                                        ▼
-                  SHUT DOWN ──resume()──► RUNNING (CLEAN boot)          terminated  (final)
-                    │                                                        │
-       delete()     ▼                                           snapshot aliased
-                  DELETED                                       `sandbox:<id>`
-                                                                             │
-                                                  create({ snapshotAlias: "sandbox:<id>" })
-                                                                             ▼
-                                                              NEW sandbox (new ID), running
-```
-
-New statuses: `starting`, `running`, `terminating`, `terminated`,
-`failed_to_start`, `recovering`, `unrecovered`. Why a sandbox is in its status
-is always in `statusReason` (see [Sandboxes & Snapshots](./sandboxes.md)).
+7. **Specs are explicit.** `vmTier` → `cpu` + `memoryBytes`, fixed at creation.
 
 ## Feature map
 
@@ -78,8 +54,6 @@ is always in `statusReason` (see [Sandboxes & Snapshots](./sandboxes.md)).
 | `new CodeSandbox(apiKey?, opts)` | `new TogetherSandbox({ apiKey?, baseUrl?, retry? })` | |
 | `CSB_API_KEY` | `TOGETHER_API_KEY` | CodeSandbox keys do not work. |
 | `CSB_BASE_URL` / `opts.baseUrl` | `TOGETHER_BASE_URL` / `baseUrl` | |
-| `opts.tracer` (OpenTelemetry) | — | Not supported. Wrap calls yourself. |
-| `opts.fetch`, `opts.headers` | — | Not supported. |
 | Ad-hoc retries, `RateLimitError` | Built-in retry (`RetryConfig`), `HttpError` | |
 | `@codesandbox/sdk/browser`, `@codesandbox/sdk/node` (`connectToSandbox`) | — | Not supported. Call the SDK from your backend. |
 
@@ -88,8 +62,8 @@ is always in `statusReason` (see [Sandboxes & Snapshots](./sandboxes.md)).
 | CodeSandbox SDK | Together Sandbox | Notes |
 | --- | --- | --- |
 | `sdk.sandboxes.create({ id: templateId })` | `sdk.sandboxes.create({ snapshotAlias \| snapshotId })` | Snapshot is required. Returns a connected `Sandbox`. |
-| `sdk.sandboxes.hibernate(id)` (memory + disk) | `sdk.sandboxes.terminate(id, { snapshot: { aliases } })` | **Disk only today.** Memory snapshots coming soon. |
-| `sdk.sandboxes.shutdown(id)` (disk only) | `sdk.sandboxes.terminate(id, { snapshot: { aliases } })` | Same call as hibernate until memory snapshots ship. |
+| `sdk.sandboxes.hibernate(id)` (memory + disk) | `sdk.sandboxes.terminate(id, { snapshot: { memory: true, aliases } })` | Snapshots disk and memory. |
+| `sdk.sandboxes.shutdown(id)` (disk only) | `sdk.sandboxes.terminate(id, { snapshot: { memory: false, aliases } })` | Snapshots disk only; `memory` defaults to `false`. |
 | `sdk.sandboxes.resume(id)` | `sdk.sandboxes.create({ snapshotAlias: "sandbox:<id>" })` | Returns a **new** sandbox ID. |
 | `sdk.sandboxes.restart(id)` | terminate with snapshot → create from `sandbox:<id>` | New ID. No agent-update step needed. |
 | `sdk.sandboxes.delete(id)` | `sdk.sandboxes.terminate(id, { snapshot: null })` | Plus `sdk.snapshots.retire(id)` for snapshots you no longer need. |
@@ -97,8 +71,6 @@ is always in `statusReason` (see [Sandboxes & Snapshots](./sandboxes.md)).
 | Fork of a hibernated sandbox | create from its snapshot (`sandbox:<id>` or your alias) | Any number of sandboxes can start from one snapshot. |
 | Auto-hibernate after `hibernationTimeoutSeconds` idle | `create({ ttl, terminationPolicy })` | `ttl` counts from **creation**, not idle time. No idle detection. |
 | `automaticWakeupConfig` (wake on HTTP/WS) | — | Not supported. A terminated sandbox never wakes. |
-| `sandbox.bootupType` (`RUNNING`/`CLEAN`/`RESUME`/`FORK`) | `sandbox.vmInfo.statusReason` | Every boot is effectively a clean boot today. |
-| `sandbox.isUpToDate`, restart to update agent | — | Not needed. |
 | Memory-snapshot retention (≈7 days), archive | Snapshot `ttl` you set; kept indefinitely by default | `terminationPolicy.snapshot.ttl`, `snapshots.retire()`. |
 | — | Automatic crash recovery (`recovering`, `recoveryAt`) | New. |
 | Reattach to a running sandbox by ID (`resume` + `connect`) | Keep the `Sandbox` object; a `connect(id)`-style method is **coming soon** | See [Reattaching](#reattaching-to-a-running-sandbox). |
@@ -109,11 +81,10 @@ is always in `statusReason` (see [Sandboxes & Snapshots](./sandboxes.md)).
 | --- | --- | --- |
 | `vmTier: VMTier.Nano` / `VMTier.fromSpecs()` | `cpu`, `memoryBytes` | See [tier table](#vm-tiers--cpu--memorybytes). Max 16 vCPU / 32 GB. |
 | `sandbox.updateTier()` (live resize) | — | Not supported. Terminate with snapshot, create with new specs. |
-| `sandbox.updateHibernationTimeout()` | — | Not supported. `ttl` is fixed at creation. |
+| `sandbox.updateHibernationTimeout()` | — | Sandboxes do not hibernate by default. Control hibernation yourself: track the activity that matters to you and call `terminate({ snapshot })` when the sandbox goes idle. |
 | `tags: string[]` | `tags: Record<string, string>` | |
 | `title`, `description`, `path` | `tags` | Store them as tags if you need them. |
 | `privacy` (`public` / `private` / `public-hosts` / `unlisted`) | — | Not supported. All ports are public. |
-| `ipcountry` | — | Not supported. |
 | `sdk.sandboxes.get(id)` | `sdk.sandboxes.get(id)` | Returns status, resources, tags, agent info — not title/privacy. |
 | `sdk.sandboxes.list({ tags, status, orderBy, direction, pagination })` | `sdk.sandboxes.list({ tags, statuses, snapshotId, limit, cursor })` | Cursor-paginated `Page`. No ordering options. |
 | `sdk.sandboxes.listRunning()` | `sdk.sandboxes.list({ statuses: ["running"] })` | Concurrency count/limit not exposed. |
@@ -124,17 +95,15 @@ is always in `statusReason` (see [Sandboxes & Snapshots](./sandboxes.md)).
 | CodeSandbox SDK | Together Sandbox | Notes |
 | --- | --- | --- |
 | `csb build <dir>` | `together-sandbox snapshots create --context <dir>` / `sdk.snapshots.create({ context })` | Remote build, no local Docker needed. |
-| Template from a Docker image (beta) | `snapshots create --image <ref>` / `sdk.snapshots.create({ image })` | |
 | `.codesandbox/Dockerfile`, `.devcontainer/devcontainer.json` | A plain `Dockerfile` | Dev Container spec and Docker Compose are not interpreted. |
 | `--alias namespace@alias` | `--alias` / `alias` / `sdk.snapshots.alias(id, alias)` | Aliases are mutable pointers. |
 | Template tag ID / template ID | Snapshot UUID or alias | |
 | `--ports`, `--vm-tier`, `--vm-build-tier`, `--from-sandbox` | — | Not applicable. Specs are chosen per sandbox. |
 | `--ci` | `--ci` | Prints only the snapshot ID on success. |
-| — | `cacheKey` / `--cache-key` | New: reuse layer cache across builds. |
 | Default "Universal" template | — | No default. Build or pick your own image. |
 | `setupTasks` in `.codesandbox/tasks.json` | Dockerfile `RUN` steps, or execs after create | Not supported as a concept. |
 | `tasks` in `.codesandbox/tasks.json` | `execs.create()` after create | Not supported as a concept. |
-| Git-backed persistence of `/project/workspace` | Whole filesystem snapshot on terminate | `.gitignore` is not honoured; everything is captured. |
+| Git-backed persistence of `/project/workspace` | Whole filesystem snapshot on terminate | Every change in the sandbox is persisted in the snapshot. |
 
 ### Inside the sandbox
 
@@ -194,36 +163,10 @@ is always in `statusReason` (see [Sandboxes & Snapshots](./sandboxes.md)).
 | `csb preview-hosts …` | — (not supported) |
 | `npx @codesandbox/sdk` | Install the binary with `install.sh` (the CLI is not on npm) |
 
-## No longer supported
-
-- Hibernate with memory, i.e. resuming with running processes intact
-  (**coming soon** as memory snapshots).
-- Resuming the *same* sandbox (same ID) after it stops.
-- Live forks of a running sandbox that keep the parent running.
-- Automatic wake-up on HTTP/WebSocket traffic (`automaticWakeupConfig`).
-- Inactivity-based auto-hibernation (`hibernationTimeoutSeconds`,
-  `updateHibernationTimeout`) — only absolute `ttl` from creation.
-- Live resizing (`updateTier`); VM tiers above 16 vCPU / 32 GB (Large, XLarge).
-- Privacy modes, private previews, host/preview tokens, preview-hosts
-  allow-list, `createPreview` iframe helper.
-- Sessions with read/write permissions, the browser and node clients
-  (`connectToSandbox`), `disconnect`/`reconnect`/`keepActiveWhileConnected`.
-- `.codesandbox/tasks.json` (setup tasks and tasks), `client.setup`,
-  `client.tasks`, `restartOn`.
-- Dev Container spec, Docker Compose auto-start, the default "Universal"
-  template, importing existing CodeSandbox templates or sandboxes.
-- `client.fs.download` zip URLs, `client.fs.batchWrite`.
-- Interpreters with automatic last-expression return.
-- Sandbox `title`/`description`/`path` metadata, `ipcountry`, custom IDs,
-  list ordering, `listRunning` concurrency counts.
-- OpenTelemetry `tracer` option, custom `fetch`/`headers`.
-- CLI: `host-tokens`, `preview-hosts`, the interactive dashboard.
-
 ## Coming soon
 
 | Feature | What to expect |
 | --- | --- |
-| Memory snapshots | Terminate with a disk + memory snapshot, so a new sandbox resumes with processes intact — the true equivalent of `hibernate`. Today `Snapshot.memory` is always `false`. |
 | Preview URL template (`url_format`) | The sandbox model will carry a URL template such as `https://testsandbox-PORT.na-us-ce-01.cluster.csb.app`. Replace `PORT` with the port you want (e.g. `8080`). |
 | Reattach by ID | A method to get a connected `Sandbox` for an already-running sandbox from its ID (name TBD). |
 
@@ -233,9 +176,9 @@ is always in `statusReason` (see [Sandboxes & Snapshots](./sandboxes.md)).
 
 Follow the procedure in order. Every rule states the old pattern, the new
 pattern, and behavioural differences you must account for. When the old code
-relies on a feature listed in [No longer supported](#no-longer-supported),
-do not invent a substitute: flag it to the user with a `TODO(migration)`
-comment and describe the gap.
+relies on a feature that the [feature map](#feature-map) shows has no
+equivalent (—), do not invent a substitute: flag it to the user with a
+`TODO(migration)` comment and describe the gap.
 
 ## 1. Detect old usage
 
@@ -273,9 +216,11 @@ csb (build|sandboxes|host-tokens|preview-hosts)|npx @codesandbox/sdk
    in code with the alias.
 3. **Client construction** (§4.1).
 4. **Sandbox creation and lifecycle** (§4.2, §4.3). Wherever the app stores a
-   sandbox ID across a hibernate/resume cycle, change it to store either the
-   latest sandbox ID *and* the snapshot alias it was terminated to, or just the
-   alias. Add `terminationPolicy` wherever state must survive.
+   sandbox ID across a hibernate/resume cycle, change it to store the snapshot
+   the sandbox was terminated to: either its alias, or its snapshot ID
+   (`` (await sdk.snapshots.getByAlias(`sandbox:${id}`)).id ``), optionally
+   alongside the latest sandbox ID. Add `terminationPolicy` wherever state must
+   survive.
 5. **Remove `connect()` / sessions** (§4.5, §4.10). Use the `Sandbox` returned by
    `create()` directly.
 6. **In-VM operations** (§4.6 – §4.9).
@@ -288,11 +233,12 @@ csb (build|sandboxes|host-tokens|preview-hosts)|npx @codesandbox/sdk
     notes where behaviour is lost.
 12. Run the [checklist](#5-checklist).
 
-## 3. Key semantic differences (read before rewriting)
+## 3. Key semantic differences
 
-- **Termination is final.** `terminate()` tears the VM down. To continue,
-  create a new sandbox from the snapshot. There is no way to start a terminated
-  sandbox again.
+- **Hibernate = terminate with snapshot; resume = create from snapshot.**
+  `terminate({ snapshot })` tears the VM down and saves its state as a
+  snapshot. To resume, create a sandbox from that snapshot. The resumed
+  sandbox gets a new ID.
 - **The produced snapshot is aliased `sandbox:<sandboxId>`.** Additional aliases
   can be set in `terminationPolicy.snapshot.aliases` (at create) or in
   `terminate({ snapshot: { aliases } })` (overrides the stored policy for that
@@ -300,9 +246,13 @@ csb (build|sandboxes|host-tokens|preview-hosts)|npx @codesandbox/sdk
 - **`terminate()` without options uses the stored policy.** If the sandbox was
   created without `terminationPolicy` it is ephemeral and nothing is kept.
   `terminate({ snapshot: null })` forces an ephemeral teardown.
-- **Disk only.** Only the filesystem is snapshotted. Processes, open ports and
-  in-memory state are lost. After every create, re-run whatever the app needs
-  running (the old `bootupType === "CLEAN"` branch is now the only branch).
+- **Memory is opt-in.** `snapshot.memory` defaults to `false`: only the
+  filesystem is snapshotted, and processes, open ports and in-memory state are
+  lost, so re-run whatever the app needs after create (the old
+  `bootupType === "CLEAN"` branch). With `memory: true`, a sandbox created from
+  the snapshot resumes with its processes intact (the old `RESUME` boot). To
+  check which you got, read the produced snapshot's `memory` field
+  (`` sdk.snapshots.getByAlias(`sandbox:${id}`) ``).
 - **The whole filesystem is snapshotted**, not just `/project/workspace`, and
   `.gitignore` is not honoured. There is no `/project/workspace` convention;
   the working directory is whatever your Dockerfile sets (`WORKDIR`). Use
@@ -424,21 +374,31 @@ Limits: `cpu` 0.1–16, `memoryBytes` between 1 and 8 GB per CPU, max
 
 ```typescript
 // Before
-await sdk.sandboxes.hibernate(sandboxId);
-// or
-await sdk.sandboxes.shutdown(sandboxId);
+await sdk.sandboxes.hibernate(sandboxId); // memory + disk
+await sdk.sandboxes.shutdown(sandboxId); // disk only
 
-// After (disk-only snapshot; memory snapshots coming soon)
+// After — hibernate: snapshot disk and memory
 await sdk.sandboxes.terminate(sandboxId, {
-  snapshot: { aliases: ["user-42@latest"] },
+  snapshot: { memory: true, aliases: ["user-42@latest"] },
+});
+// After — shutdown: snapshot disk only (memory defaults to false)
+await sdk.sandboxes.terminate(sandboxId, {
+  snapshot: { memory: false, aliases: ["user-42@latest"] },
 });
 // or, with the Sandbox object:
-await sandbox.terminate({ snapshot: { aliases: ["user-42@latest"] } });
+await sandbox.terminate({ snapshot: { memory: true, aliases: ["user-42@latest"] } });
 ```
 
 ```python
-await sdk.sandboxes.terminate(sandbox_id, snapshot={"aliases": ["user-42@latest"]})
+# hibernate
+await sdk.sandboxes.terminate(sandbox_id, snapshot={"memory": True, "aliases": ["user-42@latest"]})
+# shutdown
+await sdk.sandboxes.terminate(sandbox_id, snapshot={"memory": False, "aliases": ["user-42@latest"]})
 ```
+
+`memory` can also be set at creation, in
+`terminationPolicy: { snapshot: { memory: true, … } }`, so that a plain
+`terminate()` — or the `ttl` expiring — hibernates.
 
 If the sandbox was created with a `terminationPolicy`, a plain
 `terminate()` applies it. Choose one place (create-time policy or
@@ -456,10 +416,12 @@ if (sandbox.bootupType === "CLEAN") {
 // After
 const sandbox = await sdk.sandboxes.create({
   snapshotAlias: `sandbox:${previousSandboxId}`, // or "user-42@latest"
-  terminationPolicy: { snapshot: { aliases: ["user-42@latest"] } },
+  terminationPolicy: { snapshot: { memory: true, aliases: ["user-42@latest"] } },
 });
 await db.saveSandboxId(userId, sandbox.id); // NEW ID — persist it
-await startProcesses(sandbox); // always: processes do not survive
+// From a memory snapshot, processes are already running. From a disk-only
+// snapshot (old CLEAN boot), start them again:
+// await startProcesses(sandbox);
 ```
 
 ```python
@@ -547,9 +509,10 @@ There is no idle detection. Options, in order of preference:
 
 #### Boot type → status reason
 
-`sandbox.bootupType` has no equivalent. `sandbox.vmInfo.status` /
-`statusReason` tell you the state (`running` / `cold_started` or `restored`).
-Treat every newly created sandbox as a clean boot and run your startup steps.
+`sandbox.bootupType` has no direct equivalent. `sandbox.vmInfo.statusReason`
+is `restored` when the sandbox resumed from a memory snapshot (old `RESUME`)
+and `cold_started` when it booted from disk (old `CLEAN` / `FORK`). Run your
+startup steps on a cold start.
 
 #### Reattaching to a running sandbox
 
@@ -1000,14 +963,16 @@ try {
 | `csb sandboxes list -t tag -s running` | `together-sandbox sandboxes list --tag k=v` (running by default; `--all`, `--status`) |
 | `csb sandboxes list -o id,…` | `together-sandbox sandboxes list -o json` |
 | `csb sandboxes fork <id>` | `together-sandbox sandboxes terminate <id> --snapshot-alias ns@x && together-sandbox sandboxes create @ns@x` |
-| `csb sandboxes hibernate <id>` / `shutdown <id>` | `together-sandbox sandboxes terminate <id> --snapshot-alias ns@x` |
+| `csb sandboxes hibernate <id>` | `together-sandbox sandboxes terminate <id> --snapshot-memory --snapshot-alias ns@x` |
+| `csb sandboxes shutdown <id>` | `together-sandbox sandboxes terminate <id> --snapshot-alias ns@x` |
 | resume (dashboard) | `together-sandbox sandboxes create @sandbox:<id>` |
 | delete | `together-sandbox sandboxes terminate <id> --ephemeral` |
 | dashboard terminal | `together-sandbox sandbox exec run <id> -it -- bash` |
 | `csb host-tokens …`, `csb preview-hosts …` | Remove (not supported). |
 
 `sandboxes create` flags: `--cpu`, `--memory-bytes`, `--ttl`, `--tag K=V`,
-`--snapshot-on-terminate`, `--snapshot-alias`, `--snapshot-ttl`. Without
+`--snapshot-on-terminate`, `--snapshot-memory`, `--snapshot-alias`,
+`--snapshot-ttl`. Without
 `--snapshot-on-terminate` the sandbox is ephemeral. Install the CLI with
 `curl -fsSL https://raw.githubusercontent.com/togethercomputer/together-sandbox/main/install.sh | bash`
 (it is not published to npm). See [CLI](./cli.md).
@@ -1023,11 +988,12 @@ try {
 - [ ] Every `create` passes `snapshotAlias`/`snapshotId`, explicit `cpu` /
       `memoryBytes` if not default, and `terminationPolicy` where state must
       persist.
-- [ ] `hibernate` / `shutdown` → `terminate({ snapshot })`; `resume` /
+- [ ] `hibernate` → `terminate({ snapshot: { memory: true } })`, `shutdown` →
+      `terminate({ snapshot: { memory: false } })`; `resume` /
       `restart` / `fork` → `create` from `sandbox:<id>` or an alias; the new
       sandbox ID is persisted.
-- [ ] Startup processes are re-run after every create (no reliance on
-      `bootupType` or surviving processes).
+- [ ] Startup processes are re-run after every cold start (disk-only
+      snapshot); only memory snapshots keep processes running.
 - [ ] `connect()`, sessions, `disconnect`, `keepActiveWhileConnected` removed.
 - [ ] All paths are absolute; no reliance on `/project/workspace`.
 - [ ] `commands.run` callers check `exitCode` instead of catching

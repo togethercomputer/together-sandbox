@@ -78,7 +78,7 @@ Resource params (`cpu`, `memoryBytes`) default to **1 vCPU / 2 GiB memory** if o
 | `memoryBytes`   | `number`  | No       | Memory allocation in bytes (1–8 GB per CPU). Default: `2 * 1024 * 1024 * 1024` (2 GiB). |
 | `ttl`           | `number`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
 | `tags`          | `object`  | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
-| `terminationPolicy` | `object` | No    | Termination policy `{ snapshot: { aliases?: string[], ttl?: number, tags?: Record<string, string> } }`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
+| `terminationPolicy` | `object` | No    | Termination policy `{ snapshot: { memory?: boolean, aliases?: string[], ttl?: number, tags?: Record<string, string> } }`. `memory: true` also snapshots memory (hibernate). Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
 Sandboxes start automatically on creation, so there is no separate start step. A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshotAlias: "sandbox:<id>"`).
 
@@ -96,7 +96,7 @@ console.log(info.status, info.statusReason);
 
 #### `sdk.sandboxes.terminate(sandboxId, options?): Promise<void>`
 
-Terminates a VM by sandbox ID. `options.snapshot` (`{ aliases, ttl, tags }`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `null` for an ephemeral teardown (no snapshot).
+Terminates a VM by sandbox ID. `options.snapshot` (`{ memory, aliases, ttl, tags }`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `null` for an ephemeral teardown (no snapshot).
 
 ```typescript
 await sdk.sandboxes.terminate("your-sandbox-id", {
@@ -537,7 +537,7 @@ const stream = await sandbox.ports.streamList();
 
 Terminate this VM. After this the sandbox is terminal and cannot be used again.
 
-`options.snapshot` (`{ aliases, ttl, tags }`) overrides what this
+`options.snapshot` (`{ memory, aliases, ttl, tags }`) overrides what this
 teardown snapshots — omit it to use the sandbox's stored termination policy, or
 pass `null` for an ephemeral teardown (no snapshot).
 
@@ -547,7 +547,13 @@ await sandbox.terminate();
 
 // Snapshot the filesystem and alias it, so a new sandbox can start from it
 await sandbox.terminate({ snapshot: { aliases: ["my-app@v2"] } });
+
+// Snapshot the filesystem and memory, so a new sandbox can resume from it
+await sandbox.terminate({ snapshot: { memory: true } });
 ```
+
+`memory` defaults to `false`. A sandbox created from a snapshot with memory
+resumes with its processes intact.
 
 ---
 

@@ -6,7 +6,7 @@ This document explains the core concepts behind Together Sandbox: what sandboxes
 
 ## What is a sandbox?
 
-A sandbox is a virtual machine that runs on Together's infrastructure. You create one — it starts automatically — run code inside it (via shell commands, file operations, and port forwarding), then terminate it. When a sandbox terminates it snapshots its filesystem; to carry that filesystem forward you create a new sandbox from the produced snapshot. Once terminated, a sandbox cannot be used again. Sandboxes can optionally be created as **ephemeral**, in which case they take no snapshot and are automatically deleted when they terminate.
+A sandbox is a virtual machine that runs on Together's infrastructure. You create one — it starts automatically — run code inside it (via shell commands, file operations, and port forwarding), then terminate it. When a sandbox terminates it snapshots its filesystem — and, optionally, its memory; to carry that state forward you create a new sandbox from the produced snapshot. Once terminated, a sandbox cannot be used again. Sandboxes can optionally be created as **ephemeral**, in which case they take no snapshot and are automatically deleted when they terminate.
 
 Every sandbox is backed by a **snapshot**.
 
@@ -14,7 +14,7 @@ Every sandbox is backed by a **snapshot**.
 
 ## What is a snapshot?
 
-A snapshot is a compressed, immutable disk image stored in Together's registry. It defines the filesystem that a sandbox starts from.
+A snapshot is a compressed, immutable disk image stored in Together's registry. It defines the filesystem (and optionally the in-memory state) that a sandbox starts from.
 
 Snapshots are created from Docker images — either by building from a Dockerfile or by referencing an existing image. Once registered, a snapshot can be used to start any number of sandboxes. They are also automatically generated when you terminate a sandbox.
 
@@ -87,15 +87,37 @@ When a sandbox reaches the `terminated` state, the `status_reason` field records
 ## Terminating
 
 Terminating a sandbox tears it down for good. `terminate()` takes a
-`snapshot` object `{ aliases, ttl, tags }` selecting which aliases and tags to
-apply to the snapshot taken on teardown. Omit it to use the policy the sandbox
-was created with, or pass `null` to make the teardown ephemeral (no snapshot).
+`snapshot` object `{ memory, aliases, ttl, tags }` selecting what to snapshot
+first, plus which aliases and tags to apply to the produced snapshot. Omit it
+to use the policy the sandbox was created with, or pass `null` to make the
+teardown ephemeral (no snapshot).
+
+`memory` picks between the two useful teardowns:
+
+### Filesystem only — `{ memory: false }` (default)
 
 ```typescript
 await sandbox.terminate({ snapshot: { aliases: ["my-app@v2"] } });
 ```
 
-The VM is torn down cleanly and its filesystem is snapshotted. A new sandbox created from the resulting snapshot boots from disk with a clean slate — no in-memory state is carried over.
+The VM is torn down cleanly without preserving memory. A new sandbox created from the resulting snapshot boots from disk with a clean slate — no in-memory state is carried over. Cold starts are slower than resumes.
+
+Use this when you want a clean restart or when ongoing state doesn't matter.
+
+### Filesystem and memory — `{ memory: true }`
+
+```typescript
+await sandbox.terminate({ snapshot: { memory: true, aliases: ["my-app@paused"] } });
+```
+
+This suspends the VM and **preserves its full memory state** as a new snapshot. To continue, you create a new sandbox from that snapshot; it resumes from exactly where it left off — running processes, open file descriptors, and all. This resume is fast because the OS does not need to boot.
+
+Use it when you want to pause a sandbox and come back to it later with its state intact.
+
+`status_reason` does not indicate whether a memory snapshot was captured. To
+tell whether teardown preserved in-memory state, inspect the produced snapshot
+(aliased `sandbox:<sandboxId>`): its `memory` field is `true` when a memory
+snapshot was captured and `false` otherwise.
 
 ---
 
@@ -163,7 +185,7 @@ The progress `step` field cycles through these stages:
 | `byte_size`                | `integer`        | Compressed size on disk                                          |
 | `tags`                     | `object`         | Arbitrary key/value labels                                       |
 | `ttl`                      | `integer \| null`| Seconds before automatic retirement, or `null` to disable        |
-| `memory`                   | `boolean`        | Whether this snapshot includes in-memory state; always `false`   |
+| `memory`                   | `boolean`        | Whether this snapshot includes in-memory state                   |
 | `retired_at`               | `string \| null` | ISO-8601 timestamp of when the snapshot was retired, or `null` if active |
 | `created_at`               | `string`         | ISO-8601 creation timestamp                                      |
 | `updated_at`               | `string`         | ISO-8601 last-update timestamp                                   |
@@ -290,7 +312,8 @@ The SDK wraps these automatically — you don't need to use them directly. The `
 | ---------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
 | Create sandbox               | `sdk.sandboxes.create({ snapshotAlias: "…" })` | `sdk.sandboxes.create(snapshot_alias="…")`                       |
 | Terminate sandbox            | `sandbox.terminate()`                          | `sandbox.terminate()`                                            |
-| Terminate, alias the snapshot | `sandbox.terminate({ snapshot: { aliases: ["my-app@v2"] } })` | `sandbox.terminate(snapshot={"aliases": ["my-app@v2"]})` |
+| Terminate, snapshot disk     | `sandbox.terminate({ snapshot: { aliases: ["my-app@v2"] } })` | `sandbox.terminate(snapshot={"aliases": ["my-app@v2"]})` |
+| Terminate, snapshot disk+RAM | `sandbox.terminate({ snapshot: { memory: true } })` | `sandbox.terminate(snapshot={"memory": True})` |
 | List sandboxes               | `sdk.sandboxes.list()`                         | `sdk.sandboxes.list()`                                           |
 | Create snapshot (Dockerfile) | `sdk.snapshots.create({ context: "…" })`       | `sdk.snapshots.create(CreateContextSnapshotParams(context="…"))` |
 | Create snapshot (image)      | `sdk.snapshots.create({ image: "…" })`         | `sdk.snapshots.create(CreateImageSnapshotParams(image="…"))`     |

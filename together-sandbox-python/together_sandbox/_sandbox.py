@@ -554,6 +554,7 @@ class Sandbox:
 
         await sandbox.terminate()
         await sandbox.terminate(snapshot={"aliases": ["prod"]})
+        await sandbox.terminate(snapshot={"memory": True})
 
     Can be used as an async context manager::
 
@@ -622,9 +623,9 @@ class Sandbox:
         Args:
             snapshot: What this teardown snapshots, overriding the snapshot the
                 sandbox's stored termination policy would take, e.g.
-                ``{"aliases": ["prod"]}``. Omit (the default) to keep the stored
-                policy; pass ``None`` to make the teardown ephemeral (no
-                snapshot).
+                ``{"memory": True}`` to snapshot memory as well as the
+                filesystem. Omit (the default) to keep the stored policy; pass
+                ``None`` to make the teardown ephemeral (no snapshot).
         """
         await _call_api(
             "api.terminate_sandbox",
