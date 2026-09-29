@@ -35,6 +35,7 @@ export TOGETHER_API_KEY=your_api_key
 | [SDK reference](./docs/sdk.md)               | Complete API surface for this {{LANGUAGE}} SDK — clients, namespaces, methods, error handling, retry config. |
 | [CLI reference](./docs/cli.md)               | The `together-sandbox` CLI for building and publishing snapshots.                                            |
 | [Sandboxes & snapshots](./docs/sandboxes.md) | Conceptual overview — what a sandbox is, what a snapshot is, how they relate.                                |
+| [Migrating from CodeSandbox](./docs/migrating-from-codesandbox.md) | Old CodeSandbox SDK → Together Sandbox concept map, rewrite rules, and unsupported features. |
 
 ## Environment variables
 

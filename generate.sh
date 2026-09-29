@@ -140,6 +140,7 @@ bundle_docs() {
   cp "$SRC_DOCS/$sdk_doc"     "$docs_target/sdk.md"
   cp "$SRC_DOCS/cli.md"       "$docs_target/cli.md"
   cp "$SRC_DOCS/sandboxes.md" "$docs_target/sandboxes.md"
+  cp "$SRC_DOCS/migrating-from-codesandbox.md" "$docs_target/migrating-from-codesandbox.md"
 
   # Render LLMS.md from the shared template:
   #   - strip the leading <!-- ... --> editor note
