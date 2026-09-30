@@ -87,7 +87,7 @@ Resource params (`cpu`, `memory_bytes`) default to **1 vCPU / 2 GiB memory** if 
 | `memory_bytes`   | `int`          | No       | Memory allocation in bytes (1–8 GB per CPU). Default: `2 * 1024 ** 3` (2 GiB).         |
 | `ttl`            | `int \| None`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
 | `tags`           | `dict \| None` | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
-| `termination_policy` | `dict \| None` | No   | Termination policy `{"snapshot": {"aliases": [...], "ttl": int, "tags": {...}}}`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
+| `termination_policy` | `dict \| None` | No   | Termination policy `{"snapshot": {"memory": bool, "aliases": [...], "ttl": int, "tags": {...}}}`. `"memory": True` also snapshots memory (hibernate). Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
 Sandboxes start automatically on creation, so there is no separate start step. 
 A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshot_alias="sandbox:<id>"`).
@@ -106,7 +106,7 @@ print(info.status, info.status_reason)
 
 #### `sdk.sandboxes.terminate(sandbox_id, *, snapshot=UNSET): Coroutine[None]`
 
-Terminates a VM by sandbox ID. `snapshot` (`{"aliases": [...], "ttl": ..., "tags": {...}}`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `None` for an ephemeral teardown (no snapshot).
+Terminates a VM by sandbox ID. `snapshot` (`{"memory": ..., "aliases": [...], "ttl": ..., "tags": {...}}`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `None` for an ephemeral teardown (no snapshot).
 
 ```python
 await sdk.sandboxes.terminate("your-sandbox-id", snapshot={"aliases": ["my-app@v2"]})
@@ -548,7 +548,7 @@ async for event in sandbox.ports.stream_list():
 
 Terminate this VM. After this the sandbox is terminal and cannot be used again.
 
-`snapshot` (`{"aliases": [...], "ttl": ..., "tags": {...}}`)
+`snapshot` (`{"memory": ..., "aliases": [...], "ttl": ..., "tags": {...}}`)
 overrides what this teardown snapshots — omit it to use the sandbox's stored
 termination policy, or pass `None` for an ephemeral teardown (no snapshot).
 
@@ -558,7 +558,13 @@ await sandbox.terminate()
 
 # Snapshot the filesystem and alias it, so a new sandbox can start from it
 await sandbox.terminate(snapshot={"aliases": ["my-app@v2"]})
+
+# Snapshot the filesystem and memory, so a new sandbox can resume from it
+await sandbox.terminate(snapshot={"memory": True})
 ```
+
+`memory` defaults to `False`. A sandbox created from a snapshot with memory
+resumes with its processes intact.
 
 #### `sandbox.close() -> None`
 

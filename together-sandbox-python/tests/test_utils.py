@@ -244,3 +244,31 @@ class TestRetryConfigDocstring:
         assert RetryConfig.__doc__ is not None
         assert "return result" not in RetryConfig.__doc__
 
+
+
+# ─── Termination snapshot builders ────────────────────────────────────────────
+
+
+class TestBuildTerminationSnapshot:
+    def test_memory_is_sent_when_set(self):
+        from together_sandbox._utils import build_termination_snapshot
+
+        body = build_termination_snapshot({"memory": True, "aliases": ["a"]}).to_dict()
+        assert body == {"memory": True, "aliases": ["a"]}
+
+    def test_memory_is_omitted_when_not_given(self):
+        from together_sandbox._utils import build_termination_snapshot
+
+        body = build_termination_snapshot({"aliases": ["a"]}).to_dict()
+        assert "memory" not in body
+
+    def test_none_is_an_ephemeral_teardown(self):
+        from together_sandbox._utils import build_termination_snapshot
+
+        assert build_termination_snapshot(None) is None
+
+    def test_policy_nests_memory_under_snapshot(self):
+        from together_sandbox._utils import build_termination_policy
+
+        body = build_termination_policy({"snapshot": {"memory": True}}).to_dict()
+        assert body == {"snapshot": {"memory": True}}

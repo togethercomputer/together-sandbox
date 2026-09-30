@@ -83,6 +83,7 @@ The canonical docs live in [`docs/`](./docs/) and are the single source of truth
 - [CLI](./docs/cli.md)
 - [TypeScript SDK](./docs/typescript-sdk.md)
 - [Python SDK](./docs/python-sdk.md)
+- [Migrating from CodeSandbox SDK](./docs/migrating-from-codesandbox.md)
 
 ### Bundled per-SDK docs
 

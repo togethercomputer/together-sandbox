@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { callApi, withRetry } from "./utils.js";
+import {
+  callApi,
+  terminationPolicyBody,
+  terminationSnapshotBody,
+  withRetry,
+} from "./utils.js";
 import type { RetryContext } from "./types.js";
 import { HttpError } from "./errors.js";
 
@@ -1068,6 +1073,45 @@ describe("withRetry", () => {
         2,
         expect.objectContaining({ delay: 1000 }),
       );
+    });
+  });
+});
+
+// ─── Termination snapshot bodies ─────────────────────────────────────────────
+
+describe("terminationSnapshotBody", () => {
+  it("passes memory through with the other snapshot fields", () => {
+    expect(
+      terminationSnapshotBody({
+        memory: true,
+        aliases: ["my-app@v2"],
+        ttl: 60,
+        tags: { team: "platform" },
+      }),
+    ).toEqual({
+      memory: true,
+      aliases: ["my-app@v2"],
+      ttl: 60,
+      tags: { team: "platform" },
+    });
+  });
+
+  it("leaves memory unset when it is omitted", () => {
+    expect(terminationSnapshotBody({ aliases: ["a"] })?.memory).toBeUndefined();
+  });
+
+  it("passes null and undefined through unchanged", () => {
+    expect(terminationSnapshotBody(null)).toBeNull();
+    expect(terminationSnapshotBody(undefined)).toBeUndefined();
+  });
+});
+
+describe("terminationPolicyBody", () => {
+  it("nests memory under snapshot", () => {
+    expect(
+      terminationPolicyBody({ snapshot: { memory: true, aliases: ["a"] } }),
+    ).toEqual({
+      snapshot: { memory: true, aliases: ["a"], ttl: undefined, tags: undefined },
     });
   });
 });

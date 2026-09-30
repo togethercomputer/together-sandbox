@@ -78,6 +78,11 @@ export type TerminationPolicy = {
  */
 export type TerminationSnapshot = {
     /**
+     * When true both the filesystem and memory are snapshotted (hibernate); when false only the filesystem is snapshotted (stop).
+     *
+     */
+    memory?: boolean;
+    /**
      * Aliases to apply to the produced snapshot.
      */
     aliases?: Array<string>;

@@ -268,6 +268,7 @@ Create a sandbox from a snapshot and wait until it is running. `<ref>` is a snap
 | `--ttl <seconds>`          | `number`  | Seconds after creation before the sandbox is automatically terminated.                                            |
 | `--tag KEY=VALUE`          | `string`  | Tag the sandbox. Repeatable.                                                                                      |
 | `--snapshot-on-terminate`  | `boolean` | Snapshot the sandbox when it terminates. Without this the sandbox is **ephemeral**: no snapshot, deleted on teardown. |
+| `--snapshot-memory`        | `boolean` | With `--snapshot-on-terminate`, snapshot memory as well as the filesystem (hibernate).                            |
 | `--snapshot-alias <alias>` | `string`  | With `--snapshot-on-terminate`, alias to apply to the produced snapshot. Repeatable.                              |
 | `--snapshot-ttl <seconds>` | `number`  | With `--snapshot-on-terminate`, seconds before the produced snapshot expires.                                     |
 
@@ -282,6 +283,7 @@ Terminate a sandbox and wait until it is torn down. Termination is permanent —
 | Option                     | Type      | Description                                                       |
 | -------------------------- | --------- | ------------------------------------------------------------------- |
 | `--ephemeral`              | `boolean` | Take no snapshot at all, overriding the stored policy.            |
+| `--snapshot-memory`        | `boolean` | Snapshot memory as well as the filesystem (hibernate).            |
 | `--snapshot-alias <alias>` | `string`  | Alias to apply to the produced snapshot. Repeatable.              |
 | `--snapshot-ttl <seconds>` | `number`  | Seconds before the produced snapshot expires.                     |
 | `--snapshot-tag KEY=VALUE` | `string`  | Tag the produced snapshot. Repeatable.                            |

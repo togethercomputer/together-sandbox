@@ -42,7 +42,7 @@ const SANDBOX_STATUSES = [
 function formatTerminationPolicy(s: SandboxInfo): string {
   const snapshot = s.terminationPolicy?.snapshot;
   if (!snapshot) return "<ephemeral>";
-  const parts = ["filesystem"];
+  const parts = [snapshot.memory ? "filesystem+memory" : "filesystem"];
   if (snapshot.aliases?.length) parts.push(`aliases=${snapshot.aliases.join(",")}`);
   if (snapshot.ttl !== undefined) parts.push(`ttl=${snapshot.ttl}s`);
   return parts.join(" ");
@@ -337,6 +337,7 @@ interface CreateOptions {
   ttl?: number;
   tag?: string[];
   snapshotOnTerminate?: boolean;
+  snapshotMemory?: boolean;
   snapshotAlias?: string[];
   snapshotTtl?: number;
 }
@@ -367,6 +368,12 @@ function createOptionsBuilder<T>(yargs: yargs.Argv<T>) {
       describe:
         "Snapshot the sandbox when it terminates. Without this the sandbox is " +
         "ephemeral: no snapshot is taken and it is deleted on termination",
+    })
+    .option("snapshot-memory", {
+      type: "boolean",
+      describe:
+        "With --snapshot-on-terminate, snapshot memory as well as the filesystem " +
+        "(hibernate), so a sandbox created from it resumes with its processes intact",
     })
     .option("snapshot-alias", {
       type: "string",
@@ -401,6 +408,7 @@ function buildCreateParams(argv: CreateOptions, ref: string) {
     terminationPolicy: argv.snapshotOnTerminate
       ? {
           snapshot: {
+            memory: argv.snapshotMemory,
             aliases: argv.snapshotAlias,
             ttl: argv.snapshotTtl,
           },
@@ -475,6 +483,7 @@ export const createCommand: yargs.CommandModule<
 interface TerminateArgs {
   id: string;
   ephemeral?: boolean;
+  snapshotMemory?: boolean;
   snapshotAlias?: string[];
   snapshotTtl?: number;
   snapshotTag?: string[];
@@ -490,11 +499,13 @@ function terminateSnapshotOverride(
 ): TerminationSnapshotParams | null | undefined {
   if (argv.ephemeral) return null;
   const overridden =
+    argv.snapshotMemory !== undefined ||
     argv.snapshotAlias !== undefined ||
     argv.snapshotTtl !== undefined ||
     argv.snapshotTag !== undefined;
   if (!overridden) return undefined;
   return {
+    memory: argv.snapshotMemory,
     aliases: argv.snapshotAlias,
     ttl: argv.snapshotTtl,
     tags: parseKeyValues(argv.snapshotTag, "--snapshot-tag"),
@@ -520,6 +531,12 @@ export const terminateCommand: yargs.CommandModule<
         type: "boolean",
         describe: "Take no snapshot at all, overriding the stored policy",
       })
+      .option("snapshot-memory", {
+        type: "boolean",
+        describe:
+          "Snapshot memory as well as the filesystem (hibernate), so a sandbox " +
+          "created from it resumes with its processes intact",
+      })
       .option("snapshot-alias", {
         type: "string",
         array: true,
@@ -534,7 +551,12 @@ export const terminateCommand: yargs.CommandModule<
         array: true,
         describe: "Tag the produced snapshot, KEY=VALUE (repeatable)",
       })
-      .conflicts("ephemeral", ["snapshot-alias", "snapshot-ttl", "snapshot-tag"])
+      .conflicts("ephemeral", [
+        "snapshot-memory",
+        "snapshot-alias",
+        "snapshot-ttl",
+        "snapshot-tag",
+      ])
       .epilogue(
         examples(
           [
@@ -551,6 +573,11 @@ export const terminateCommand: yargs.CommandModule<
               describe: "Snapshot on teardown under a known alias",
               command:
                 "$0 sandboxes terminate <sandbox-id> --snapshot-alias my-app@paused",
+            },
+            {
+              describe: "Hibernate: snapshot memory too, so processes resume",
+              command:
+                "$0 sandboxes terminate <sandbox-id> --snapshot-memory --snapshot-alias my-app@paused",
             },
           ],
           "With no snapshot flags, the sandbox's stored termination policy applies.",

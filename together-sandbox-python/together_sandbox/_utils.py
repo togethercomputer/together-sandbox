@@ -25,7 +25,7 @@ def build_termination_snapshot(snapshot: dict | None | Unset = UNSET):
     """Build a ``TerminationSnapshot`` request model from a plain dict.
 
     ``snapshot`` is the flat shape
-    ``{"aliases": [...], "ttl": int, "tags": {...}}``. Pass
+    ``{"memory": bool, "aliases": [...], "ttl": int, "tags": {...}}``. Pass
     ``UNSET`` (the default) to leave it unset, or ``None`` to send an explicit
     null (an ephemeral teardown that takes no snapshot).
     """
@@ -37,6 +37,7 @@ def build_termination_snapshot(snapshot: dict | None | Unset = UNSET):
         return None
     tags = snapshot.get("tags")
     return TerminationSnapshot(
+        memory=snapshot.get("memory", UNSET),
         aliases=snapshot.get("aliases", UNSET),
         ttl=snapshot.get("ttl", UNSET),
         tags=(Tags.from_dict(tags) if tags is not None else UNSET),
@@ -60,7 +61,7 @@ def build_termination_policy(termination_policy: dict | None):
     """Build the ``TerminationPolicy`` request model from a plain dict.
 
     ``termination_policy`` is the nested shape
-    ``{"snapshot": {"aliases": [...], "ttl": int, "tags": {...}}}``,
+    ``{"snapshot": {"memory": bool, "aliases": [...], "ttl": int, "tags": {...}}}``,
     or None to leave it unset (ephemeral on create). Used by ``create``.
     """
     if termination_policy is None:

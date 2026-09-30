@@ -115,8 +115,11 @@ class SandboxesNamespace:
                 automatically terminated.
             tags: Optional key/value labels to attach to the sandbox.
             termination_policy: The termination snapshot policy, e.g.
-                ``{"snapshot": {"aliases": ["prod"]}}``.
-                Omit for an ephemeral sandbox (no snapshot, deleted on termination).
+                ``{"snapshot": {"memory": True, "aliases": ["prod"]}}``.
+                ``memory`` (default ``False``) also snapshots memory, so a
+                sandbox created from the snapshot resumes with its processes
+                intact. Omit for an ephemeral sandbox (no snapshot, deleted on
+                termination).
 
         """
         body = CreateSandboxBody(
@@ -228,7 +231,8 @@ class SandboxesNamespace:
             sandbox_id: The sandbox to terminate.
             snapshot: What this teardown snapshots, overriding the snapshot the
                 sandbox's stored termination policy would take, e.g.
-                ``{"aliases": ["prod"]}``. Omit (the default) to keep the stored
+                ``{"memory": True, "aliases": ["prod"]}`` to snapshot memory as
+                well as the filesystem. Omit (the default) to keep the stored
                 policy; pass ``None`` to make the teardown ephemeral (no
                 snapshot). The produced snapshot is aliased as
                 ``sandbox:<sandbox id>`` plus any ``aliases``.
