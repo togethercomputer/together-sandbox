@@ -71,7 +71,7 @@ decision rather than a one-to-one rewrite.
 | `automaticWakeupConfig` (wake on HTTP/WS) | — | Not supported. A terminated sandbox never wakes. |
 | Memory-snapshot retention (≈7 days), archive | Snapshot `ttl` you set; kept indefinitely by default | `terminationPolicy.snapshot.ttl`, `snapshots.retire()`. |
 | — | Automatic crash recovery (`recovering`, `recoveryAt`) | New. |
-| Reattach to a running sandbox by ID (`resume` + `connect`) | Keep the `Sandbox` object; a `connect(id)`-style method is **coming soon** | See [Reattaching to a running sandbox](#reattaching-to-a-running-sandbox). |
+| Reattach to a running sandbox by ID (`resume` + `connect`) | Keep the `Sandbox` object, or rebuild it from `sdk.sandboxes.get(id)` | See [Reattaching to a running sandbox](#reattaching-to-a-running-sandbox). |
 
 ### Sandbox options and management
 
@@ -582,13 +582,13 @@ There is no idle detection. Options, in order of preference:
 
 ### Reattaching to a running sandbox
 
-Old stateless backends did `resume(id)` + `connect()` on every request. A
-method to reattach by ID is **coming soon**. Until then:
+Old stateless backends did `resume(id)` + `connect()` on every request. To
+use a sandbox that is still running from another request or process:
 
 - Keep the `Sandbox` object in memory (e.g. a `Map<string, Sandbox>` in the
   process that created it) for the sandbox's lifetime; or
-- As a stopgap, rebuild a `Sandbox` from its metadata. `agent.token` is a
-  secret — keep this server-side:
+- Rebuild a `Sandbox` from its metadata. `agent.token` is a secret — keep this
+  server-side:
 
 ```typescript
 import {
@@ -620,8 +620,6 @@ async function reattach(sdk: TogetherSandbox, id: string): Promise<Sandbox> {
   return new Sandbox(info, sandboxClient, apiClient);
 }
 ```
-
-Replace this helper with the official method once it ships.
 
 ### Listing
 
@@ -1026,7 +1024,6 @@ sdk = TogetherSandbox(retry=RetryConfig(
 | Feature | What to expect |
 | --- | --- |
 | Preview URL template (`url_format`) | The sandbox model will carry a URL template such as `https://testsandbox-PORT.na-us-ce-01.cluster.csb.app`. Replace `PORT` with the port you want (e.g. `8080`). |
-| Reattach by ID | A method to get a connected `Sandbox` for an already-running sandbox from its ID (name TBD). |
 
 ## Migration checklist
 

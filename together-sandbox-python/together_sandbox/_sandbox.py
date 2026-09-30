@@ -623,8 +623,9 @@ class Sandbox:
         Args:
             snapshot: What this teardown snapshots, overriding the snapshot the
                 sandbox's stored termination policy would take, e.g.
-                ``{"memory": True}`` to snapshot memory as well as the
-                filesystem. Omit (the default) to keep the stored policy; pass
+                ``{"aliases": ["prod"]}`` snapshots only the filesystem, while
+                ``{"memory": True, "aliases": ["prod"]}`` snapshots memory as
+                well. Omit (the default) to keep the stored policy; pass
                 ``None`` to make the teardown ephemeral (no snapshot).
         """
         await _call_api(
