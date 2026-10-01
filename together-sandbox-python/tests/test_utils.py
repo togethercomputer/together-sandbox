@@ -140,6 +140,68 @@ class TestSandboxesCreate:
         assert captured_body["body"] is not None
 
 
+# ─── SandboxesNamespace.connect ──────────────────────────────────────────────
+
+
+class TestSandboxesConnect:
+    @pytest.mark.asyncio
+    async def test_connect_fetches_then_connects(self):
+        fetched = _make_sandbox_model(id="sb_1", status="running")
+        expected_sandbox = MagicMock(id="sb_1")
+
+        with (
+            patch(
+                "together_sandbox._sandboxes._call_api",
+                new=AsyncMock(return_value=fetched),
+            ) as mock_call,
+            patch(
+                "together_sandbox._sandboxes._connect_running_sandbox",
+                new=AsyncMock(return_value=expected_sandbox),
+            ) as mock_connect,
+        ):
+            ns = SandboxesNamespace(api_client=MagicMock())
+            result = await ns.connect("sb_1")
+
+        assert mock_call.call_args[0][0] == "api.get_sandbox"
+        assert result is expected_sandbox
+        mock_connect.assert_awaited_once_with(fetched, ns._api_client, ns._retry)
+
+    @pytest.mark.asyncio
+    async def test_connect_waits_for_starting_sandbox(self):
+        starting = _make_sandbox_model(id="sb_1", status="starting")
+        running = _make_sandbox_model(id="sb_1", status="running")
+
+        with (
+            patch(
+                "together_sandbox._sandboxes._call_api",
+                new=AsyncMock(side_effect=[starting, running]),
+            ) as mock_call,
+            patch("together_sandbox._sandboxes.SandboxClient"),
+            patch("together_sandbox._sandboxes.Sandbox", return_value=MagicMock()),
+        ):
+            ns = SandboxesNamespace(api_client=MagicMock())
+            await ns.connect("sb_1")
+
+        ops = [c[0][0] for c in mock_call.call_args_list]
+        assert ops == ["api.get_sandbox", "api.wait_for_sandbox"]
+
+    @pytest.mark.asyncio
+    async def test_connect_raises_for_terminated_sandbox(self):
+        terminated = _make_sandbox_model(id="sb_1", status="terminated")
+
+        with (
+            patch(
+                "together_sandbox._sandboxes._call_api",
+                new=AsyncMock(return_value=terminated),
+            ) as mock_call,
+            pytest.raises(RuntimeError),
+        ):
+            ns = SandboxesNamespace(api_client=MagicMock())
+            await ns.connect("sb_1")
+
+        mock_call.assert_awaited_once()
+
+
 # ─── _connect_running_sandbox ────────────────────────────────────────────────
 
 

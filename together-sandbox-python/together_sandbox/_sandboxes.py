@@ -50,7 +50,7 @@ async def _connect_running_sandbox(
     The wait phase is skipped when it has already settled on a non-transient
     status — waiting would just echo that status back.
 
-    Used by :meth:`SandboxesNamespace.create`.
+    Used by :meth:`SandboxesNamespace.create` and :meth:`SandboxesNamespace.connect`.
     """
     sandbox_id = sandbox.id
     vm_info: SandboxModel = sandbox
@@ -216,6 +216,25 @@ class SandboxesNamespace:
             self._retry,
             context=f"for sandbox {sandbox_id!r}",
         )
+
+    async def connect(self, sandbox_id: str) -> Sandbox:
+        """Connect to an existing sandbox by id.
+
+        Waits for the sandbox to settle if it is in a transient status (e.g.
+        ``starting``), and raises if it does not end up ``running``.
+
+        Args:
+            sandbox_id: The sandbox to connect to.
+
+        Returns:
+            Sandbox: A connected sandbox instance.
+
+        Example:
+            >>> sandbox = await sdk.sandboxes.connect("sb_1")
+            >>> content = await sandbox.files.read("/package.json")
+        """
+        sandbox_model = await self.get(sandbox_id)
+        return await _connect_running_sandbox(sandbox_model, self._api_client, self._retry)
 
     async def terminate(
         self,
