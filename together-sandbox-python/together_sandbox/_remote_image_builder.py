@@ -30,7 +30,7 @@ class RemoteImageBuilderClient:
         image_name: str,
         dockerfile: str = "Dockerfile",
         build_args: dict[str, str] | None = None,
-        nydus: bool = True,
+        optimization: str = "none",
         cache_key: str | None = None,
     ) -> str:
         """
@@ -43,7 +43,10 @@ class RemoteImageBuilderClient:
                 the server defaults to "latest".
             dockerfile: Dockerfile path relative to context_dir.
             build_args: Optional build arguments.
-            nydus: Produce a nydus-compressed image (default True).
+            optimization: What the build does beyond pushing the image, to
+                make a sandbox start from it faster: "none" (the default),
+                "nydus", or "erofs". One argument because these are
+                alternatives, not flags to combine.
             cache_key: Groups builds that share a registry-backed layer cache.
                 Omit to let the server default it to the image name minus tag.
 
@@ -83,7 +86,7 @@ class RemoteImageBuilderClient:
             "image_name": image_name,
             "dockerfile": dockerfile,
             "build_args": json.dumps(build_args or {}),
-            "nydus_convert": "true" if nydus else "false",
+            "optimization": optimization,
         }
         # Omitted, not empty, so the server-side default still applies.
         if cache_key:
