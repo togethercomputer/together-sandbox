@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.0.4...together-sandbox-workspace-v4.1.0) (2026-10-01)
+
+
+### Features
+
+* add connect to sandbox method in both sdks ([e8d0082](https://github.com/togethercomputer/together-sandbox/commit/e8d0082ae639ecb1d0a176b75ac71bcc93ae3ca7))
+
 ## [4.0.4](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.0.3...together-sandbox-workspace-v4.0.4) (2026-09-30)
 
 
