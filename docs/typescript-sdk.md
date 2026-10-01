@@ -87,11 +87,23 @@ Sandboxes start automatically on creation, so there is no separate start step. A
 Fetches a single sandbox's metadata by ID. Returns the same camelCased
 `SandboxInfo` record that `sdk.sandboxes.list()` yields — not a connected
 [`Sandbox`](#sandbox) instance, so it does not give you `.files`, `.execs`, or
-the other in-VM namespaces.
+the other in-VM namespaces. Use [`connect()`](#sdksandboxesconnectsandboxid-promisesandbox) for that.
 
 ```typescript
 const info = await sdk.sandboxes.get("your-sandbox-id");
 console.log(info.status, info.statusReason);
+```
+
+#### `sdk.sandboxes.connect(sandboxId): Promise<Sandbox>`
+
+Connects to an existing sandbox by ID and returns a connected
+[`Sandbox`](#sandbox) instance. If the sandbox is still in a transient status
+(e.g. `starting`), it waits for it to settle. Throws if the sandbox does not
+end up `running` (e.g. it is `terminated`).
+
+```typescript
+const sandbox = await sdk.sandboxes.connect("your-sandbox-id");
+const content = await sandbox.files.read("/package.json");
 ```
 
 #### `sdk.sandboxes.terminate(sandboxId, options?): Promise<void>`
@@ -280,7 +292,7 @@ const retired = await sdk.snapshots.retire("snapshot-id");
 
 ## `Sandbox`
 
-A connected, running VM. Returned by `sdk.sandboxes.create()`. All sub-namespaces are available as properties.
+A connected, running VM. Returned by `sdk.sandboxes.create()` and `sdk.sandboxes.connect()`. All sub-namespaces are available as properties.
 
 ### Properties
 

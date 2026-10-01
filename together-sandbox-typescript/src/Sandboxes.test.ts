@@ -172,6 +172,46 @@ describe("SandboxesNamespace.create", () => {
   });
 });
 
+// ─── SandboxesNamespace.connect ───────────────────────────────────────────────
+
+describe("SandboxesNamespace.connect", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns a Sandbox without waiting when the sandbox is already running", async () => {
+    mockCallApi.mockResolvedValueOnce(makeRawSandbox({ id: "sb_1", status: "running" }));
+
+    const ns = new SandboxesNamespace(makeApiClient());
+    const sandbox = await ns.connect("sb_1");
+
+    expect(mockCallApi).toHaveBeenCalledTimes(1);
+    expect(mockCallApi.mock.calls[0][0]).toBe("api.getSandbox");
+    expect(sandbox.id).toBe("sb_1");
+  });
+
+  it("waits for a starting sandbox to reach running", async () => {
+    mockCallApi
+      .mockResolvedValueOnce(makeRawSandbox({ id: "sb_1", status: "starting" }))
+      .mockResolvedValueOnce(makeRawSandbox({ id: "sb_1", status: "running" }));
+
+    const ns = new SandboxesNamespace(makeApiClient());
+    const sandbox = await ns.connect("sb_1");
+
+    expect(mockCallApi.mock.calls[0][0]).toBe("api.getSandbox");
+    expect(mockCallApi.mock.calls[1][0]).toBe("api.waitForSandbox");
+    expect(sandbox.id).toBe("sb_1");
+  });
+
+  it("throws without waiting when the sandbox is already terminated", async () => {
+    mockCallApi.mockResolvedValueOnce(makeRawSandbox({ id: "sb_1", status: "terminated" }));
+
+    const ns = new SandboxesNamespace(makeApiClient());
+    await expect(ns.connect("sb_1")).rejects.toThrow();
+    expect(mockCallApi).toHaveBeenCalledTimes(1);
+  });
+});
+
 // ─── SandboxesNamespace.list ──────────────────────────────────────────────────
 
 describe("SandboxesNamespace.list", () => {
