@@ -38,9 +38,9 @@ function resolveConnectionDetails(sandbox: SandboxInfo): {
  * Wait for a sandbox to reach "running", wire up its client, and return a
  * connected {@link Sandbox}.
  *
- * `sandbox` is the sandbox as last seen (e.g. the createSandbox response). The
- * wait phase is skipped when it has already settled on a non-transient status —
- * waiting would just echo that status back.
+ * `sandbox` is the sandbox as last seen (e.g. the createSandbox or getSandbox
+ * response). The wait phase is skipped when it has already settled on a
+ * non-transient status — waiting would just echo that status back.
  */
 async function connectRunningSandbox(
   sandbox: RawSandbox,
@@ -185,6 +185,27 @@ export class SandboxesNamespace {
     );
 
     return camelCaseKeys(data);
+  }
+
+  /**
+   * Connect to an existing sandbox by id, returning a connected {@link Sandbox}.
+   *
+   * Waits for the sandbox to settle if it is in a transient status (e.g.
+   * `starting`), and throws if it does not end up `running`.
+   */
+  async connect(sandboxId: string): Promise<Sandbox> {
+    const data = await callApi(
+      "api.getSandbox",
+      () =>
+        api.getSandbox({
+          client: this._apiClient,
+          path: { id: sandboxId },
+        }),
+      this._retryConfig,
+      `for sandbox '${sandboxId}'`,
+    );
+
+    return connectRunningSandbox(data, this._apiClient, this._retryConfig);
   }
 
   /**

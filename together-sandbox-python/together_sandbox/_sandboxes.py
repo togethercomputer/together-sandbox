@@ -50,7 +50,7 @@ async def _connect_running_sandbox(
     The wait phase is skipped when it has already settled on a non-transient
     status — waiting would just echo that status back.
 
-    Used by :meth:`SandboxesNamespace.create`.
+    Used by :meth:`SandboxesNamespace.create` and :meth:`SandboxesNamespace.connect`.
     """
     sandbox_id = sandbox.id
     vm_info: SandboxModel = sandbox
@@ -115,8 +115,11 @@ class SandboxesNamespace:
                 automatically terminated.
             tags: Optional key/value labels to attach to the sandbox.
             termination_policy: The termination snapshot policy, e.g.
-                ``{"snapshot": {"aliases": ["prod"]}}``.
-                Omit for an ephemeral sandbox (no snapshot, deleted on termination).
+                ``{"snapshot": {"memory": True, "aliases": ["prod"]}}``.
+                ``memory`` (default ``False``) also snapshots memory, so a
+                sandbox created from the snapshot resumes with its processes
+                intact. Omit for an ephemeral sandbox (no snapshot, deleted on
+                termination).
 
         """
         body = CreateSandboxBody(
@@ -214,6 +217,25 @@ class SandboxesNamespace:
             context=f"for sandbox {sandbox_id!r}",
         )
 
+    async def connect(self, sandbox_id: str) -> Sandbox:
+        """Connect to an existing sandbox by id.
+
+        Waits for the sandbox to settle if it is in a transient status (e.g.
+        ``starting``), and raises if it does not end up ``running``.
+
+        Args:
+            sandbox_id: The sandbox to connect to.
+
+        Returns:
+            Sandbox: A connected sandbox instance.
+
+        Example:
+            >>> sandbox = await sdk.sandboxes.connect("sb_1")
+            >>> content = await sandbox.files.read("/package.json")
+        """
+        sandbox_model = await self.get(sandbox_id)
+        return await _connect_running_sandbox(sandbox_model, self._api_client, self._retry)
+
     async def terminate(
         self,
         sandbox_id: str,
@@ -228,7 +250,8 @@ class SandboxesNamespace:
             sandbox_id: The sandbox to terminate.
             snapshot: What this teardown snapshots, overriding the snapshot the
                 sandbox's stored termination policy would take, e.g.
-                ``{"aliases": ["prod"]}``. Omit (the default) to keep the stored
+                ``{"memory": True, "aliases": ["prod"]}`` to snapshot memory as
+                well as the filesystem. Omit (the default) to keep the stored
                 policy; pass ``None`` to make the teardown ephemeral (no
                 snapshot). The produced snapshot is aliased as
                 ``sandbox:<sandbox id>`` plus any ``aliases``.

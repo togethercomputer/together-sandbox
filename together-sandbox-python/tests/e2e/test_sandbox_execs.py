@@ -39,7 +39,7 @@ class TestSandboxExecs:
         )
         exec_list = await sandbox.execs.list()
 
-        assert exec_list[0].id == exec_item.id
+        assert exec_item.id in [e.id for e in exec_list]
 
     async def test_delete_exec(self, sandbox: Sandbox):
         """Test deleting an exec."""

@@ -216,6 +216,11 @@
         "type": "object",
         "description": "The snapshot captured when a sandbox terminates.",
         "properties": {
+          "memory": {
+            "type": "boolean",
+            "default": false,
+            "description": "When true both the filesystem and memory are snapshotted (hibernate); when false only the filesystem is snapshotted (stop).\n"
+          },
           "aliases": {
             "type": "array",
             "items": {

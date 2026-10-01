@@ -6,7 +6,7 @@ This document explains the core concepts behind Together Sandbox: what sandboxes
 
 ## What is a sandbox?
 
-A sandbox is a virtual machine that runs on Together's infrastructure. You create one — it starts automatically — run code inside it (via shell commands, file operations, and port forwarding), then terminate it. When a sandbox terminates it snapshots its filesystem; to carry that filesystem forward you create a new sandbox from the produced snapshot. Once terminated, a sandbox cannot be used again. Sandboxes can optionally be created as **ephemeral**, in which case they take no snapshot and are automatically deleted when they terminate.
+A sandbox is a virtual machine that runs on Together's infrastructure. You create one — it starts automatically — run code inside it (via shell commands, file operations, and port forwarding), then terminate it. When a sandbox terminates it snapshots its filesystem — and, optionally, its memory; to carry that state forward you create a new sandbox from the produced snapshot. Once terminated, a sandbox cannot be used again. Sandboxes can optionally be created as **ephemeral**, in which case they take no snapshot and are automatically deleted when they terminate.
 
 Every sandbox is backed by a **snapshot**.
 
@@ -14,7 +14,7 @@ Every sandbox is backed by a **snapshot**.
 
 ## What is a snapshot?
 
-A snapshot is a compressed, immutable disk image stored in Together's registry. It defines the filesystem that a sandbox starts from.
+A snapshot is a compressed, immutable disk image stored in Together's registry. It defines the filesystem (and optionally the in-memory state) that a sandbox starts from.
 
 Snapshots are created from Docker images — either by building from a Dockerfile or by referencing an existing image. Once registered, a snapshot can be used to start any number of sandboxes. They are also automatically generated when you terminate a sandbox.
 
@@ -57,7 +57,7 @@ Sandboxes autostart on creation. `starting` and `terminating` are transient stat
 
 **Note!** A `starting` sandbox that cannot start moves to `failed_to_start` (terminal). If a running sandbox crashes it is auto-recovered (`recovering`); if recovery fails it ends in `unrecovered`.
 
-The `status_reason` field always records why the sandbox is in its current status — including while `starting` (`cold_start_requested`) and `running` (`cold_started` / `restored`).
+The `status_reason` field always records why the sandbox is in its current status — including while `starting` (`cold_start_requested` / `restore_requested`) and `running` (`cold_started` / `restored`).
 
 ### Failed-to-start reasons
 
@@ -87,15 +87,37 @@ When a sandbox reaches the `terminated` state, the `status_reason` field records
 ## Terminating
 
 Terminating a sandbox tears it down for good. `terminate()` takes a
-`snapshot` object `{ aliases, ttl, tags }` selecting which aliases and tags to
-apply to the snapshot taken on teardown. Omit it to use the policy the sandbox
-was created with, or pass `null` to make the teardown ephemeral (no snapshot).
+`snapshot` object `{ memory, aliases, ttl, tags }` selecting what to snapshot
+first, plus which aliases and tags to apply to the produced snapshot. Omit it
+to use the policy the sandbox was created with, or pass `null` to make the
+teardown ephemeral (no snapshot).
+
+`memory` picks between the two useful teardowns:
+
+### Filesystem only — `{ memory: false }` (default)
 
 ```typescript
 await sandbox.terminate({ snapshot: { aliases: ["my-app@v2"] } });
 ```
 
-The VM is torn down cleanly and its filesystem is snapshotted. A new sandbox created from the resulting snapshot boots from disk with a clean slate — no in-memory state is carried over.
+The VM is torn down cleanly without preserving memory. A new sandbox created from the resulting snapshot boots from disk with a clean slate — no in-memory state is carried over. Cold starts are slower than resumes.
+
+Use this when you want a clean restart or when ongoing state doesn't matter.
+
+### Filesystem and memory — `{ memory: true }`
+
+```typescript
+await sandbox.terminate({ snapshot: { memory: true, aliases: ["my-app@paused"] } });
+```
+
+This suspends the VM and **preserves its full memory state** as a new snapshot. To continue, you create a new sandbox from that snapshot; it resumes from exactly where it left off — running processes, open file descriptors, and all. This resume is fast because the OS does not need to boot.
+
+Use it when you want to pause a sandbox and come back to it later with its state intact.
+
+`status_reason` does not indicate whether a memory snapshot was captured. To
+tell whether teardown preserved in-memory state, inspect the produced snapshot
+(aliased `sandbox:<sandboxId>`): its `memory` field is `true` when a memory
+snapshot was captured and `false` otherwise.
 
 ---
 
@@ -118,7 +140,7 @@ Initial snapshots are created from a Docker image. There are two paths:
 
 **From a Dockerfile (build context):**
 
-The SDK (or CLI) builds a Docker image, authenticates with Together's container registry, pushes the image, and registers the snapshot. The build can happen remotely (default) or locally via `TOGETHER_LOCAL_BUILD=1`.
+The SDK (or CLI) submits the build to Together's remote image-builder service, which builds the image and pushes it to the internal registry; the snapshot is then registered. No local Docker installation is required.
 
 ```typescript
 const result = await sdk.snapshots.create({
@@ -163,7 +185,7 @@ The progress `step` field cycles through these stages:
 | `byte_size`                | `integer`        | Compressed size on disk                                          |
 | `tags`                     | `object`         | Arbitrary key/value labels                                       |
 | `ttl`                      | `integer \| null`| Seconds before automatic retirement, or `null` to disable        |
-| `memory`                   | `boolean`        | Whether this snapshot includes in-memory state; always `false`   |
+| `memory`                   | `boolean`        | Whether this snapshot includes in-memory state                   |
 | `retired_at`               | `string \| null` | ISO-8601 timestamp of when the snapshot was retired, or `null` if active |
 | `created_at`               | `string`         | ISO-8601 creation timestamp                                      |
 | `updated_at`               | `string`         | ISO-8601 last-update timestamp                                   |
@@ -240,26 +262,34 @@ const sandbox = await sdk.sandboxes.create({
 
 If a sandbox crashes or is lost due to infrastructure issues, the platform may attempt automatic recovery. It will ensure the files of the sandbox are persisted and a new snapshot is created.
 
-The sandbox model exposes three fields tracking this:
+The sandbox model exposes one field tracking this:
 
-| Field                  | Description                                            |
-| ---------------------- | ------------------------------------------------------ |
-| `recovery_status`      | `pending` → `recovered` / `canceled` / `unrecoverable` |
-| `recovery_started_at`  | When recovery was initiated                            |
-| `recovery_finished_at` | When recovery completed (success or failure)           |
+| Field           | Type                     | Description                                        |
+| --------------- | ------------------------ | -------------------------------------------------- |
+| `recovery_at`   | `string \| null`         | When recovery last ran, or `null` if it never has  |
+
+Progress is otherwise reflected in `status` and `status_reason`: a sandbox being
+recovered reports `recovering`, moves back to `running` with a `restored` reason
+on success, and lands on `unrecovered` if recovery could not complete.
 
 ---
 
 ## Sandbox IDs
 
-Every sandbox has a short ID (6–8 characters, e.g. `abc123`) that you use to reference it in API calls and SDK methods. You can supply your own ID at creation time or let the platform generate one.
+Every sandbox has a platform-generated UUID that you use to reference it in API
+calls and SDK methods. IDs cannot be chosen at creation time — read the assigned
+one off the created sandbox:
 
 ```typescript
 const sandbox = await sdk.sandboxes.create({
-  id: "my-box", // optional; auto-generated if omitted
   snapshotAlias: "my-app@v1",
 });
+
+console.log(sandbox.id); // e.g. "3f1c8a9e-5b2d-4e7a-9c10-6d8f2b4a1e33"
 ```
+
+To label sandboxes with names of your own, use `tags` and filter on them with
+`sandboxes.list({ tags: { … } })`.
 
 ---
 
@@ -282,7 +312,8 @@ The SDK wraps these automatically — you don't need to use them directly. The `
 | ---------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
 | Create sandbox               | `sdk.sandboxes.create({ snapshotAlias: "…" })` | `sdk.sandboxes.create(snapshot_alias="…")`                       |
 | Terminate sandbox            | `sandbox.terminate()`                          | `sandbox.terminate()`                                            |
-| Terminate, alias the snapshot | `sandbox.terminate({ snapshot: { aliases: ["my-app@v2"] } })` | `sandbox.terminate(snapshot={"aliases": ["my-app@v2"]})` |
+| Terminate, snapshot disk     | `sandbox.terminate({ snapshot: { aliases: ["my-app@v2"] } })` | `sandbox.terminate(snapshot={"aliases": ["my-app@v2"]})` |
+| Terminate, snapshot disk+RAM | `sandbox.terminate({ snapshot: { memory: true } })` | `sandbox.terminate(snapshot={"memory": True})` |
 | List sandboxes               | `sdk.sandboxes.list()`                         | `sdk.sandboxes.list()`                                           |
 | Create snapshot (Dockerfile) | `sdk.snapshots.create({ context: "…" })`       | `sdk.snapshots.create(CreateContextSnapshotParams(context="…"))` |
 | Create snapshot (image)      | `sdk.snapshots.create({ image: "…" })`         | `sdk.snapshots.create(CreateImageSnapshotParams(image="…"))`     |

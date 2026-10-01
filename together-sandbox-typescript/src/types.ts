@@ -51,6 +51,13 @@ export interface TerminationPolicyParams {
  * `snapshot` inside a {@link TerminationPolicyParams} at creation).
  */
 export interface TerminationSnapshotParams {
+  /**
+   * Whether to include a memory snapshot in addition to the filesystem.
+   * `true` snapshots both (a hibernate): a sandbox created from the produced
+   * snapshot resumes with its processes intact. `false` (the default)
+   * snapshots only the filesystem.
+   */
+  memory?: boolean;
   /** Aliases to apply to the produced snapshot. */
   aliases?: string[];
   /** Seconds after creation before the produced snapshot is automatically deleted. */

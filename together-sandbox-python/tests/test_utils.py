@@ -140,6 +140,68 @@ class TestSandboxesCreate:
         assert captured_body["body"] is not None
 
 
+# ─── SandboxesNamespace.connect ──────────────────────────────────────────────
+
+
+class TestSandboxesConnect:
+    @pytest.mark.asyncio
+    async def test_connect_fetches_then_connects(self):
+        fetched = _make_sandbox_model(id="sb_1", status="running")
+        expected_sandbox = MagicMock(id="sb_1")
+
+        with (
+            patch(
+                "together_sandbox._sandboxes._call_api",
+                new=AsyncMock(return_value=fetched),
+            ) as mock_call,
+            patch(
+                "together_sandbox._sandboxes._connect_running_sandbox",
+                new=AsyncMock(return_value=expected_sandbox),
+            ) as mock_connect,
+        ):
+            ns = SandboxesNamespace(api_client=MagicMock())
+            result = await ns.connect("sb_1")
+
+        assert mock_call.call_args[0][0] == "api.get_sandbox"
+        assert result is expected_sandbox
+        mock_connect.assert_awaited_once_with(fetched, ns._api_client, ns._retry)
+
+    @pytest.mark.asyncio
+    async def test_connect_waits_for_starting_sandbox(self):
+        starting = _make_sandbox_model(id="sb_1", status="starting")
+        running = _make_sandbox_model(id="sb_1", status="running")
+
+        with (
+            patch(
+                "together_sandbox._sandboxes._call_api",
+                new=AsyncMock(side_effect=[starting, running]),
+            ) as mock_call,
+            patch("together_sandbox._sandboxes.SandboxClient"),
+            patch("together_sandbox._sandboxes.Sandbox", return_value=MagicMock()),
+        ):
+            ns = SandboxesNamespace(api_client=MagicMock())
+            await ns.connect("sb_1")
+
+        ops = [c[0][0] for c in mock_call.call_args_list]
+        assert ops == ["api.get_sandbox", "api.wait_for_sandbox"]
+
+    @pytest.mark.asyncio
+    async def test_connect_raises_for_terminated_sandbox(self):
+        terminated = _make_sandbox_model(id="sb_1", status="terminated")
+
+        with (
+            patch(
+                "together_sandbox._sandboxes._call_api",
+                new=AsyncMock(return_value=terminated),
+            ) as mock_call,
+            pytest.raises(RuntimeError),
+        ):
+            ns = SandboxesNamespace(api_client=MagicMock())
+            await ns.connect("sb_1")
+
+        mock_call.assert_awaited_once()
+
+
 # ─── _connect_running_sandbox ────────────────────────────────────────────────
 
 
@@ -244,3 +306,31 @@ class TestRetryConfigDocstring:
         assert RetryConfig.__doc__ is not None
         assert "return result" not in RetryConfig.__doc__
 
+
+
+# ─── Termination snapshot builders ────────────────────────────────────────────
+
+
+class TestBuildTerminationSnapshot:
+    def test_memory_is_sent_when_set(self):
+        from together_sandbox._utils import build_termination_snapshot
+
+        body = build_termination_snapshot({"memory": True, "aliases": ["a"]}).to_dict()
+        assert body == {"memory": True, "aliases": ["a"]}
+
+    def test_memory_is_omitted_when_not_given(self):
+        from together_sandbox._utils import build_termination_snapshot
+
+        body = build_termination_snapshot({"aliases": ["a"]}).to_dict()
+        assert "memory" not in body
+
+    def test_none_is_an_ephemeral_teardown(self):
+        from together_sandbox._utils import build_termination_snapshot
+
+        assert build_termination_snapshot(None) is None
+
+    def test_policy_nests_memory_under_snapshot(self):
+        from together_sandbox._utils import build_termination_policy
+
+        body = build_termination_policy({"snapshot": {"memory": True}}).to_dict()
+        assert body == {"snapshot": {"memory": True}}

@@ -78,13 +78,37 @@ Resource params (`cpu`, `memoryBytes`) default to **1 vCPU / 2 GiB memory** if o
 | `memoryBytes`   | `number`  | No       | Memory allocation in bytes (1–8 GB per CPU). Default: `2 * 1024 * 1024 * 1024` (2 GiB). |
 | `ttl`           | `number`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
 | `tags`          | `object`  | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
-| `terminationPolicy` | `object` | No    | Termination policy `{ snapshot: { aliases?: string[], ttl?: number, tags?: Record<string, string> } }`. Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
+| `terminationPolicy` | `object` | No    | Termination policy `{ snapshot: { memory?: boolean, aliases?: string[], ttl?: number, tags?: Record<string, string> } }`. `memory: true` also snapshots memory (hibernate). Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
 
 Sandboxes start automatically on creation, so there is no separate start step. A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshotAlias: "sandbox:<id>"`).
 
+#### `sdk.sandboxes.get(sandboxId): Promise<SandboxInfo>`
+
+Fetches a single sandbox's metadata by ID. Returns the same camelCased
+`SandboxInfo` record that `sdk.sandboxes.list()` yields — not a connected
+[`Sandbox`](#sandbox) instance, so it does not give you `.files`, `.execs`, or
+the other in-VM namespaces. Use [`connect()`](#sdksandboxesconnectsandboxid-promisesandbox) for that.
+
+```typescript
+const info = await sdk.sandboxes.get("your-sandbox-id");
+console.log(info.status, info.statusReason);
+```
+
+#### `sdk.sandboxes.connect(sandboxId): Promise<Sandbox>`
+
+Connects to an existing sandbox by ID and returns a connected
+[`Sandbox`](#sandbox) instance. If the sandbox is still in a transient status
+(e.g. `starting`), it waits for it to settle. Throws if the sandbox does not
+end up `running` (e.g. it is `terminated`).
+
+```typescript
+const sandbox = await sdk.sandboxes.connect("your-sandbox-id");
+const content = await sandbox.files.read("/package.json");
+```
+
 #### `sdk.sandboxes.terminate(sandboxId, options?): Promise<void>`
 
-Terminates a VM by sandbox ID. `options.snapshot` (`{ aliases, ttl, tags }`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `null` for an ephemeral teardown (no snapshot).
+Terminates a VM by sandbox ID. `options.snapshot` (`{ memory, aliases, ttl, tags }`) overrides what the sandbox's stored termination policy would snapshot for this teardown — omit it to use the stored policy, or pass `null` for an ephemeral teardown (no snapshot).
 
 ```typescript
 await sdk.sandboxes.terminate("your-sandbox-id", {
@@ -102,9 +126,9 @@ Snapshot creation namespace. Snapshots are images you can pass to `sdk.sandboxes
 
 Create a snapshot from either a Docker build context (built remotely by default) or an existing Docker image.
 
-**From a build context:**
+**From a build context (remote build):**
 
-Build a Docker image from a local context, push it to the registry, and register it as a snapshot. Docker must be installed and running locally. (The Python SDK supports a remote image-builder service via `TOGETHER_LOCAL_BUILD=0`; the TypeScript SDK currently always builds locally.)
+Submit a Docker build context to Together's remote image-builder service. The service builds the image, pushes it to the internal registry, and the SDK then registers it as a snapshot. No local Docker installation is required.
 
 ```typescript
 const result = await sdk.snapshots.create({
@@ -194,6 +218,7 @@ iterate it directly to walk every snapshot, or use `getNextPage()` /
 | Option           | Type                     | Description                                                             |
 | ---------------- | ------------------------ | ------------------------------------------------------------------------- |
 | `limit`          | `number`                 | Page size (1–100, default 20).                                          |
+| `cursor`         | `string`                 | Start from an opaque cursor instead of the first page.                  |
 | `excludeRetired` | `boolean`                | When true, retired snapshots are excluded. Default false.               |
 | `tags`           | `Record<string, string>` | Matches snapshots whose tags contain all the given pairs.               |
 
@@ -224,6 +249,7 @@ List sandboxes. Returns a `Page` (same shape as `snapshots.list()`).
 | Option       | Type                     | Description                                               |
 | ------------ | ------------------------ | --------------------------------------------------------- |
 | `limit`      | `number`                 | Page size (1–100, default 20).                            |
+| `cursor`     | `string`                 | Start from an opaque cursor instead of the first page.    |
 | `statuses`   | `SandboxStatus[]`        | Matches sandboxes in any of the given statuses.           |
 | `snapshotId` | `string`                 | Matches sandboxes created from the given snapshot.        |
 | `tags`       | `Record<string, string>` | Matches sandboxes whose tags contain all the given pairs. |
@@ -266,7 +292,7 @@ const retired = await sdk.snapshots.retire("snapshot-id");
 
 ## `Sandbox`
 
-A connected, running VM. Returned by `sdk.sandboxes.create()`. All sub-namespaces are available as properties.
+A connected, running VM. Returned by `sdk.sandboxes.create()` and `sdk.sandboxes.connect()`. All sub-namespaces are available as properties.
 
 ### Properties
 
@@ -523,7 +549,7 @@ const stream = await sandbox.ports.streamList();
 
 Terminate this VM. After this the sandbox is terminal and cannot be used again.
 
-`options.snapshot` (`{ aliases, ttl, tags }`) overrides what this
+`options.snapshot` (`{ memory, aliases, ttl, tags }`) overrides what this
 teardown snapshots — omit it to use the sandbox's stored termination policy, or
 pass `null` for an ephemeral teardown (no snapshot).
 
@@ -533,7 +559,13 @@ await sandbox.terminate();
 
 // Snapshot the filesystem and alias it, so a new sandbox can start from it
 await sandbox.terminate({ snapshot: { aliases: ["my-app@v2"] } });
+
+// Snapshot the filesystem and memory, so a new sandbox can resume from it
+await sandbox.terminate({ snapshot: { memory: true } });
 ```
+
+`memory` defaults to `false`. A sandbox created from a snapshot with memory
+resumes with its processes intact.
 
 ---
 

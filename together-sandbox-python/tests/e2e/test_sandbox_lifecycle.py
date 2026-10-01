@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from together_sandbox import TogetherSandbox
+from together_sandbox import Sandbox, TogetherSandbox
 
 from .helpers import get_snapshot_id
 
@@ -36,3 +36,14 @@ class TestSandboxLifecycle:
 
         # Context manager closes the HTTP connection but does not terminate the VM.
         await sdk.sandboxes.terminate(sandbox.id)
+
+    async def test_connect_to_running_sandbox(self, sdk: TogetherSandbox, sandbox: Sandbox):
+        """Test connecting to an existing sandbox by ID — reaches the same running VM."""
+        await sandbox.files.create("/connect.txt", "hello from create")
+
+        async with await sdk.sandboxes.connect(sandbox.id) as connected:
+            assert connected.id == sandbox.id
+            assert connected.vm_info.status == "running"
+
+            result = await connected.files.read("/connect.txt")
+            assert result == "hello from create"

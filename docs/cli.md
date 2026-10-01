@@ -160,11 +160,7 @@ together-sandbox snapshots create [options]
 | `--cache-key <key>`   | `string`  | Share a build layer cache across builds using the same key. Requires `--context`. See below.               |
 | `--ci`                | `boolean` | CI mode: plain stdout with no spinner. On success, only the snapshot ID is written to stdout. Default: off. |
 
-> **Build mode.** By default, `--context` submits the build to Together's remote image-builder service — no local Docker is required for the build itself. Set `TOGETHER_LOCAL_BUILD=1` to fall back to building locally with your own Docker daemon and pushing to the registry from your machine:
->
-> ```bash
-> TOGETHER_LOCAL_BUILD=1 together-sandbox snapshots create --context ./my-app
-> ```
+> **Build mode.** `--context` submits the build to Together's remote image-builder service — no local Docker is required.
 
 #### Examples
 
@@ -272,6 +268,7 @@ Create a sandbox from a snapshot and wait until it is running. `<ref>` is a snap
 | `--ttl <seconds>`          | `number`  | Seconds after creation before the sandbox is automatically terminated.                                            |
 | `--tag KEY=VALUE`          | `string`  | Tag the sandbox. Repeatable.                                                                                      |
 | `--snapshot-on-terminate`  | `boolean` | Snapshot the sandbox when it terminates. Without this the sandbox is **ephemeral**: no snapshot, deleted on teardown. |
+| `--snapshot-memory`        | `boolean` | With `--snapshot-on-terminate`, snapshot memory as well as the filesystem (hibernate).                            |
 | `--snapshot-alias <alias>` | `string`  | With `--snapshot-on-terminate`, alias to apply to the produced snapshot. Repeatable.                              |
 | `--snapshot-ttl <seconds>` | `number`  | With `--snapshot-on-terminate`, seconds before the produced snapshot expires.                                     |
 
@@ -286,6 +283,7 @@ Terminate a sandbox and wait until it is torn down. Termination is permanent —
 | Option                     | Type      | Description                                                       |
 | -------------------------- | --------- | ------------------------------------------------------------------- |
 | `--ephemeral`              | `boolean` | Take no snapshot at all, overriding the stored policy.            |
+| `--snapshot-memory`        | `boolean` | Snapshot memory as well as the filesystem (hibernate).            |
 | `--snapshot-alias <alias>` | `string`  | Alias to apply to the produced snapshot. Repeatable.              |
 | `--snapshot-ttl <seconds>` | `number`  | Seconds before the produced snapshot expires.                     |
 | `--snapshot-tag KEY=VALUE` | `string`  | Tag the produced snapshot. Repeatable.                            |
