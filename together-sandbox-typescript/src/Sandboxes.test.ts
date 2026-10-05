@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock all generated api-client modules before any other import so the module
 // graph resolves without the actual generated files (which may not exist in CI).
-vi.mock("./api-clients/api/index.js", () => ({ listSandboxes: vi.fn() }));
+vi.mock("./api-clients/api/index.js", () => ({
+  listSandboxes: vi.fn(),
+  createSandbox: vi.fn(),
+}));
 vi.mock("./api-clients/api/client/index.js", () => ({}));
 vi.mock("./api-clients/sandbox/client/index.js", () => ({
   createClient: vi.fn(() => ({
@@ -83,6 +86,30 @@ describe("SandboxesNamespace.create", () => {
 
     expect(mockCallApi.mock.calls[0][0]).toBe("api.createSandbox");
     expect(mockCallApi.mock.calls[1][0]).toBe("api.waitForSandbox");
+  });
+
+  it("sends experimental features exactly as given", async () => {
+    mockCallApi.mockImplementationOnce(async (_name, fn) => {
+      await fn();
+      return makeRawSandbox({ id: "abc123", status: "running" });
+    });
+
+    const experimental = {
+      network_policy: {
+        inbound: [
+          { from: ["10.0.0.0/8"], to_port: "80", access: "allow" as const },
+          { from: ["*"], access: "deny" as const },
+        ],
+      },
+    };
+    const ns = new SandboxesNamespace(makeApiClient());
+    await ns.create({ snapshotId: "snap-1", experimental });
+
+    expect(vi.mocked(api.createSandbox)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ experimental }),
+      }),
+    );
   });
 
   it("calls waitForSandbox with the ID from createSandbox", async () => {

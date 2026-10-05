@@ -32,6 +32,13 @@ export type {
   CreateSandboxParams,
   TerminationSnapshotParams,
 } from "./types.js";
+// Experimental features, in the API's own shape. They may change at short notice.
+export type {
+  CreateSandboxExperimental,
+  SandboxExperimental,
+  NetworkPolicy,
+  InboundRule,
+} from "./api-clients/api/types.gen.js";
 export { Sandbox } from "./Sandbox.js";
 export { HttpError } from "./errors.js";
 export type {

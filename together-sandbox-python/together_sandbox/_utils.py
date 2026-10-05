@@ -11,6 +11,7 @@ from typing import Any, Awaitable, Callable, Literal, TypeVar
 import httpx
 
 from .api.models import Error as ApiError
+from .api.models.create_sandbox_experimental import CreateSandboxExperimental
 from .api.models.termination_policy import TerminationPolicy
 from .api.models.termination_snapshot import TerminationSnapshot
 from .api.models.tags import Tags
@@ -69,6 +70,19 @@ def build_termination_policy(termination_policy: dict | None):
     return TerminationPolicy(
         snapshot=build_termination_snapshot(termination_policy.get("snapshot", {}))
     )
+
+
+def build_experimental(experimental: dict | None):
+    """Build the ``CreateSandboxExperimental`` request model from a plain dict.
+
+    ``experimental`` is the API's ``experimental`` object, as is, e.g.
+    ``{"network_policy": {"inbound": [{"from": ["10.0.0.0/8"], "to_port": "80",
+    "access": "allow"}]}}``. None leaves it unset. Used by ``create``.
+    """
+    if experimental is None:
+        return UNSET
+    return CreateSandboxExperimental.from_dict(experimental)
+
 
 # ─── ANSI / encoding helpers ─────────────────────────────────────────────────
 

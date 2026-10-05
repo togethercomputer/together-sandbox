@@ -22,6 +22,7 @@ import {
   runExec,
 } from "./_exec";
 import { examples } from "./_help";
+import { formatInboundRules, parseExperimental } from "./_experimental";
 import { withClientTag } from "../constants";
 
 /** The statuses a sandbox can report, for `--status` validation. */
@@ -83,6 +84,10 @@ function describeSandbox(s: SandboxInfo): {
         ["TTL", s.ttl !== null && s.ttl !== undefined ? `${s.ttl}s` : cell(undefined)],
         ["Policy", formatTerminationPolicy(s)],
       ],
+    },
+    {
+      title: "Experimental",
+      rows: [["Network policy (inbound)", formatInboundRules(s)]],
     },
     {
       title: "Agent",
@@ -340,6 +345,7 @@ interface CreateOptions {
   snapshotMemory?: boolean;
   snapshotAlias?: string[];
   snapshotTtl?: number;
+  experimental?: string;
 }
 
 function createOptionsBuilder<T>(yargs: yargs.Argv<T>) {
@@ -386,6 +392,13 @@ function createOptionsBuilder<T>(yargs: yargs.Argv<T>) {
       type: "number",
       describe:
         "With --snapshot-on-terminate, seconds before the produced snapshot expires",
+    })
+    .option("experimental", {
+      type: "string",
+      describe:
+        "Experimental features, which may change at short notice: the API's " +
+        "`experimental` object as JSON, sent as is. E.g. " +
+        '{"network_policy": {"inbound": [{"from": ["10.0.0.0/8"], "to_port": "80", "access": "allow"}]}}',
     });
 }
 
@@ -414,6 +427,7 @@ function buildCreateParams(argv: CreateOptions, ref: string) {
           },
         }
       : undefined,
+    experimental: parseExperimental(argv.experimental),
   };
 }
 

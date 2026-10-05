@@ -57,6 +57,7 @@ export type Sandbox = {
      *
      */
     termination_policy: TerminationPolicy | null;
+    experimental?: SandboxExperimental;
     created_at: string;
     started_at: string | null;
     terminated_at: string | null;
@@ -71,6 +72,59 @@ export type Sandbox = {
  */
 export type TerminationPolicy = {
     snapshot: TerminationSnapshot;
+};
+
+/**
+ * Experimental features. Their API may change at short notice.
+ *
+ */
+export type SandboxExperimental = {
+    /**
+     * The network policy, or null when the sandbox has none.
+     *
+     */
+    network_policy?: NetworkPolicy | null;
+};
+
+/**
+ * Experimental features. Their API may change at short notice.
+ *
+ */
+export type CreateSandboxExperimental = {
+    /**
+     * Who may reach the sandbox. Omit for no restriction.
+     *
+     */
+    network_policy?: NetworkPolicy;
+};
+
+/**
+ * Who may reach the sandbox. Inbound applies to requests reaching the sandbox's URL, matched by port and by the client's address. Outbound rules are not supported yet.
+ *
+ * A port has at most one rule, and at most one rule applies to every port (`to_port` `*`). A request to a port is decided by that port's rule if the client is in its `from`, otherwise by the `*` rule if the client is in its `from`, otherwise it is allowed.
+ *
+ * The sandbox's agent port (57468, which the SDKs and the agent URL use) can be narrowed but never closed by accident: only a rule naming that port alone applies to it, never the `*` rule or a range. If that rule is `allow` or `allow_with_token`, clients outside its `from` are denied.
+ *
+ */
+export type NetworkPolicy = {
+    inbound?: Array<InboundRule>;
+};
+
+export type InboundRule = {
+    /**
+     * The clients the rule applies to: `*`, IPs, or CIDRs.
+     */
+    from: Array<string>;
+    /**
+     * `*` (the default), a port, or an inclusive range `low-high`. No two rules may cover the same port, and only one may be `*`.
+     *
+     */
+    to_port?: string;
+    /**
+     * `allow_with_token` admits a request only if it presents the sandbox's agent token (`agent.token`, returned when the sandbox is created or started) in the `X-Sandbox-Token` header. The header is removed before the request reaches the sandbox.
+     *
+     */
+    access: 'allow' | 'deny' | 'allow_with_token';
 };
 
 /**
@@ -318,6 +372,7 @@ export type CreateSandboxData = {
          *
          */
         termination_policy?: TerminationPolicy;
+        experimental?: CreateSandboxExperimental;
     };
     path?: never;
     query?: never;

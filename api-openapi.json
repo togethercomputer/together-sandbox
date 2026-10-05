@@ -144,6 +144,9 @@
               }
             ]
           },
+          "experimental": {
+            "$ref": "#/components/schemas/SandboxExperimental"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
@@ -209,6 +212,88 @@
         "properties": {
           "snapshot": {
             "$ref": "#/components/schemas/TerminationSnapshot"
+          }
+        }
+      },
+      "SandboxExperimental": {
+        "type": "object",
+        "description": "Experimental features. Their API may change at short notice.\n",
+        "properties": {
+          "network_policy": {
+            "description": "The network policy, or null when the sandbox has none.\n",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NetworkPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "CreateSandboxExperimental": {
+        "type": "object",
+        "description": "Experimental features. Their API may change at short notice.\n",
+        "additionalProperties": false,
+        "properties": {
+          "network_policy": {
+            "description": "Who may reach the sandbox. Omit for no restriction.\n",
+            "$ref": "#/components/schemas/NetworkPolicy"
+          }
+        }
+      },
+      "NetworkPolicy": {
+        "type": "object",
+        "description": "Who may reach the sandbox. Inbound applies to requests reaching the sandbox's URL, matched by port and by the client's address. Outbound rules are not supported yet.\n\nA port has at most one rule, and at most one rule applies to every port (`to_port` `*`). A request to a port is decided by that port's rule if the client is in its `from`, otherwise by the `*` rule if the client is in its `from`, otherwise it is allowed.\n\nThe sandbox's agent port (57468, which the SDKs and the agent URL use) can be narrowed but never closed by accident: only a rule naming that port alone applies to it, never the `*` rule or a range. If that rule is `allow` or `allow_with_token`, clients outside its `from` are denied.\n",
+        "additionalProperties": false,
+        "properties": {
+          "inbound": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/InboundRule"
+            }
+          }
+        }
+      },
+      "InboundRule": {
+        "type": "object",
+        "required": [
+          "from",
+          "access"
+        ],
+        "properties": {
+          "from": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "string"
+            },
+            "description": "The clients the rule applies to: `*`, IPs, or CIDRs.",
+            "examples": [
+              [
+                "10.0.0.0/8",
+                "203.0.113.7"
+              ]
+            ]
+          },
+          "to_port": {
+            "type": "string",
+            "description": "`*` (the default), a port, or an inclusive range `low-high`. No two rules may cover the same port, and only one may be `*`.\n",
+            "examples": [
+              "8080"
+            ]
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny",
+              "allow_with_token"
+            ],
+            "description": "`allow_with_token` admits a request only if it presents the sandbox's agent token (`agent.token`, returned when the sandbox is created or started) in the `X-Sandbox-Token` header. The header is removed before the request reaches the sandbox.\n"
           }
         }
       },
@@ -690,6 +775,9 @@
                   "termination_policy": {
                     "description": "The termination policy. Omit for an ephemeral sandbox (no snapshot, deleted on termination).\n",
                     "$ref": "#/components/schemas/TerminationPolicy"
+                  },
+                  "experimental": {
+                    "$ref": "#/components/schemas/CreateSandboxExperimental"
                   }
                 }
               }
