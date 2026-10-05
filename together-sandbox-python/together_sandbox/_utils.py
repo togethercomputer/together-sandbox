@@ -11,6 +11,7 @@ from typing import Any, Awaitable, Callable, Literal, TypeVar
 import httpx
 
 from .api.models import Error as ApiError
+from .api.models.network_policy import NetworkPolicy
 from .api.models.termination_policy import TerminationPolicy
 from .api.models.termination_snapshot import TerminationSnapshot
 from .api.models.tags import Tags
@@ -69,6 +70,40 @@ def build_termination_policy(termination_policy: dict | None):
     return TerminationPolicy(
         snapshot=build_termination_snapshot(termination_policy.get("snapshot", {}))
     )
+
+def build_network_policy(network_policy: dict | None):
+    """Build the ``NetworkPolicy`` request model from a plain dict.
+
+    ``network_policy`` is ``{"ingress": [...], "egress": [...]}``, each rule a
+    dict with ``from`` (ingress) or ``to`` (egress), an optional ``to_port`` and
+    ``access``. Ports may be given as ints or strings (``443``, ``"8000-9000"``,
+    ``"*"``); they are sent as strings, which is how the API states them. None
+    leaves it unset: no restriction.
+    """
+    if network_policy is None:
+        return UNSET
+
+    def rules(key: str) -> list[dict] | None:
+        items = network_policy.get(key)
+        if items is None:
+            return None
+        out = []
+        for rule in items:
+            rule = dict(rule)
+            if rule.get("to_port") is not None:
+                rule["to_port"] = str(rule["to_port"])
+            else:
+                rule.pop("to_port", None)
+            out.append(rule)
+        return out
+
+    body: dict[str, Any] = {}
+    for key in ("ingress", "egress"):
+        items = rules(key)
+        if items is not None:
+            body[key] = items
+    return NetworkPolicy.from_dict(body)
+
 
 # ─── ANSI / encoding helpers ─────────────────────────────────────────────────
 

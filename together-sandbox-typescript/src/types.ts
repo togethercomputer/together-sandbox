@@ -67,13 +67,70 @@ export interface TerminationSnapshotParams {
 }
 
 /**
+ * Who may reach a sandbox, and what it may reach.
+ *
+ * Rules are unordered: when several match, the most specific one decides, and
+ * between equally specific rules the more restrictive one does. A host name is
+ * more specific than any address, a longer prefix or suffix more than a shorter
+ * one, and only then does the port count. A connection no rule matches is
+ * allowed.
+ *
+ * @example
+ * ```ts
+ * networkPolicy: {
+ *   ingress: [{ from: "*", toPort: 3000, access: "allow_with_token" }],
+ *   egress: [
+ *     { to: "*", toPort: 443, access: "deny" },
+ *     { to: "api.openai.com", toPort: 443, access: "allow" },
+ *   ],
+ * }
+ * ```
+ */
+export interface NetworkPolicyParams {
+  /** Rules for requests reaching the sandbox's URL, matched by client address. */
+  ingress?: IngressRuleParams[];
+  /**
+   * Rules for every TCP connection the sandbox opens. Host rules are matched
+   * against TLS SNI or the HTTP `Host` header. A sandbox with any `deny` rule
+   * may send no UDP other than DNS.
+   */
+  egress?: EgressRuleParams[];
+}
+
+/** A port (`443`), an inclusive range (`"8000-9000"`), or `"*"`. */
+export type PortSpec = number | string;
+
+export interface IngressRuleParams {
+  /** `"*"`, an IP, or a CIDR. */
+  from: string;
+  /** The sandbox port the rule covers. Default: every port. */
+  toPort?: PortSpec;
+  /**
+   * `"allow_with_token"` admits a request only if it presents the API key that
+   * created the sandbox in the `X-Sandbox-Token` header.
+   */
+  access: "allow" | "deny" | "allow_with_token";
+}
+
+export interface EgressRuleParams {
+  /**
+   * `"*"`, an IP, a CIDR, a host name, or `"*.domain"` — which matches names
+   * under the domain but not the domain itself.
+   */
+  to: string;
+  /** The destination port the rule covers. Default: every port. */
+  toPort?: PortSpec;
+  access: "allow" | "deny";
+}
+
+/**
  * Public camelCase version of the create sandbox request parameters.
  */
 type RawCreateSandboxParams = CamelCasedProperties<CreateSandboxData["body"]>;
 
 export type CreateSandboxParams = Omit<
   RawCreateSandboxParams,
-  "cpu" | "memoryBytes" | "terminationPolicy"
+  "cpu" | "memoryBytes" | "terminationPolicy" | "networkPolicy"
 > & {
   /** CPU allocation in cores. Must be between 0.1 and 16. Default: 1 (1 vCPU). */
   cpu?: number;
@@ -81,6 +138,8 @@ export type CreateSandboxParams = Omit<
   memoryBytes?: number;
   /** Termination snapshot policy. Omit for an ephemeral sandbox. */
   terminationPolicy?: TerminationPolicyParams;
+  /** Network policy. Omit for no restriction. */
+  networkPolicy?: NetworkPolicyParams;
 };
 
 export interface RetryContext {

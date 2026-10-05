@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock all generated api-client modules before any other import so the module
 // graph resolves without the actual generated files (which may not exist in CI).
-vi.mock("./api-clients/api/index.js", () => ({ listSandboxes: vi.fn() }));
+vi.mock("./api-clients/api/index.js", () => ({
+  listSandboxes: vi.fn(),
+  createSandbox: vi.fn(),
+}));
 vi.mock("./api-clients/api/client/index.js", () => ({}));
 vi.mock("./api-clients/sandbox/client/index.js", () => ({
   createClient: vi.fn(() => ({
@@ -156,6 +159,43 @@ describe("SandboxesNamespace.create", () => {
     const ns = new SandboxesNamespace(makeApiClient());
     await expect(ns.create()).rejects.toThrow(/failed to start/);
     expect(mockCallApi).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends the network policy in the create body", async () => {
+    mockCallApi.mockResolvedValueOnce(makeRawSandbox({ id: "abc123", status: "running" }));
+
+    const ns = new SandboxesNamespace(makeApiClient());
+    await ns.create({
+      snapshotId: "snap-1",
+      networkPolicy: {
+        egress: [
+          { to: "*", toPort: 443, access: "deny" },
+          { to: "api.openai.com", toPort: 443, access: "allow" },
+        ],
+      },
+    });
+
+    // callApi is mocked, so run the request it was handed to see the body.
+    await mockCallApi.mock.calls[0][1]();
+    const body = vi.mocked(api.createSandbox).mock.calls[0][0]?.body;
+    expect(body?.network_policy).toEqual({
+      ingress: undefined,
+      egress: [
+        { to: "*", to_port: "443", access: "deny" },
+        { to: "api.openai.com", to_port: "443", access: "allow" },
+      ],
+    });
+  });
+
+  it("sends no network policy when none is given", async () => {
+    mockCallApi.mockResolvedValueOnce(makeRawSandbox({ id: "abc123", status: "running" }));
+
+    const ns = new SandboxesNamespace(makeApiClient());
+    await ns.create({ snapshotId: "snap-1" });
+
+    await mockCallApi.mock.calls[0][1]();
+    const body = vi.mocked(api.createSandbox).mock.calls[0][0]?.body;
+    expect(body?.network_policy).toBeUndefined();
   });
 
   it("waits when createSandbox returns a terminating sandbox", async () => {

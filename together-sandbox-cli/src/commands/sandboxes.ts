@@ -22,6 +22,11 @@ import {
   runExec,
 } from "./_exec";
 import { examples } from "./_help";
+import {
+  buildNetworkPolicy,
+  formatNetworkPolicy,
+  type NetworkPolicyOptions,
+} from "./_network";
 import { withClientTag } from "../constants";
 
 /** The statuses a sandbox can report, for `--status` validation. */
@@ -82,6 +87,13 @@ function describeSandbox(s: SandboxInfo): {
       rows: [
         ["TTL", s.ttl !== null && s.ttl !== undefined ? `${s.ttl}s` : cell(undefined)],
         ["Policy", formatTerminationPolicy(s)],
+      ],
+    },
+    {
+      title: "Network",
+      rows: [
+        ["Ingress", formatNetworkPolicy(s.networkPolicy, "ingress")],
+        ["Egress", formatNetworkPolicy(s.networkPolicy, "egress")],
       ],
     },
     {
@@ -331,7 +343,7 @@ export const getCommand: yargs.CommandModule<Record<string, never>, GetArgs> = {
 // ─── Creation ────────────────────────────────────────────────────────────────
 
 /** Options shared by `create` and `run` for shaping the new sandbox. */
-interface CreateOptions {
+interface CreateOptions extends NetworkPolicyOptions {
   cpu?: number;
   memoryBytes?: number;
   ttl?: number;
@@ -386,6 +398,41 @@ function createOptionsBuilder<T>(yargs: yargs.Argv<T>) {
       type: "number",
       describe:
         "With --snapshot-on-terminate, seconds before the produced snapshot expires",
+    })
+    .option("network-policy", {
+      type: "string",
+      describe:
+        "Network policy as JSON, or @file.json: {\"ingress\": [...], \"egress\": [...]}. " +
+        "The --*-ingress/--*-egress flags add rules to it",
+    })
+    .option("allow-ingress", {
+      type: "string",
+      array: true,
+      describe:
+        "Allow requests from FROM to sandbox port PORT, as FROM[,PORT] (FROM: *, an IP or a CIDR; PORT: a port, a range or *) (repeatable)",
+    })
+    .option("deny-ingress", {
+      type: "string",
+      array: true,
+      describe: "Deny requests from FROM to sandbox port PORT, as FROM[,PORT] (repeatable)",
+    })
+    .option("token-ingress", {
+      type: "string",
+      array: true,
+      describe:
+        "Admit requests from FROM to sandbox port PORT, as FROM[,PORT], only with the API key in the X-Sandbox-Token header (repeatable)",
+    })
+    .option("allow-egress", {
+      type: "string",
+      array: true,
+      describe:
+        "Allow connections to TO on port PORT, as TO[,PORT] (TO: *, an IP, a CIDR, a host or *.domain) (repeatable)",
+    })
+    .option("deny-egress", {
+      type: "string",
+      array: true,
+      describe:
+        "Deny connections to TO on port PORT, as TO[,PORT] (repeatable). The most specific matching rule wins",
     });
 }
 
@@ -414,6 +461,7 @@ function buildCreateParams(argv: CreateOptions, ref: string) {
           },
         }
       : undefined,
+    networkPolicy: buildNetworkPolicy(argv),
   };
 }
 
@@ -455,6 +503,11 @@ export const createCommand: yargs.CommandModule<
             describe: "Snapshot on teardown, aliased my-app@v2",
             command:
               "$0 sandboxes create @my-app@v1 --snapshot-on-terminate --snapshot-alias my-app@v2",
+          },
+          {
+            describe: "HTTPS only to api.openai.com; port 3000 needs the API key",
+            command:
+              "$0 sandboxes create @my-app@v1 --deny-egress '*,443' --allow-egress api.openai.com,443 --token-ingress '*,3000'",
           },
         ]),
       ) as unknown as yargs.Argv<CreateArgs>,

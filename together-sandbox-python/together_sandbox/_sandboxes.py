@@ -24,6 +24,7 @@ from ._utils import (
     RetryConfig,
     _call_api,
     _resolve_connection,
+    build_network_policy,
     build_termination_policy,
     build_termination_snapshot,
     deep_object_tags,
@@ -99,6 +100,7 @@ class SandboxesNamespace:
         ttl: int | None = None,
         tags: dict[str, str] | None = None,
         termination_policy: dict | None = None,
+        network_policy: dict | None = None,
     ) -> Sandbox:
         """Create a sandbox and wait for it to be running.
 
@@ -120,6 +122,17 @@ class SandboxesNamespace:
                 sandbox created from the snapshot resumes with its processes
                 intact. Omit for an ephemeral sandbox (no snapshot, deleted on
                 termination).
+            network_policy: Who may reach the sandbox, and what it may reach,
+                e.g. ``{"egress": [{"to": "*", "to_port": 443, "access": "deny"},
+                {"to": "api.openai.com", "to_port": 443, "access": "allow"}]}``.
+                Ingress rules take ``from`` (``*``, an IP or a CIDR) and
+                ``access`` ``allow``, ``deny`` or ``allow_with_token`` — the
+                last admits a request only if it presents the creating API key
+                in the ``X-Sandbox-Token`` header. Egress rules take ``to``
+                (``*``, an IP, a CIDR, a host name or ``*.domain``) and
+                ``allow`` or ``deny``. The most specific matching rule wins;
+                a connection no rule matches is allowed. Omit for no
+                restriction.
 
         """
         body = CreateSandboxBody(
@@ -130,6 +143,7 @@ class SandboxesNamespace:
             ttl=ttl if ttl is not None else UNSET,
             tags=Tags.from_dict(tags) if tags is not None else UNSET,
             termination_policy=build_termination_policy(termination_policy),
+            network_policy=build_network_policy(network_policy),
         )
         sandbox_model: SandboxModel = await _call_api(
             "api.create_sandbox",

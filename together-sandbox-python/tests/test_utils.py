@@ -334,3 +334,76 @@ class TestBuildTerminationSnapshot:
 
         body = build_termination_policy({"snapshot": {"memory": True}}).to_dict()
         assert body == {"snapshot": {"memory": True}}
+
+
+class TestBuildNetworkPolicy:
+    def test_none_is_unset(self):
+        from together_sandbox._utils import build_network_policy
+        from together_sandbox.api.types import UNSET
+
+        assert build_network_policy(None) is UNSET
+
+    def test_rules_round_trip_with_string_ports(self):
+        from together_sandbox._utils import build_network_policy
+
+        policy = build_network_policy(
+            {
+                "ingress": [
+                    {"from": "10.0.0.0/8", "to_port": 80, "access": "allow"},
+                    {"from": "*", "access": "allow_with_token"},
+                ],
+                "egress": [
+                    {"to": "*", "to_port": 443, "access": "deny"},
+                    {"to": "api.openai.com", "to_port": "443", "access": "allow"},
+                ],
+            }
+        )
+
+        assert policy.to_dict() == {
+            "ingress": [
+                {"from": "10.0.0.0/8", "to_port": "80", "access": "allow"},
+                {"from": "*", "access": "allow_with_token"},
+            ],
+            "egress": [
+                {"to": "*", "to_port": "443", "access": "deny"},
+                {"to": "api.openai.com", "to_port": "443", "access": "allow"},
+            ],
+        }
+
+    def test_unknown_access_is_refused(self):
+        from together_sandbox._utils import build_network_policy
+
+        with pytest.raises(ValueError):
+            build_network_policy({"egress": [{"to": "*", "access": "allow_with_token"}]})
+
+    @pytest.mark.asyncio
+    async def test_create_sends_the_network_policy(self):
+        from together_sandbox._sandboxes import SandboxesNamespace
+
+        captured = {}
+
+        async def fake_create(*, client, body):
+            captured["body"] = body.to_dict()
+            return MagicMock()
+
+        async def fake_call_api(op, fn, *args, **kwargs):
+            await fn()
+            return _make_sandbox_model(id="abc123")
+
+        with (
+            patch("together_sandbox._sandboxes.create_sandbox_api", side_effect=fake_create),
+            patch("together_sandbox._sandboxes._call_api", side_effect=fake_call_api),
+            patch(
+                "together_sandbox._sandboxes._connect_running_sandbox",
+                new=AsyncMock(return_value=MagicMock()),
+            ),
+        ):
+            ns = SandboxesNamespace(api_client=MagicMock())
+            await ns.create(
+                snapshot_id="snap-1",
+                network_policy={"egress": [{"to": "*", "to_port": 443, "access": "deny"}]},
+            )
+
+        assert captured["body"]["network_policy"] == {
+            "egress": [{"to": "*", "to_port": "443", "access": "deny"}]
+        }

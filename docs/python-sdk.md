@@ -69,7 +69,7 @@ async with TogetherSandbox() as sdk:
 
 Sandbox lifecycle namespace.
 
-#### `sdk.sandboxes.create(*, cpu=1.0, memory_bytes=2*1024**3, snapshot_id=None, snapshot_alias=None, ttl=None, tags=None, termination_policy=None) -> Sandbox`
+#### `sdk.sandboxes.create(*, cpu=1.0, memory_bytes=2*1024**3, snapshot_id=None, snapshot_alias=None, ttl=None, tags=None, termination_policy=None, network_policy=None) -> Sandbox`
 
 Creates a new sandbox from a snapshot, starts the VM, and returns a connected [`Sandbox`](#sandbox) instance. This is the primary way to get a running sandbox — no separate `start()` call is needed.
 
@@ -88,6 +88,7 @@ Resource params (`cpu`, `memory_bytes`) default to **1 vCPU / 2 GiB memory** if 
 | `ttl`            | `int \| None`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
 | `tags`           | `dict \| None` | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
 | `termination_policy` | `dict \| None` | No   | Termination policy `{"snapshot": {"memory": bool, "aliases": [...], "ttl": int, "tags": {...}}}`. `"memory": True` also snapshots memory (hibernate). Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
+| `network_policy` | `dict \| None` | No | `{"ingress": [{"from", "to_port", "access"}], "egress": [{"to", "to_port", "access"}]}`. `access` is `"allow"`, `"deny"`, or (ingress only) `"allow_with_token"`; `to_port` is a port (int or str), `"low-high"`, or `"*"`. The most specific matching rule wins. Omit for no restriction. See [Network policy](sandboxes.md#network-policy). |
 
 Sandboxes start automatically on creation, so there is no separate start step. 
 A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshot_alias="sandbox:<id>"`).

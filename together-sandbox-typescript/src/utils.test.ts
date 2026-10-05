@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   callApi,
+  networkPolicyBody,
   terminationPolicyBody,
   terminationSnapshotBody,
   withRetry,
@@ -1113,5 +1114,36 @@ describe("terminationPolicyBody", () => {
     ).toEqual({
       snapshot: { memory: true, aliases: ["a"], ttl: undefined, tags: undefined },
     });
+  });
+});
+
+describe("networkPolicyBody", () => {
+  it("snake-cases rules and sends ports as strings", () => {
+    expect(
+      networkPolicyBody({
+        ingress: [
+          { from: "10.0.0.0/8", toPort: 80, access: "allow" },
+          { from: "*", toPort: "3000-3999", access: "allow_with_token" },
+        ],
+        egress: [
+          { to: "*", toPort: 443, access: "deny" },
+          { to: "api.openai.com", access: "allow" },
+        ],
+      }),
+    ).toEqual({
+      ingress: [
+        { from: "10.0.0.0/8", to_port: "80", access: "allow" },
+        { from: "*", to_port: "3000-3999", access: "allow_with_token" },
+      ],
+      egress: [
+        { to: "*", to_port: "443", access: "deny" },
+        { to: "api.openai.com", to_port: undefined, access: "allow" },
+      ],
+    });
+  });
+
+  it("omits an absent policy", () => {
+    expect(networkPolicyBody(undefined)).toBeUndefined();
+    expect(networkPolicyBody(null)).toBeUndefined();
   });
 });
