@@ -1,4 +1,6 @@
 import type {
+  NetworkPolicyParams,
+  PortSpec,
   TerminationPolicyParams,
   TerminationSnapshotParams,
   RetryConfig,
@@ -45,6 +47,33 @@ export function terminationPolicyBody(
 } | null | undefined {
   if (terminationPolicy == null) return terminationPolicy;
   return { snapshot: terminationSnapshotBody(terminationPolicy.snapshot)! };
+}
+
+/**
+ * Convert a {@link NetworkPolicyParams} to the `network_policy` request body
+ * shape. Ports are sent as strings, which is how the API states them, so a
+ * caller can pass `443` and `"8000-9000"` alike.
+ */
+export function networkPolicyBody(
+  networkPolicy?: NetworkPolicyParams | null,
+): {
+  ingress?: { from: string; to_port?: string; access: "allow" | "deny" | "allow_with_token" }[];
+  egress?: { to: string; to_port?: string; access: "allow" | "deny" }[];
+} | undefined {
+  if (networkPolicy == null) return undefined;
+  const port = (p?: PortSpec) => (p == null ? undefined : String(p));
+  return {
+    ingress: networkPolicy.ingress?.map((r) => ({
+      from: r.from,
+      to_port: port(r.toPort),
+      access: r.access,
+    })),
+    egress: networkPolicy.egress?.map((r) => ({
+      to: r.to,
+      to_port: port(r.toPort),
+      access: r.access,
+    })),
+  };
 }
 
 // ─── Retry Configuration ─────────────────────────────────────────────────────

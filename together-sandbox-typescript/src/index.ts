@@ -31,6 +31,10 @@ export type {
   SandboxStatus,
   CreateSandboxParams,
   TerminationSnapshotParams,
+  NetworkPolicyParams,
+  IngressRuleParams,
+  EgressRuleParams,
+  PortSpec,
 } from "./types.js";
 export { Sandbox } from "./Sandbox.js";
 export { HttpError } from "./errors.js";

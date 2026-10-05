@@ -79,6 +79,7 @@ Resource params (`cpu`, `memoryBytes`) default to **1 vCPU / 2 GiB memory** if o
 | `ttl`           | `number`  | No       | Seconds after creation before the sandbox is automatically terminated.                 |
 | `tags`          | `object`  | No       | Arbitrary key/value labels to attach to the sandbox.                                   |
 | `terminationPolicy` | `object` | No    | Termination policy `{ snapshot: { memory?: boolean, aliases?: string[], ttl?: number, tags?: Record<string, string> } }`. `memory: true` also snapshots memory (hibernate). Omit for an ephemeral sandbox (no snapshot, deleted on termination). |
+| `networkPolicy` | `NetworkPolicyParams` | No | `{ ingress?: { from, toPort?, access }[], egress?: { to, toPort?, access }[] }`. `access` is `"allow"`, `"deny"`, or (ingress only) `"allow_with_token"`; `toPort` is a port, `"low-high"`, or `"*"`. The most specific matching rule wins. Omit for no restriction. See [Network policy](sandboxes.md#network-policy). |
 
 Sandboxes start automatically on creation, so there is no separate start step. A terminated sandbox cannot be used again — to continue from its state, create a new sandbox from the snapshot it produced (`snapshotAlias: "sandbox:<id>"`).
 

@@ -255,7 +255,7 @@ together-sandbox sandboxes list --snapshot @my-app@v1     # running, booted from
 
 ### `together-sandbox sandboxes get <id>`
 
-Show details for one sandbox — identity, status and reason, resources, termination policy, agent, and lifecycle timestamps. Supports `-o json`.
+Show details for one sandbox — identity, status and reason, resources, termination policy, network policy, agent, and lifecycle timestamps. Supports `-o json`.
 
 ### `together-sandbox sandboxes create <ref> [options]`
 
@@ -271,10 +271,23 @@ Create a sandbox from a snapshot and wait until it is running. `<ref>` is a snap
 | `--snapshot-memory`        | `boolean` | With `--snapshot-on-terminate`, snapshot memory as well as the filesystem (hibernate).                            |
 | `--snapshot-alias <alias>` | `string`  | With `--snapshot-on-terminate`, alias to apply to the produced snapshot. Repeatable.                              |
 | `--snapshot-ttl <seconds>` | `number`  | With `--snapshot-on-terminate`, seconds before the produced snapshot expires.                                     |
+| `--network-policy <json>`  | `string`  | Network policy as JSON, or `@file.json`: `{"ingress": [...], "egress": [...]}`. The flags below add rules to it.  |
+| `--allow-ingress FROM[,PORT]` | `string` | Allow requests from client `FROM` (`*`, an IP, or a CIDR) to sandbox port `PORT` (a port, `low-high`, or `*`; default every port). Repeatable. |
+| `--deny-ingress FROM[,PORT]`  | `string` | Deny requests from `FROM` to sandbox port `PORT`. Repeatable.                                               |
+| `--token-ingress FROM[,PORT]` | `string` | Admit requests from `FROM` to sandbox port `PORT` only with the API key in the `X-Sandbox-Token` header. Repeatable. |
+| `--allow-egress TO[,PORT]`    | `string` | Allow connections to `TO` (`*`, an IP, a CIDR, a host, or `*.domain`) on port `PORT`. Repeatable.           |
+| `--deny-egress TO[,PORT]`     | `string` | Deny connections to `TO` on port `PORT`. Repeatable.                                                        |
 
 ```bash
 together-sandbox sandboxes create @my-app@v1 --cpu 2 --snapshot-on-terminate
+
+# HTTPS only to api.openai.com; port 3000 only with the API key
+together-sandbox sandboxes create @my-app@v1 \
+  --deny-egress '*,443' --allow-egress api.openai.com,443 \
+  --token-ingress '*,3000'
 ```
+
+The most specific matching rule wins, whatever order the flags are in; see [Network policy](sandboxes.md#network-policy). The target and port are separated by a comma, not a colon: in an ingress rule the target is the client and the port is the sandbox's, so `10.0.0.0/8,80` reads as "from 10.0.0.0/8, to port 80". Quote `*` so the shell does not expand it.
 
 ### `together-sandbox sandboxes terminate <id> [options]`
 

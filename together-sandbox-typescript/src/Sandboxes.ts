@@ -17,6 +17,7 @@ import {
   camelCaseKeys,
   callApi,
   terminationPolicyBody,
+  networkPolicyBody,
   terminationSnapshotBody,
 } from "./utils.js";
 import { describeLifecycleFailure, isTransientStatus } from "./lifecycle.js";
@@ -110,6 +111,7 @@ export class SandboxesNamespace {
             ttl: params.ttl,
             tags: params.tags,
             termination_policy: terminationPolicyBody(params.terminationPolicy) ?? undefined,
+            network_policy: networkPolicyBody(params.networkPolicy),
           },
         }),
       this._retryConfig,

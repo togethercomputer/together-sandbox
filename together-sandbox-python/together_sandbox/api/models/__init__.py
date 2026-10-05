@@ -6,10 +6,15 @@ from .container_registry_credential import ContainerRegistryCredential
 from .create_sandbox_body import CreateSandboxBody
 from .create_snapshot_body import CreateSnapshotBody
 from .create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
+from .egress_rule import EgressRule
+from .egress_rule_access import EgressRuleAccess
 from .error import Error
 from .error_errors_item import ErrorErrorsItem
 from .error_errors_item_details import ErrorErrorsItemDetails
+from .ingress_rule import IngressRule
+from .ingress_rule_access import IngressRuleAccess
 from .list_sandboxes_statuses_item import ListSandboxesStatusesItem
+from .network_policy import NetworkPolicy
 from .sandbox import Sandbox
 from .sandbox_agent import SandboxAgent
 from .sandbox_page import SandboxPage
@@ -30,10 +35,15 @@ __all__ = (
     "CreateSandboxBody",
     "CreateSnapshotBody",
     "CreateSnapshotBodyArchitecture",
+    "EgressRule",
+    "EgressRuleAccess",
     "Error",
     "ErrorErrorsItem",
     "ErrorErrorsItemDetails",
+    "IngressRule",
+    "IngressRuleAccess",
     "ListSandboxesStatusesItem",
+    "NetworkPolicy",
     "Sandbox",
     "SandboxAgent",
     "SandboxPage",

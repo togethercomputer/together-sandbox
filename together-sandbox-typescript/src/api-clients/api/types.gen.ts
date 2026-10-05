@@ -64,6 +64,11 @@ export type Sandbox = {
     resized_at: string | null;
     recovery_at: string | null;
     updated_at: string;
+    /**
+     * The network policy, or null when the sandbox has none.
+     *
+     */
+    network_policy?: NetworkPolicy | null;
 };
 
 /**
@@ -161,6 +166,50 @@ export type _Error = {
             [key: string]: unknown;
         };
     }>;
+};
+
+/**
+ * Who may reach the sandbox, and what it may reach. Rules are unordered: when several match, the most specific decides, and between equally specific rules the more restrictive one does. A host name is more specific than any address, a longer prefix or suffix more than a shorter one, and only then does the port count: a single port over a range, a narrower range over a wider one, either over `*`. A connection no rule matches is allowed.
+ *
+ * Ingress applies to requests reaching the sandbox's URL, matched by the client's address. Egress applies to every TCP connection the sandbox opens; host rules are matched against TLS SNI or the HTTP Host header, and a connection allowed by one is dialled to that host, never to the address the sandbox chose. A sandbox with any egress `deny` rule may send no UDP other than DNS. Whatever the policy, a sandbox can never reach private ranges or the cloud metadata service.
+ *
+ * The sandbox's agent port (57468, which the SDKs and the agent URL use) can be narrowed but never closed. Only ingress rules that name that port alone and a specific IP or CIDR apply to it; a `*` port, a range, or a `*` client never does. Those rules are an allow-list: if any of them admits clients, every client none of them matches is denied.
+ *
+ */
+export type NetworkPolicy = {
+    ingress?: Array<IngressRule>;
+    egress?: Array<EgressRule>;
+};
+
+export type IngressRule = {
+    /**
+     * `*`, an IP, or a CIDR.
+     */
+    from: string;
+    /**
+     * `*` (the default), a port, or an inclusive range `low-high`.
+     *
+     */
+    to_port?: string;
+    /**
+     * `allow_with_token` admits a request only if it presents the API key that created the sandbox in the `X-Sandbox-Token` header. The header is removed before the request reaches the sandbox.
+     *
+     */
+    access: 'allow' | 'deny' | 'allow_with_token';
+};
+
+export type EgressRule = {
+    /**
+     * `*`, an IP, a CIDR, a host name, or `*.domain`, which matches names under the domain but not the domain itself.
+     *
+     */
+    to: string;
+    /**
+     * `*` (the default), a port, or an inclusive range `low-high`.
+     *
+     */
+    to_port?: string;
+    access: 'allow' | 'deny';
 };
 
 export type AuthorizeData = {
@@ -318,6 +367,11 @@ export type CreateSandboxData = {
          *
          */
         termination_policy?: TerminationPolicy;
+        /**
+         * Who may reach the sandbox, and what it may reach. Omit for no restriction.
+         *
+         */
+        network_policy?: NetworkPolicy;
     };
     path?: never;
     query?: never;

@@ -11,6 +11,7 @@ from typing_extensions import Self
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
+    from ..models.network_policy import NetworkPolicy
     from ..models.tags import Tags
     from ..models.termination_policy import TerminationPolicy
 
@@ -33,6 +34,22 @@ class CreateSandboxBody:
             disable automatic termination.
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
         termination_policy (TerminationPolicy | Unset): The policy applied when a sandbox terminates.
+        network_policy (NetworkPolicy | Unset): Who may reach the sandbox, and what it may reach. Rules are unordered:
+            when several match, the most specific decides, and between equally specific rules the more restrictive one does.
+            A host name is more specific than any address, a longer prefix or suffix more than a shorter one, and only then
+            does the port count: a single port over a range, a narrower range over a wider one, either over `*`. A
+            connection no rule matches is allowed.
+
+            Ingress applies to requests reaching the sandbox's URL, matched by the client's address. Egress applies to every
+            TCP connection the sandbox opens; host rules are matched against TLS SNI or the HTTP Host header, and a
+            connection allowed by one is dialled to that host, never to the address the sandbox chose. A sandbox with any
+            egress `deny` rule may send no UDP other than DNS. Whatever the policy, a sandbox can never reach private ranges
+            or the cloud metadata service.
+
+            The sandbox's agent port (57468, which the SDKs and the agent URL use) can be narrowed but never closed. Only
+            ingress rules that name that port alone and a specific IP or CIDR apply to it; a `*` port, a range, or a `*`
+            client never does. Those rules are an allow-list: if any of them admits clients, every client none of them
+            matches is denied.
     """
 
     snapshot_id: UUID | Unset = UNSET
@@ -42,6 +59,7 @@ class CreateSandboxBody:
     ttl: int | Unset = UNSET
     tags: Tags | Unset = UNSET
     termination_policy: TerminationPolicy | Unset = UNSET
+    network_policy: NetworkPolicy | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -65,6 +83,10 @@ class CreateSandboxBody:
         if not isinstance(self.termination_policy, Unset):
             termination_policy = self.termination_policy.to_dict()
 
+        network_policy: dict[str, Any] | Unset = UNSET
+        if not isinstance(self.network_policy, Unset):
+            network_policy = self.network_policy.to_dict()
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
@@ -82,11 +104,14 @@ class CreateSandboxBody:
             field_dict["tags"] = tags
         if termination_policy is not UNSET:
             field_dict["termination_policy"] = termination_policy
+        if network_policy is not UNSET:
+            field_dict["network_policy"] = network_policy
 
         return field_dict
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        from ..models.network_policy import NetworkPolicy
         from ..models.tags import Tags
         from ..models.termination_policy import TerminationPolicy
 
@@ -120,6 +145,13 @@ class CreateSandboxBody:
         else:
             termination_policy = TerminationPolicy.from_dict(_termination_policy)
 
+        _network_policy = d.pop("network_policy", UNSET)
+        network_policy: NetworkPolicy | Unset
+        if isinstance(_network_policy, Unset):
+            network_policy = UNSET
+        else:
+            network_policy = NetworkPolicy.from_dict(_network_policy)
+
         create_sandbox_body = cls(
             snapshot_id=snapshot_id,
             snapshot_alias=snapshot_alias,
@@ -128,6 +160,7 @@ class CreateSandboxBody:
             ttl=ttl,
             tags=tags,
             termination_policy=termination_policy,
+            network_policy=network_policy,
         )
 
         create_sandbox_body.additional_properties = d

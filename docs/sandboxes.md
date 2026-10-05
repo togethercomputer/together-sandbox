@@ -239,6 +239,50 @@ const sandbox = await sdk.sandboxes.create({
 
 ---
 
+## Network policy
+
+A sandbox can be given a **network policy** at creation: who may reach its ports (`ingress`), and what it may connect to (`egress`). Without one, a sandbox is unrestricted.
+
+```typescript
+const sandbox = await sdk.sandboxes.create({
+  snapshotAlias: "my-app@v1",
+  networkPolicy: {
+    ingress: [
+      { from: "10.0.0.0/8", toPort: 80, access: "allow" },
+      { from: "*", toPort: 8080, access: "deny" },
+      { from: "*", toPort: 3000, access: "allow_with_token" },
+    ],
+    egress: [
+      { to: "*", toPort: 443, access: "deny" },
+      { to: "api.openai.com", toPort: 443, access: "allow" },
+    ],
+  },
+});
+```
+
+| Field    | Values                                                                                     |
+| -------- | ------------------------------------------------------------------------------------------ |
+| `from`   | Ingress only: `*`, an IP, or a CIDR — the client's address.                                |
+| `to`     | Egress only: `*`, an IP, a CIDR, a host name, or `*.domain` (names under the domain, not the domain itself). |
+| `toPort` | A port, an inclusive range `"8000-9000"`, or `"*"`. Default: every port.                   |
+| `access` | `allow` or `deny`; ingress also takes `allow_with_token`.                                  |
+
+**Rules are unordered.** When several match, the **most specific** one decides: a host name beats any address, a longer CIDR beats a shorter one, a longer `*.domain` beats a shorter one, and only then does the port count — a single port beats a range, a narrower range beats a wider one, and either beats `*`. Between equally specific rules the more restrictive one wins. A connection no rule matches is **allowed**, so "deny everything except…" is a `*` deny plus the exceptions, in any order.
+
+**Ingress** applies to requests reaching the sandbox's URL. `allow_with_token` admits a request only if it carries the API key that created the sandbox in the `X-Sandbox-Token` header; the header is removed before the request reaches the sandbox. This lets you put your own proxy, app, or worker in front of a sandbox port — do your own auth there, then add the header and forward.
+
+**Egress** applies to every TCP connection the sandbox opens. Host rules are matched against the TLS SNI of an HTTPS connection, or the `Host` header of a plain HTTP one; other protocols are matched on their address only. A connection allowed by a host rule is dialled to that host, never to the address the sandbox chose, so a sandbox cannot use an allowed name to reach another address. A sandbox with any egress `deny` rule may send no UDP other than DNS (HTTP/3 clients fall back to TCP).
+
+Whatever the policy, a sandbox can never reach private address ranges or the cloud metadata service.
+
+**The sandbox's agent port is never closed.** Port `57468` serves the sandbox's agent — the API the SDKs and the CLI's `exec` drive the sandbox through — so a policy can narrow it but not block it:
+
+- Only ingress rules that name `57468` **and** a specific IP or CIDR apply to it. A `*` port, a range such as `1-65535`, or a `*` client never does — so `{ from: "*", access: "deny" }` leaves the agent reachable.
+- Those rules form an allow-list. If any of them admits clients (`allow` or `allow_with_token`), every other client is denied: `{ from: "10.0.0.0/8", toPort: 57468, access: "allow" }` on its own limits the agent to `10.0.0.0/8`.
+- A `deny` naming the port and a client blocks just that client.
+
+---
+
 ## Resource allocation
 
 When creating a sandbox, you can configure its CPU and memory:

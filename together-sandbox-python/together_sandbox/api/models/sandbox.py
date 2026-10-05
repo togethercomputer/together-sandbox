@@ -11,8 +11,10 @@ from typing_extensions import Self
 
 from ..models.sandbox_status import SandboxStatus
 from ..models.sandbox_status_reason import SandboxStatusReason
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
+    from ..models.network_policy import NetworkPolicy
     from ..models.sandbox_agent import SandboxAgent
     from ..models.tags import Tags
     from ..models.termination_policy import TerminationPolicy
@@ -46,6 +48,7 @@ class Sandbox:
         resized_at (datetime.datetime | None):
         recovery_at (datetime.datetime | None):
         updated_at (datetime.datetime):
+        network_policy (NetworkPolicy | None | Unset): The network policy, or null when the sandbox has none.
     """
 
     id: UUID
@@ -66,9 +69,11 @@ class Sandbox:
     resized_at: datetime.datetime | None
     recovery_at: datetime.datetime | None
     updated_at: datetime.datetime
+    network_policy: NetworkPolicy | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.network_policy import NetworkPolicy
         from ..models.termination_policy import TerminationPolicy
 
         id = str(self.id)
@@ -129,6 +134,14 @@ class Sandbox:
 
         updated_at = self.updated_at.isoformat()
 
+        network_policy: dict[str, Any] | None | Unset
+        if isinstance(self.network_policy, Unset):
+            network_policy = UNSET
+        elif isinstance(self.network_policy, NetworkPolicy):
+            network_policy = self.network_policy.to_dict()
+        else:
+            network_policy = self.network_policy
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -153,11 +166,14 @@ class Sandbox:
                 "updated_at": updated_at,
             }
         )
+        if network_policy is not UNSET:
+            field_dict["network_policy"] = network_policy
 
         return field_dict
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        from ..models.network_policy import NetworkPolicy
         from ..models.sandbox_agent import SandboxAgent
         from ..models.tags import Tags
         from ..models.termination_policy import TerminationPolicy
@@ -274,6 +290,23 @@ class Sandbox:
 
         updated_at = datetime.datetime.fromisoformat(d.pop("updated_at"))
 
+        def _parse_network_policy(data: object) -> NetworkPolicy | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                network_policy_type_0 = NetworkPolicy.from_dict(data)
+
+                return network_policy_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(NetworkPolicy | None | Unset, data)
+
+        network_policy = _parse_network_policy(d.pop("network_policy", UNSET))
+
         sandbox = cls(
             id=id,
             organization_id=organization_id,
@@ -293,6 +326,7 @@ class Sandbox:
             resized_at=resized_at,
             recovery_at=recovery_at,
             updated_at=updated_at,
+            network_policy=network_policy,
         )
 
         sandbox.additional_properties = d
