@@ -95,7 +95,7 @@ describe("SandboxesNamespace.create", () => {
     });
 
     const experimental = {
-      network_policy: {
+      network: {
         inbound: [
           { from: ["10.0.0.0/8"], to_port: "80", access: "allow" as const },
           { from: ["*"], access: "deny" as const },

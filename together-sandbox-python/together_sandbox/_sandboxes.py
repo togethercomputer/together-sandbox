@@ -124,7 +124,7 @@ class SandboxesNamespace:
                 termination).
             experimental: Experimental features, whose API may change at
                 short notice: the API's ``experimental`` object, as is, e.g.
-                ``{"network_policy": {"inbound": [{"from": ["10.0.0.0/8"],
+                ``{"network": {"inbound": [{"from": ["10.0.0.0/8"],
                 "to_port": "80", "access": "allow"}]}}``. See
                 ``docs/experimental.md``.
 

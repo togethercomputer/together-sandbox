@@ -20,8 +20,8 @@ class CreateSandboxExperimental:
     """Experimental features. Their API may change at short notice.
 
     Attributes:
-        network_policy (NetworkPolicy | Unset): Who may reach the sandbox. Inbound applies to requests reaching the
-            sandbox's URL, matched by port and by the client's address. Outbound rules are not supported yet.
+        network (NetworkPolicy | Unset): Who may reach the sandbox. Inbound applies to requests reaching the sandbox's
+            URL, matched by port and by the client's address. Outbound rules are not supported yet.
 
             A port has at most one rule, and at most one rule applies to every port (`to_port` `*`). A request to a port is
             decided by that port's rule if the client is in its `from`, otherwise by the `*` rule if the client is in its
@@ -32,18 +32,18 @@ class CreateSandboxExperimental:
             `allow` or `allow_with_token`, clients outside its `from` are denied.
     """
 
-    network_policy: NetworkPolicy | Unset = UNSET
+    network: NetworkPolicy | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
-        network_policy: dict[str, Any] | Unset = UNSET
-        if not isinstance(self.network_policy, Unset):
-            network_policy = self.network_policy.to_dict()
+        network: dict[str, Any] | Unset = UNSET
+        if not isinstance(self.network, Unset):
+            network = self.network.to_dict()
 
         field_dict: dict[str, Any] = {}
 
         field_dict.update({})
-        if network_policy is not UNSET:
-            field_dict["network_policy"] = network_policy
+        if network is not UNSET:
+            field_dict["network"] = network
 
         return field_dict
 
@@ -52,15 +52,15 @@ class CreateSandboxExperimental:
         from ..models.network_policy import NetworkPolicy
 
         d = dict(src_dict)
-        _network_policy = d.pop("network_policy", UNSET)
-        network_policy: NetworkPolicy | Unset
-        if isinstance(_network_policy, Unset):
-            network_policy = UNSET
+        _network = d.pop("network", UNSET)
+        network: NetworkPolicy | Unset
+        if isinstance(_network, Unset):
+            network = UNSET
         else:
-            network_policy = NetworkPolicy.from_dict(_network_policy)
+            network = NetworkPolicy.from_dict(_network)
 
         create_sandbox_experimental = cls(
-            network_policy=network_policy,
+            network=network,
         )
 
         return create_sandbox_experimental

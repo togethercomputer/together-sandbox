@@ -7,10 +7,8 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from typing_extensions import Self
 
-from ..types import UNSET, Unset
-
 if TYPE_CHECKING:
-    from ..models.network_policy import NetworkPolicy
+    from ..models.sandbox_network import SandboxNetwork
 
 
 T = TypeVar("T", bound="SandboxExperimental")
@@ -21,56 +19,54 @@ class SandboxExperimental:
     """Experimental features. Their API may change at short notice.
 
     Attributes:
-        network_policy (NetworkPolicy | None | Unset): The network policy, or null when the sandbox has none.
+        network (None | SandboxNetwork): The network policy, or null when the sandbox has none.
     """
 
-    network_policy: NetworkPolicy | None | Unset = UNSET
+    network: None | SandboxNetwork
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.network_policy import NetworkPolicy
+        from ..models.sandbox_network import SandboxNetwork
 
-        network_policy: dict[str, Any] | None | Unset
-        if isinstance(self.network_policy, Unset):
-            network_policy = UNSET
-        elif isinstance(self.network_policy, NetworkPolicy):
-            network_policy = self.network_policy.to_dict()
+        network: dict[str, Any] | None
+        if isinstance(self.network, SandboxNetwork):
+            network = self.network.to_dict()
         else:
-            network_policy = self.network_policy
+            network = self.network
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({})
-        if network_policy is not UNSET:
-            field_dict["network_policy"] = network_policy
+        field_dict.update(
+            {
+                "network": network,
+            }
+        )
 
         return field_dict
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.network_policy import NetworkPolicy
+        from ..models.sandbox_network import SandboxNetwork
 
         d = dict(src_dict)
 
-        def _parse_network_policy(data: object) -> NetworkPolicy | None | Unset:
+        def _parse_network(data: object) -> None | SandboxNetwork:
             if data is None:
-                return data
-            if isinstance(data, Unset):
                 return data
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                network_policy_type_0 = NetworkPolicy.from_dict(data)
+                network_type_0 = SandboxNetwork.from_dict(data)
 
-                return network_policy_type_0
+                return network_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(NetworkPolicy | None | Unset, data)
+            return cast(None | SandboxNetwork, data)
 
-        network_policy = _parse_network_policy(d.pop("network_policy", UNSET))
+        network = _parse_network(d.pop("network"))
 
         sandbox_experimental = cls(
-            network_policy=network_policy,
+            network=network,
         )
 
         sandbox_experimental.additional_properties = d

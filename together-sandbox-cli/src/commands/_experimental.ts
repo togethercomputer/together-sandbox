@@ -25,7 +25,7 @@ export function parseExperimental(
 
 /** One line per inbound rule, e.g. `80 allow from 10.0.0.0/8`. */
 export function formatInboundRules(s: SandboxInfo): string {
-  const inbound = s.experimental?.network_policy?.inbound;
+  const inbound = s.experimental?.network?.inbound;
   if (!inbound || inbound.length === 0) return "<none>";
   return inbound
     .map((rule) => `${rule.to_port ?? "*"} ${rule.access} from ${rule.from.join(", ")}`)

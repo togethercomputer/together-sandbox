@@ -83,7 +83,19 @@ export type SandboxExperimental = {
      * The network policy, or null when the sandbox has none.
      *
      */
-    network_policy?: NetworkPolicy | null;
+    network: SandboxNetwork | null;
+};
+
+/**
+ * The sandbox's network policy.
+ */
+export type SandboxNetwork = {
+    inbound: Array<InboundRule>;
+    /**
+     * The token `allow_with_token` rules ask for in the `X-Sandbox-Token` header (the agent token). Null unless the sandbox is running.
+     *
+     */
+    token: string | null;
 };
 
 /**
@@ -95,7 +107,7 @@ export type CreateSandboxExperimental = {
      * Who may reach the sandbox. Omit for no restriction.
      *
      */
-    network_policy?: NetworkPolicy;
+    network?: NetworkPolicy;
 };
 
 /**

@@ -344,7 +344,7 @@ class TestBuildExperimental:
         from together_sandbox._utils import build_experimental
 
         experimental = {
-            "network_policy": {
+            "network": {
                 "inbound": [
                     {"from": ["10.0.0.0/8", "203.0.113.7"], "to_port": "80", "access": "allow"},
                     {"from": ["*"], "to_port": "3000-3999", "access": "allow_with_token"},
@@ -366,4 +366,4 @@ class TestBuildExperimental:
         from together_sandbox._utils import build_experimental
 
         with pytest.raises(ValueError):
-            build_experimental({"network_policy": {"inbound": [{"from": ["*"], "access": "maybe"}]}})
+            build_experimental({"network": {"inbound": [{"from": ["*"], "access": "maybe"}]}})
