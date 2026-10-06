@@ -22,7 +22,7 @@ import {
   runExec,
 } from "./_exec";
 import { examples } from "./_help";
-import { formatInboundRules, parseExperimental } from "./_experimental";
+import { formatInboundAllowlist, parseExperimental } from "./_experimental";
 import { withClientTag } from "../constants";
 
 /** The statuses a sandbox can report, for `--status` validation. */
@@ -87,7 +87,7 @@ function describeSandbox(s: SandboxInfo): {
     },
     {
       title: "Experimental",
-      rows: [["Network policy (inbound)", formatInboundRules(s)]],
+      rows: [["Inbound allowlist", formatInboundAllowlist(s)]],
     },
     {
       title: "Agent",
@@ -398,7 +398,7 @@ function createOptionsBuilder<T>(yargs: yargs.Argv<T>) {
       describe:
         "Experimental features, which may change at short notice: the API's " +
         "`experimental` object as JSON, sent as is. E.g. " +
-        '{"network_policy": {"inbound": [{"from": ["10.0.0.0/8"], "to_port": "80", "access": "allow"}]}}',
+        '{"network_policy": {"inbound_allowlist": [{"ports": ["80", "8000-8100"], "from": ["10.0.0.0/8"]}, {"ports": ["3000"], "requires_token": true}]}}',
     });
 }
 

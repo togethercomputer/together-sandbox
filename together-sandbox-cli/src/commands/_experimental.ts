@@ -23,11 +23,21 @@ export function parseExperimental(
   return parsed as CreateSandboxExperimental;
 }
 
-/** One line per inbound rule, e.g. `80 allow from 10.0.0.0/8`. */
-export function formatInboundRules(s: SandboxInfo): string {
-  const inbound = s.experimental?.network_policy?.inbound;
-  if (!inbound || inbound.length === 0) return "<none>";
-  return inbound
-    .map((rule) => `${rule.to_port ?? "*"} ${rule.access} from ${rule.from.join(", ")}`)
+/**
+ * One line per inbound allowlist rule, e.g. `80, 8000-8100 from 10.0.0.0/8
+ * (token required)`. Without a policy every port is open; with an empty
+ * allowlist none is.
+ */
+export function formatInboundAllowlist(s: SandboxInfo): string {
+  const policy = s.experimental?.network_policy;
+  if (!policy) return "<no policy: every port is open>";
+  const rules = policy.inbound_allowlist ?? [];
+  if (rules.length === 0) return "<empty: every port is closed>";
+  return rules
+    .map((rule) => {
+      const from = rule.from?.length ? rule.from.join(", ") : "*";
+      const token = rule.requires_token ? " (token required)" : "";
+      return `${rule.ports.join(", ")} from ${from}${token}`;
+    })
     .join("\n");
 }

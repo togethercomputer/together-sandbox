@@ -1,6 +1,7 @@
 """Contains all the data models used in inputs/outputs"""
 
 from .alias_snapshot_body import AliasSnapshotBody
+from .allow_rule import AllowRule
 from .authorize_body import AuthorizeBody
 from .container_registry_credential import ContainerRegistryCredential
 from .create_sandbox_body import CreateSandboxBody
@@ -10,8 +11,6 @@ from .create_snapshot_body_architecture import CreateSnapshotBodyArchitecture
 from .error import Error
 from .error_errors_item import ErrorErrorsItem
 from .error_errors_item_details import ErrorErrorsItemDetails
-from .inbound_rule import InboundRule
-from .inbound_rule_access import InboundRuleAccess
 from .list_sandboxes_statuses_item import ListSandboxesStatusesItem
 from .network_policy import NetworkPolicy
 from .sandbox import Sandbox
@@ -30,6 +29,7 @@ from .termination_snapshot import TerminationSnapshot
 
 __all__ = (
     "AliasSnapshotBody",
+    "AllowRule",
     "AuthorizeBody",
     "ContainerRegistryCredential",
     "CreateSandboxBody",
@@ -39,8 +39,6 @@ __all__ = (
     "Error",
     "ErrorErrorsItem",
     "ErrorErrorsItemDetails",
-    "InboundRule",
-    "InboundRuleAccess",
     "ListSandboxesStatusesItem",
     "NetworkPolicy",
     "Sandbox",

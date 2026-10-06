@@ -345,10 +345,9 @@ class TestBuildExperimental:
 
         experimental = {
             "network_policy": {
-                "inbound": [
-                    {"from": ["10.0.0.0/8", "203.0.113.7"], "to_port": "80", "access": "allow"},
-                    {"from": ["*"], "to_port": "3000-3999", "access": "allow_with_token"},
-                    {"from": ["*"], "access": "deny"},
+                "inbound_allowlist": [
+                    {"ports": ["80", "8000-8100"], "from": ["10.0.0.0/8"], "requires_token": False},
+                    {"ports": ["3000"], "from": ["*"], "requires_token": True},
                 ]
             }
         }
@@ -360,10 +359,10 @@ class TestBuildExperimental:
 
         assert build_experimental(None) is UNSET
 
-    def test_an_unknown_access_is_rejected(self):
+    def test_a_rule_without_ports_is_rejected(self):
         import pytest
 
         from together_sandbox._utils import build_experimental
 
-        with pytest.raises(ValueError):
-            build_experimental({"network_policy": {"inbound": [{"from": ["*"], "access": "maybe"}]}})
+        with pytest.raises(KeyError):
+            build_experimental({"network_policy": {"inbound_allowlist": [{"from": ["*"]}]}})

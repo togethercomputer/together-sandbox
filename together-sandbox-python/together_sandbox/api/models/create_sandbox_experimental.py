@@ -20,16 +20,14 @@ class CreateSandboxExperimental:
     """Experimental features. Their API may change at short notice.
 
     Attributes:
-        network_policy (NetworkPolicy | Unset): Who may reach the sandbox. Inbound applies to requests reaching the
-            sandbox's URL, matched by port and by the client's address. Outbound rules are not supported yet.
+        network_policy (NetworkPolicy | Unset): Who may reach the sandbox through its URL. Without a network policy, a
+            sandbox can be reached on every port. With one, every inbound request is blocked except those its
+            `inbound_allowlist` admits: a request is admitted when a rule covers its port and its client. Rules can overlap;
+            if any rule covering a request has `requires_token`, the request must present the token, even where another
+            covering rule needs none. An empty allowlist admits nothing. Outbound rules are not supported yet.
 
-            A port has at most one rule, and at most one rule applies to every port (`to_port` `*`). A request to a port is
-            decided by that port's rule if the client is in its `from`, otherwise by the `*` rule if the client is in its
-            `from`, otherwise it is allowed.
-
-            The sandbox's agent port (57468, which the SDKs and the agent URL use) can be narrowed but never closed by
-            accident: only a rule naming that port alone applies to it, never the `*` rule or a range. If that rule is
-            `allow` or `allow_with_token`, clients outside its `from` are denied.
+            The sandbox's agent port (57468, which the SDKs and the agent URL use) is never filtered; the agent
+            authenticates every request itself.
     """
 
     network_policy: NetworkPolicy | Unset = UNSET

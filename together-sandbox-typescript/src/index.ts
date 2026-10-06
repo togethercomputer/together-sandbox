@@ -37,7 +37,7 @@ export type {
   CreateSandboxExperimental,
   SandboxExperimental,
   NetworkPolicy,
-  InboundRule,
+  AllowRule,
 } from "./api-clients/api/types.gen.js";
 export { Sandbox } from "./Sandbox.js";
 export { HttpError } from "./errors.js";

@@ -99,32 +99,31 @@ export type CreateSandboxExperimental = {
 };
 
 /**
- * Who may reach the sandbox. Inbound applies to requests reaching the sandbox's URL, matched by port and by the client's address. Outbound rules are not supported yet.
+ * Who may reach the sandbox through its URL. Without a network policy, a sandbox can be reached on every port. With one, every inbound request is blocked except those its `inbound_allowlist` admits: a request is admitted when a rule covers its port and its client. Rules can overlap; if any rule covering a request has `requires_token`, the request must present the token, even where another covering rule needs none. An empty allowlist admits nothing. Outbound rules are not supported yet.
  *
- * A port has at most one rule, and at most one rule applies to every port (`to_port` `*`). A request to a port is decided by that port's rule if the client is in its `from`, otherwise by the `*` rule if the client is in its `from`, otherwise it is allowed.
- *
- * The sandbox's agent port (57468, which the SDKs and the agent URL use) can be narrowed but never closed by accident: only a rule naming that port alone applies to it, never the `*` rule or a range. If that rule is `allow` or `allow_with_token`, clients outside its `from` are denied.
+ * The sandbox's agent port (57468, which the SDKs and the agent URL use) is never filtered; the agent authenticates every request itself.
  *
  */
 export type NetworkPolicy = {
-    inbound?: Array<InboundRule>;
+    inbound_allowlist?: Array<AllowRule>;
 };
 
-export type InboundRule = {
+export type AllowRule = {
     /**
-     * The clients the rule applies to: `*`, IPs, or CIDRs.
-     */
-    from: Array<string>;
-    /**
-     * `*` (the default), a port, or an inclusive range `low-high`. No two rules may cover the same port, and only one may be `*`.
+     * The ports the rule admits requests to: ports, inclusive ranges `low-high`, or `*` for every port.
      *
      */
-    to_port?: string;
+    ports: Array<string>;
     /**
-     * `allow_with_token` admits a request only if it presents the sandbox's agent token (`agent.token`) in the `X-Sandbox-Token` header. The header is removed before the request reaches the sandbox.
+     * The clients the rule admits requests from: `*`, IPs, or CIDRs. Defaults to `["*"]`, every client.
      *
      */
-    access: 'allow' | 'deny' | 'allow_with_token';
+    from?: Array<string>;
+    /**
+     * Admit a request only if it presents the sandbox's agent token (`agent.token`) in the `X-Sandbox-Token` header. The header is removed before the request reaches the sandbox.
+     *
+     */
+    requires_token?: boolean;
 };
 
 /**
