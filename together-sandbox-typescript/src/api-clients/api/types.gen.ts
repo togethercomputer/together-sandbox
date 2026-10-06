@@ -83,19 +83,7 @@ export type SandboxExperimental = {
      * The network policy, or null when the sandbox has none.
      *
      */
-    network_policy: SandboxNetworkPolicy | null;
-};
-
-/**
- * The sandbox's network policy.
- */
-export type SandboxNetworkPolicy = {
-    inbound: Array<InboundRule>;
-    /**
-     * The token `allow_with_token` rules ask for in the `X-Sandbox-Token` header: the sandbox's agent token. Null unless the sandbox is running.
-     *
-     */
-    token: string | null;
+    network_policy: NetworkPolicy | null;
 };
 
 /**
@@ -133,7 +121,7 @@ export type InboundRule = {
      */
     to_port?: string;
     /**
-     * `allow_with_token` admits a request only if it presents the sandbox's agent token (`agent.token`, also returned as `experimental.network_policy.token`) in the `X-Sandbox-Token` header. The header is removed before the request reaches the sandbox.
+     * `allow_with_token` admits a request only if it presents the sandbox's agent token (`agent.token`) in the `X-Sandbox-Token` header. The header is removed before the request reaches the sandbox.
      *
      */
     access: 'allow' | 'deny' | 'allow_with_token';

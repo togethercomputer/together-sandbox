@@ -8,7 +8,7 @@ from attrs import field as _attrs_field
 from typing_extensions import Self
 
 if TYPE_CHECKING:
-    from ..models.sandbox_network_policy import SandboxNetworkPolicy
+    from ..models.network_policy import NetworkPolicy
 
 
 T = TypeVar("T", bound="SandboxExperimental")
@@ -19,17 +19,17 @@ class SandboxExperimental:
     """Experimental features. Their API may change at short notice.
 
     Attributes:
-        network_policy (None | SandboxNetworkPolicy): The network policy, or null when the sandbox has none.
+        network_policy (NetworkPolicy | None): The network policy, or null when the sandbox has none.
     """
 
-    network_policy: None | SandboxNetworkPolicy
+    network_policy: NetworkPolicy | None
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.sandbox_network_policy import SandboxNetworkPolicy
+        from ..models.network_policy import NetworkPolicy
 
         network_policy: dict[str, Any] | None
-        if isinstance(self.network_policy, SandboxNetworkPolicy):
+        if isinstance(self.network_policy, NetworkPolicy):
             network_policy = self.network_policy.to_dict()
         else:
             network_policy = self.network_policy
@@ -46,22 +46,22 @@ class SandboxExperimental:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.sandbox_network_policy import SandboxNetworkPolicy
+        from ..models.network_policy import NetworkPolicy
 
         d = dict(src_dict)
 
-        def _parse_network_policy(data: object) -> None | SandboxNetworkPolicy:
+        def _parse_network_policy(data: object) -> NetworkPolicy | None:
             if data is None:
                 return data
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                network_policy_type_0 = SandboxNetworkPolicy.from_dict(data)
+                network_policy_type_0 = NetworkPolicy.from_dict(data)
 
                 return network_policy_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(None | SandboxNetworkPolicy, data)
+            return cast(NetworkPolicy | None, data)
 
         network_policy = _parse_network_policy(d.pop("network_policy"))
 

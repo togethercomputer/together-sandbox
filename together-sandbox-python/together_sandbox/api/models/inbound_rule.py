@@ -19,8 +19,7 @@ class InboundRule:
     Attributes:
         from_ (list[str]): The clients the rule applies to: `*`, IPs, or CIDRs.
         access (InboundRuleAccess): `allow_with_token` admits a request only if it presents the sandbox's agent token
-            (`agent.token`, also returned as `experimental.network_policy.token`) in the `X-Sandbox-Token` header. The
-            header is removed before the request reaches the sandbox.
+            (`agent.token`) in the `X-Sandbox-Token` header. The header is removed before the request reaches the sandbox.
         to_port (str | Unset): `*` (the default), a port, or an inclusive range `low-high`. No two rules may cover the
             same port, and only one may be `*`.
     """

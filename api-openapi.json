@@ -226,35 +226,12 @@
             "description": "The network policy, or null when the sandbox has none.\n",
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SandboxNetworkPolicy"
+                "$ref": "#/components/schemas/NetworkPolicy"
               },
               {
                 "type": "null"
               }
             ]
-          }
-        }
-      },
-      "SandboxNetworkPolicy": {
-        "type": "object",
-        "description": "The sandbox's network policy.",
-        "required": [
-          "inbound",
-          "token"
-        ],
-        "properties": {
-          "inbound": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/InboundRule"
-            }
-          },
-          "token": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "The token `allow_with_token` rules ask for in the `X-Sandbox-Token` header: the sandbox's agent token. Null unless the sandbox is running.\n"
           }
         }
       },
@@ -319,7 +296,7 @@
               "deny",
               "allow_with_token"
             ],
-            "description": "`allow_with_token` admits a request only if it presents the sandbox's agent token (`agent.token`, also returned as `experimental.network_policy.token`) in the `X-Sandbox-Token` header. The header is removed before the request reaches the sandbox.\n"
+            "description": "`allow_with_token` admits a request only if it presents the sandbox's agent token (`agent.token`) in the `X-Sandbox-Token` header. The header is removed before the request reaches the sandbox.\n"
           }
         }
       },

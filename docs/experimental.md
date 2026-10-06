@@ -47,22 +47,19 @@ Each rule of `inbound` (at most 128) has:
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `allow`            | The request goes through.                                                                                                               |
 | `deny`             | The request is refused with `403`.                                                                                                      |
-| `allow_with_token` | The request goes through only if it carries the sandbox's agent token (`agent.token`, also returned as `experimental.network_policy.token`) in the `X-Sandbox-Token` header. Otherwise `403`. |
+| `allow_with_token` | The request goes through only if it carries the sandbox's agent token (`agent.token`) in the `X-Sandbox-Token` header. Otherwise `403`. |
 
 ### Response
 
-A sandbox returns its policy in `experimental.network_policy` (or `null` without one), together with `token`: the value to send in the `X-Sandbox-Token` header to pass `allow_with_token` rules, the sandbox's agent token. Like `agent.token`, it is `null` unless the sandbox is running.
+A sandbox returns its policy in `experimental.network_policy`, or `null` without one. To pass `allow_with_token` rules, send the sandbox's agent token (`agent.token`) in the `X-Sandbox-Token` header.
 
 ```json
 "experimental": {
   "network_policy": {
-    "inbound": [{ "to_port": "80", "from": ["10.0.0.0/8"], "access": "allow" }],
-    "token": "…"
+    "inbound": [{ "to_port": "80", "from": ["10.0.0.0/8"], "access": "allow" }]
   }
 }
 ```
-
-`token` is read-only: it is not accepted when creating a sandbox.
 
 ### How a request is decided
 
@@ -98,7 +95,7 @@ const sandbox = await sdk.sandboxes.create({
 
 // Reach a token-protected port.
 await fetch(`https://${sandbox.id}-3000.<domain>/`, {
-  headers: { "X-Sandbox-Token": sandbox.vmInfo.experimental!.network_policy!.token! },
+  headers: { "X-Sandbox-Token": sandbox.vmInfo.agent.token! },
 });
 ```
 

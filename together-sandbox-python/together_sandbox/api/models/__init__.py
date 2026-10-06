@@ -17,7 +17,6 @@ from .network_policy import NetworkPolicy
 from .sandbox import Sandbox
 from .sandbox_agent import SandboxAgent
 from .sandbox_experimental import SandboxExperimental
-from .sandbox_network_policy import SandboxNetworkPolicy
 from .sandbox_page import SandboxPage
 from .sandbox_status import SandboxStatus
 from .sandbox_status_reason import SandboxStatusReason
@@ -47,7 +46,6 @@ __all__ = (
     "Sandbox",
     "SandboxAgent",
     "SandboxExperimental",
-    "SandboxNetworkPolicy",
     "SandboxPage",
     "SandboxStatus",
     "SandboxStatusReason",
