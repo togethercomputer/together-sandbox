@@ -11,17 +11,17 @@ if TYPE_CHECKING:
     from ..models.inbound_rule import InboundRule
 
 
-T = TypeVar("T", bound="SandboxNetwork")
+T = TypeVar("T", bound="SandboxNetworkPolicy")
 
 
 @_attrs_define
-class SandboxNetwork:
+class SandboxNetworkPolicy:
     """The sandbox's network policy.
 
     Attributes:
         inbound (list[InboundRule]):
-        token (None | str): The token `allow_with_token` rules ask for in the `X-Sandbox-Token` header (the agent
-            token). Null unless the sandbox is running.
+        token (None | str): The token `allow_with_token` rules ask for in the `X-Sandbox-Token` header: the sandbox's
+            agent token. Null unless the sandbox is running.
     """
 
     inbound: list[InboundRule]
@@ -67,13 +67,13 @@ class SandboxNetwork:
 
         token = _parse_token(d.pop("token"))
 
-        sandbox_network = cls(
+        sandbox_network_policy = cls(
             inbound=inbound,
             token=token,
         )
 
-        sandbox_network.additional_properties = d
-        return sandbox_network
+        sandbox_network_policy.additional_properties = d
+        return sandbox_network_policy
 
     @property
     def additional_keys(self) -> list[str]:

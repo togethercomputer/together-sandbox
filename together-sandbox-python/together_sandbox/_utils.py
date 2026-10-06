@@ -76,7 +76,7 @@ def build_experimental(experimental: dict | None):
     """Build the ``CreateSandboxExperimental`` request model from a plain dict.
 
     ``experimental`` is the API's ``experimental`` object, as is, e.g.
-    ``{"network": {"inbound": [{"from": ["10.0.0.0/8"], "to_port": "80",
+    ``{"network_policy": {"inbound": [{"from": ["10.0.0.0/8"], "to_port": "80",
     "access": "allow"}]}}``. None leaves it unset. Used by ``create``.
     """
     if experimental is None:

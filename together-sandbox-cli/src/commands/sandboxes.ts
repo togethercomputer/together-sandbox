@@ -398,7 +398,7 @@ function createOptionsBuilder<T>(yargs: yargs.Argv<T>) {
       describe:
         "Experimental features, which may change at short notice: the API's " +
         "`experimental` object as JSON, sent as is. E.g. " +
-        '{"network": {"inbound": [{"from": ["10.0.0.0/8"], "to_port": "80", "access": "allow"}]}}',
+        '{"network_policy": {"inbound": [{"from": ["10.0.0.0/8"], "to_port": "80", "access": "allow"}]}}',
     });
 }
 

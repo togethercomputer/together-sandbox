@@ -17,11 +17,11 @@ A sandbox returns what it was created with in its own `experimental` field.
 
 ## Network policy
 
-`experimental.network` sets who can reach the sandbox's ports through its URL (`https://<sandbox-id>-<port>.…`). Only **inbound** rules are supported for now; outbound rules will come later. Without a policy, every port is open to everyone.
+`experimental.network_policy` sets who can reach the sandbox's ports through its URL (`https://<sandbox-id>-<port>.…`). Only **inbound** rules are supported for now; outbound rules will come later. Without a policy, every port is open to everyone.
 
 ```json
 {
-  "network": {
+  "network_policy": {
     "inbound": [
       { "to_port": "80", "from": ["10.0.0.0/8", "203.0.113.7"], "access": "allow" },
       { "to_port": "3000-3999", "from": ["*"], "access": "allow_with_token" },
@@ -47,15 +47,15 @@ Each rule of `inbound` (at most 128) has:
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `allow`            | The request goes through.                                                                                                               |
 | `deny`             | The request is refused with `403`.                                                                                                      |
-| `allow_with_token` | The request goes through only if it carries the sandbox's agent token (`agent.token`) in the `X-Sandbox-Token` header. Otherwise `403`. |
+| `allow_with_token` | The request goes through only if it carries the sandbox's agent token (`agent.token`, also returned as `experimental.network_policy.token`) in the `X-Sandbox-Token` header. Otherwise `403`. |
 
 ### Response
 
-A sandbox returns its policy in `experimental.network` (or `null` without one), together with `token`: the value to send in the `X-Sandbox-Token` header to pass `allow_with_token` rules. Like `agent.token`, it is `null` unless the sandbox is running.
+A sandbox returns its policy in `experimental.network_policy` (or `null` without one), together with `token`: the value to send in the `X-Sandbox-Token` header to pass `allow_with_token` rules, the sandbox's agent token. Like `agent.token`, it is `null` unless the sandbox is running.
 
 ```json
 "experimental": {
-  "network": {
+  "network_policy": {
     "inbound": [{ "to_port": "80", "from": ["10.0.0.0/8"], "access": "allow" }],
     "token": "…"
   }
@@ -86,7 +86,7 @@ TypeScript:
 const sandbox = await sdk.sandboxes.create({
   snapshotAlias: "my-app@v1",
   experimental: {
-    network: {
+    network_policy: {
       inbound: [
         { to_port: "80", from: ["10.0.0.0/8"], access: "allow" },
         { to_port: "3000", from: ["*"], access: "allow_with_token" },
@@ -98,7 +98,7 @@ const sandbox = await sdk.sandboxes.create({
 
 // Reach a token-protected port.
 await fetch(`https://${sandbox.id}-3000.<domain>/`, {
-  headers: { "X-Sandbox-Token": sandbox.vmInfo.experimental!.network!.token! },
+  headers: { "X-Sandbox-Token": sandbox.vmInfo.experimental!.network_policy!.token! },
 });
 ```
 
@@ -108,7 +108,7 @@ Python:
 sandbox = await sdk.sandboxes.create(
     snapshot_alias="my-app@v1",
     experimental={
-        "network": {
+        "network_policy": {
             "inbound": [
                 {"to_port": "80", "from": ["10.0.0.0/8"], "access": "allow"},
                 {"to_port": "3000", "from": ["*"], "access": "allow_with_token"},
@@ -123,7 +123,7 @@ CLI (`sandboxes get` shows the rules under **Experimental**):
 
 ```bash
 together-sandbox sandboxes create @my-app@v1 --experimental '{
-  "network": {"inbound": [
+  "network_policy": {"inbound": [
     {"to_port": "80", "from": ["10.0.0.0/8"], "access": "allow"},
     {"to_port": "3000", "from": ["*"], "access": "allow_with_token"},
     {"to_port": "*", "from": ["*"], "access": "deny"}
