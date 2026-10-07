@@ -9,7 +9,6 @@ from .api.client import AuthenticatedClient as ApiClient
 
 from ._sandboxes import SandboxesNamespace
 from ._snapshots import SnapshotsNamespace
-from ._billing import BillingNamespace
 from ._configuration import get_inferred_base_url
 from ._utils import RetryConfig
 
@@ -65,7 +64,6 @@ class TogetherSandbox:
         self.snapshots = SnapshotsNamespace(
             self._api_client, resolved_url, retry=retry, api_key=resolved_key
         )
-        self.billing = BillingNamespace(self._api_client, retry=retry)
 
     # NOTE: sdk.api_client is removed from the public surface.
     # The internal _api_client is still used by sandboxes and tokens namespaces.

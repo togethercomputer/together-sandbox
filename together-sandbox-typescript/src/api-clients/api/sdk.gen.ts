@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AliasSnapshotData, AliasSnapshotErrors, AliasSnapshotResponses, AuthorizeData, AuthorizeErrors, AuthorizeResponses, BatchGetSandboxesData, BatchGetSandboxesErrors, BatchGetSandboxesResponses, BatchGetSnapshotsData, BatchGetSnapshotsErrors, BatchGetSnapshotsResponses, CreateSandboxData, CreateSandboxErrors, CreateSandboxResponses, CreateSnapshotData, CreateSnapshotErrors, CreateSnapshotResponses, DeleteSnapshotAliasData, DeleteSnapshotAliasErrors, DeleteSnapshotAliasResponses, GetBillingUsageData, GetBillingUsageErrors, GetBillingUsageResponses, GetSandboxData, GetSandboxErrors, GetSandboxResponses, GetSnapshotByAliasData, GetSnapshotByAliasErrors, GetSnapshotByAliasResponses, GetSnapshotData, GetSnapshotErrors, GetSnapshotResponses, IssueContainerRegistryCredentialData, IssueContainerRegistryCredentialErrors, IssueContainerRegistryCredentialResponses, ListSandboxesData, ListSandboxesErrors, ListSandboxesResponses, ListSnapshotAliasesData, ListSnapshotAliasesErrors, ListSnapshotAliasesResponses, ListSnapshotsData, ListSnapshotsErrors, ListSnapshotsResponses, RetireSnapshotData, RetireSnapshotErrors, RetireSnapshotResponses, TerminateSandboxData, TerminateSandboxErrors, TerminateSandboxResponses, WaitForSandboxData, WaitForSandboxErrors, WaitForSandboxResponses } from './types.gen';
+import type { AliasSnapshotData, AliasSnapshotErrors, AliasSnapshotResponses, AuthorizeData, AuthorizeErrors, AuthorizeResponses, BatchGetSandboxesData, BatchGetSandboxesErrors, BatchGetSandboxesResponses, BatchGetSnapshotsData, BatchGetSnapshotsErrors, BatchGetSnapshotsResponses, CreateSandboxData, CreateSandboxErrors, CreateSandboxResponses, CreateSnapshotData, CreateSnapshotErrors, CreateSnapshotResponses, DeleteSnapshotAliasData, DeleteSnapshotAliasErrors, DeleteSnapshotAliasResponses, GetSandboxData, GetSandboxErrors, GetSandboxResponses, GetSnapshotByAliasData, GetSnapshotByAliasErrors, GetSnapshotByAliasResponses, GetSnapshotData, GetSnapshotErrors, GetSnapshotResponses, IssueContainerRegistryCredentialData, IssueContainerRegistryCredentialErrors, IssueContainerRegistryCredentialResponses, ListSandboxesData, ListSandboxesErrors, ListSandboxesResponses, ListSnapshotAliasesData, ListSnapshotAliasesErrors, ListSnapshotAliasesResponses, ListSnapshotsData, ListSnapshotsErrors, ListSnapshotsResponses, RetireSnapshotData, RetireSnapshotErrors, RetireSnapshotResponses, TerminateSandboxData, TerminateSandboxErrors, TerminateSandboxResponses, WaitForSandboxData, WaitForSandboxErrors, WaitForSandboxResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -35,26 +35,6 @@ export const authorize = <ThrowOnError extends boolean = false>(options: Options
             'Content-Type': 'application/json',
             ...options.headers
         }
-    });
-};
-
-/**
- * Get billing usage
- * Returns the authenticated organization's billing usage for a single month as flat, cost-annotated line items grouped into time windows. Usage is resolved from the Bearer API key's organization.
- *
- * Usage data is cached: prior months refresh roughly every 24 hours, and the current month refreshes roughly hourly (through the last completed hour at `hour` granularity, or through yesterday at `day` granularity).
- *
- */
-export const getBillingUsage = <ThrowOnError extends boolean = false>(options?: Options<GetBillingUsageData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetBillingUsageResponses, GetBillingUsageErrors, ThrowOnError>({
-        security: [
-            {
-                scheme: 'bearer',
-                type: 'http'
-            }
-        ],
-        url: '/billing/usage',
-        ...options
     });
 };
 

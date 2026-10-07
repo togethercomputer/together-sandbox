@@ -1,43 +1,27 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-// Mock the generated api-client module before any other import so the module
-// graph resolves without the actual generated files (which may not exist in CI).
-vi.mock("./api-clients/api/index.js", () => ({ getBillingUsage: vi.fn() }));
-vi.mock("./api-clients/api/client/index.js", () => ({}));
-
-// Mock callApi so tests control what each API call returns without needing
-// real HTTP clients. This mirrors the approach used in Sandboxes.test.ts.
-vi.mock("./utils.js", async (importOriginal) => {
-  const real = await importOriginal<typeof import("./utils.js")>();
-  return { ...real, callApi: vi.fn() };
-});
-
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { BillingNamespace } from "./Billing.js";
-import { callApi } from "./utils.js";
-import * as api from "./api-clients/api/index.js";
-import type { Client as ApiClient } from "./api-clients/api/client/index.js";
+import { HttpError } from "./errors.js";
 
-const mockCallApi = vi.mocked(callApi);
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeApiClient(): ApiClient {
-  return {} as ApiClient;
+function makeRawLineItem(overrides: Record<string, unknown> = {}) {
+  return {
+    product_name: "Token Based Inference (Per 1M Tokens)",
+    quantity: "1250.5",
+    unit_price: "0.20",
+    cost: "250.10",
+    pricing_dimensions: { token_type: "input" },
+    attributes: { api_key_id: "key_example", project_id: "proj_example" },
+    ...overrides,
+  };
 }
 
-function makeRawUsageWindow(overrides: Record<string, unknown> = {}) {
+function makeRawWindow(overrides: Record<string, unknown> = {}) {
   return {
     date: "2026-06-15",
     start_time: "2026-06-15T00:00:00Z",
     end_time: "2026-06-16T00:00:00Z",
-    line_items: [
-      {
-        product_name: "Token Based Inference (Per 1M Tokens)",
-        quantity: "1250.5",
-        unit_price: "0.20",
-        cost: "250.10",
-        pricing_dimensions: { token_type: "input" },
-        attributes: { api_key_id: "key_example", project_id: "proj_example" },
-      },
-    ],
+    line_items: [makeRawLineItem()],
     ...overrides,
   };
 }
@@ -50,27 +34,36 @@ function makeRawUsagePage(overrides: Record<string, unknown> = {}) {
     earliest_window_start: "2026-06-01T00:00:00Z",
     latest_window_end: "2026-07-01T00:00:00Z",
     currency: "USD",
-    data: [makeRawUsageWindow()],
+    data: [makeRawWindow()],
     has_more: false,
     next_page_token: null,
     ...overrides,
   };
 }
 
+function mockFetchJson(body: unknown, status = 200): ReturnType<typeof vi.fn> {
+  return vi.fn().mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+  });
+}
+
+// ─── BillingNamespace.usage ───────────────────────────────────────────────────
+
 describe("BillingNamespace.usage", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Run the thunk callApi is given so the query reaching the generated
-    // client can be inspected.
-    mockCallApi.mockImplementation((_op, thunk) => (thunk as () => never)());
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
-  it("passes month, granularity, limit and cursor through to the query", async () => {
-    vi.mocked(api.getBillingUsage).mockResolvedValue(
-      makeRawUsagePage() as never,
-    );
+  it("requests the billing base URL with month, granularity, limit and cursor", async () => {
+    const fetchMock = mockFetchJson(makeRawUsagePage());
+    global.fetch = fetchMock as unknown as typeof fetch;
 
-    const ns = new BillingNamespace(makeApiClient());
+    const ns = new BillingNamespace("test-key", "https://api.together.ai");
     await ns.usage({
       month: "2026-06",
       granularity: "hour",
@@ -78,37 +71,29 @@ describe("BillingNamespace.usage", () => {
       cursor: "cursor-1",
     });
 
-    expect(vi.mocked(api.getBillingUsage).mock.calls[0][0]?.query).toEqual({
-      month: "2026-06",
-      granularity: "hour",
-      page_size: 50,
-      page_token: "cursor-1",
-    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "https://api.together.ai/v1/billing/usage?month=2026-06&granularity=hour&page_size=50&page_token=cursor-1",
+    );
+    expect(init.headers.Authorization).toBe("Bearer test-key");
   });
 
-  it("leaves the query unset when no options are given", async () => {
-    vi.mocked(api.getBillingUsage).mockResolvedValue(
-      makeRawUsagePage() as never,
-    );
+  it("omits query params when no options are given", async () => {
+    const fetchMock = mockFetchJson(makeRawUsagePage());
+    global.fetch = fetchMock as unknown as typeof fetch;
 
-    const ns = new BillingNamespace(makeApiClient());
+    const ns = new BillingNamespace("test-key", "https://api.together.ai");
     await ns.usage();
 
-    const query = vi.mocked(api.getBillingUsage).mock.calls[0][0]?.query;
-    expect(query).toEqual({
-      month: undefined,
-      granularity: undefined,
-      page_size: undefined,
-      page_token: undefined,
-    });
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.together.ai/v1/billing/usage?");
   });
 
   it("camelCases windows and nested line items, preserving decimal strings", async () => {
-    vi.mocked(api.getBillingUsage).mockResolvedValue(
-      makeRawUsagePage() as never,
-    );
+    global.fetch = mockFetchJson(makeRawUsagePage()) as unknown as typeof fetch;
 
-    const ns = new BillingNamespace(makeApiClient());
+    const ns = new BillingNamespace("test-key", "https://api.together.ai");
     const page = await ns.usage();
 
     expect(page.data).toEqual([
@@ -131,11 +116,11 @@ describe("BillingNamespace.usage", () => {
   });
 
   it("exposes next_page_token as the page's nextCursor", async () => {
-    vi.mocked(api.getBillingUsage).mockResolvedValue(
-      makeRawUsagePage({ has_more: true, next_page_token: "next-token" }) as never,
-    );
+    global.fetch = mockFetchJson(
+      makeRawUsagePage({ has_more: true, next_page_token: "next-token" }),
+    ) as unknown as typeof fetch;
 
-    const ns = new BillingNamespace(makeApiClient());
+    const ns = new BillingNamespace("test-key", "https://api.together.ai");
     const page = await ns.usage();
 
     expect(page.hasNextPage()).toBe(true);
@@ -143,18 +128,41 @@ describe("BillingNamespace.usage", () => {
   });
 
   it("fetches the next page using the previous page's cursor", async () => {
-    vi.mocked(api.getBillingUsage)
-      .mockResolvedValueOnce(
-        makeRawUsagePage({ has_more: true, next_page_token: "next-token" }) as never,
-      )
-      .mockResolvedValueOnce(makeRawUsagePage({ has_more: false }) as never);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () =>
+          makeRawUsagePage({ has_more: true, next_page_token: "next-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => makeRawUsagePage({ has_more: false }),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
 
-    const ns = new BillingNamespace(makeApiClient());
+    const ns = new BillingNamespace("test-key", "https://api.together.ai");
     const page = await ns.usage({ month: "2026-06" });
     await page.getNextPage();
 
-    expect(vi.mocked(api.getBillingUsage).mock.calls[1][0]?.query).toMatchObject({
-      page_token: "next-token",
+    const [secondUrl] = fetchMock.mock.calls[1];
+    expect(secondUrl).toContain("page_token=next-token");
+  });
+
+  it("throws HttpError with the status and server message on failure", async () => {
+    global.fetch = mockFetchJson(
+      { code: "NOT_FOUND", message: "Organization not found", errors: [] },
+      404,
+    ) as unknown as typeof fetch;
+
+    const ns = new BillingNamespace("test-key", "https://api.together.ai");
+
+    await expect(ns.usage()).rejects.toMatchObject({
+      status: 404,
+      code: "NOT_FOUND",
     });
+    await expect(ns.usage()).rejects.toBeInstanceOf(HttpError);
   });
 });

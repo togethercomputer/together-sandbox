@@ -27,7 +27,6 @@ import {
 import { getInferredApiKey, getInferredBaseUrl } from "./configuration.js";
 import { SandboxesNamespace } from "./Sandboxes.js";
 import { SnapshotsNamespace } from "./Snapshots.js";
-import { BillingNamespace } from "./Billing.js";
 import type { TogetherSandboxConfig } from "./types.js";
 
 // ─── TogetherSandbox (main facade) ──────────────────────────────────────────
@@ -58,9 +57,6 @@ export class TogetherSandbox {
   /** Snapshot build and management operations. */
   readonly snapshots: SnapshotsNamespace;
 
-  /** Billing usage operations. */
-  readonly billing: BillingNamespace;
-
   constructor(config?: TogetherSandboxConfig) {
     const apiKey = config?.apiKey ?? getInferredApiKey();
 
@@ -85,6 +81,5 @@ export class TogetherSandbox {
       apiKey,
       config?.retry,
     );
-    this.billing = new BillingNamespace(apiClient, config?.retry);
   }
 }

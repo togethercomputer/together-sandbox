@@ -1,9 +1,29 @@
 import type * as yargs from "yargs";
-import { TogetherSandbox } from "together-sandbox";
+import {
+  BillingNamespace,
+  DEFAULT_BILLING_BASE_URL,
+  getInferredApiKey,
+} from "together-sandbox";
 import type { UsageWindow } from "together-sandbox";
 import { runList, type ListArgs } from "./_list";
 import { cell } from "./_table";
 import { examples } from "./_help";
+
+/**
+ * Billing usage lives on the Together AI platform API, not the sandbox
+ * management API — so it isn't part of `TogetherSandbox`. Build the
+ * namespace directly from the same env-derived API key the rest of the CLI
+ * uses.
+ */
+function createBillingNamespace(): BillingNamespace {
+  const apiKey = getInferredApiKey();
+  if (!apiKey) {
+    throw new Error(
+      "apiKey must be provided or TOGETHER_API_KEY env var must be set",
+    );
+  }
+  return new BillingNamespace(apiKey, DEFAULT_BILLING_BASE_URL);
+}
 
 /** Sum of `cost` across a window's line items, formatted to 2 decimal places. */
 function totalCost(window: UsageWindow): string {
@@ -89,12 +109,12 @@ export const usageCommand: yargs.CommandModule<
       ) as unknown as yargs.Argv<BillingUsageArgs>,
 
   handler: async (argv) => {
-    const sdk = new TogetherSandbox();
     try {
+      const billing = createBillingNamespace();
       await runList<UsageWindow>(
         {
           fetchPage: (params) =>
-            sdk.billing.usage({
+            billing.usage({
               ...params,
               month: argv.month,
               granularity: argv.granularity as "day" | "hour" | undefined,
