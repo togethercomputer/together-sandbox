@@ -6,7 +6,7 @@ from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
+from typing_extensions import Self
 
 from ..models.watcher_event_type import WatcherEventType
 
@@ -47,13 +47,13 @@ class WatcherEvent:
         return field_dict
 
     @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         d = dict(src_dict)
         paths = cast(list[str], d.pop("paths"))
 
         type_ = WatcherEventType(d.pop("type"))
 
-        timestamp = isoparse(d.pop("timestamp"))
+        timestamp = datetime.datetime.fromisoformat(d.pop("timestamp"))
 
         watcher_event = cls(
             paths=paths,

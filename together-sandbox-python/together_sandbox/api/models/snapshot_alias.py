@@ -7,7 +7,7 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
+from typing_extensions import Self
 
 T = TypeVar("T", bound="SnapshotAlias")
 
@@ -46,13 +46,13 @@ class SnapshotAlias:
         return field_dict
 
     @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         d = dict(src_dict)
         snapshot_id = UUID(d.pop("snapshot_id"))
 
         alias = d.pop("alias")
 
-        created_at = isoparse(d.pop("created_at"))
+        created_at = datetime.datetime.fromisoformat(d.pop("created_at"))
 
         snapshot_alias = cls(
             snapshot_id=snapshot_id,

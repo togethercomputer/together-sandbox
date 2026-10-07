@@ -7,7 +7,7 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
+from typing_extensions import Self
 
 from ..models.sandbox_status import SandboxStatus
 from ..models.sandbox_status_reason import SandboxStatusReason
@@ -157,7 +157,7 @@ class Sandbox:
         return field_dict
 
     @classmethod
-    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         from ..models.sandbox_agent import SandboxAgent
         from ..models.tags import Tags
         from ..models.termination_policy import TerminationPolicy
@@ -208,7 +208,7 @@ class Sandbox:
 
         termination_policy = _parse_termination_policy(d.pop("termination_policy"))
 
-        created_at = isoparse(d.pop("created_at"))
+        created_at = datetime.datetime.fromisoformat(d.pop("created_at"))
 
         def _parse_started_at(data: object) -> datetime.datetime | None:
             if data is None:
@@ -216,7 +216,7 @@ class Sandbox:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                started_at_type_0 = isoparse(data)
+                started_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return started_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -231,7 +231,7 @@ class Sandbox:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                terminated_at_type_0 = isoparse(data)
+                terminated_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return terminated_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -248,7 +248,7 @@ class Sandbox:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                resized_at_type_0 = isoparse(data)
+                resized_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return resized_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -263,7 +263,7 @@ class Sandbox:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                recovery_at_type_0 = isoparse(data)
+                recovery_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return recovery_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -272,7 +272,7 @@ class Sandbox:
 
         recovery_at = _parse_recovery_at(d.pop("recovery_at"))
 
-        updated_at = isoparse(d.pop("updated_at"))
+        updated_at = datetime.datetime.fromisoformat(d.pop("updated_at"))
 
         sandbox = cls(
             id=id,
