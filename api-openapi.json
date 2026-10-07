@@ -395,6 +395,150 @@
           }
         }
       },
+      "BillingUsageLineItem": {
+        "type": "object",
+        "required": [
+          "product_name",
+          "quantity",
+          "unit_price",
+          "cost",
+          "pricing_dimensions",
+          "attributes"
+        ],
+        "properties": {
+          "product_name": {
+            "type": "string",
+            "description": "Human-readable label for the billed product. Display-only and not stable; do not key logic off this value.\n"
+          },
+          "quantity": {
+            "type": "string",
+            "description": "Total usage for the window in the product's native unit, as a decimal string."
+          },
+          "unit_price": {
+            "type": "string",
+            "description": "Per-unit price in USD, as a decimal string."
+          },
+          "cost": {
+            "type": "string",
+            "description": "Total cost for the line item in USD, as a decimal string."
+          },
+          "pricing_dimensions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Rate-determining dimensions as string key-value pairs. Varies by product."
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Resource identifiers for attribution as string key-value pairs. `api_key_id` and `project_id` are present for all line items.\n"
+          }
+        }
+      },
+      "BillingUsageWindow": {
+        "type": "object",
+        "required": [
+          "date",
+          "start_time",
+          "end_time",
+          "line_items"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "The date of the time window, YYYY-MM-DD."
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Start of the time window (UTC, ISO 8601)."
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exclusive end of the time window (UTC, ISO 8601)."
+          },
+          "line_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BillingUsageLineItem"
+            }
+          }
+        }
+      },
+      "BillingUsagePage": {
+        "type": "object",
+        "required": [
+          "object",
+          "organization_id",
+          "billing_period",
+          "earliest_window_start",
+          "latest_window_end",
+          "currency",
+          "data",
+          "has_more",
+          "next_page_token"
+        ],
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "billing.usage_report"
+            ]
+          },
+          "organization_id": {
+            "type": "string",
+            "description": "The organization the usage belongs to, resolved from the API key."
+          },
+          "billing_period": {
+            "type": "string",
+            "description": "The billing month, YYYY-MM."
+          },
+          "earliest_window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Start of the earliest time window with usage in the month (UTC, ISO 8601), or null when the month has no usage. Describes the whole month, not the current page.\n"
+          },
+          "latest_window_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Exclusive end of the latest time window with usage in the month (UTC, ISO 8601), or null when the month has no usage. Describes the whole month, not the current page.\n"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BillingUsageWindow"
+            },
+            "description": "Usage windows for the current page, ordered by time (ascending). Windows with no usage are omitted.\n"
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "True when more time windows are available beyond the current page."
+          },
+          "next_page_token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque cursor for the next page; pass it back as `page_token`. Null when `has_more` is false.\n"
+          }
+        }
+      },
       "Error": {
         "type": "object",
         "required": [
@@ -502,6 +646,83 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/billing/usage": {
+      "get": {
+        "operationId": "getBillingUsage",
+        "summary": "Get billing usage",
+        "description": "Returns the authenticated organization's billing usage for a single month as flat, cost-annotated line items grouped into time windows. Usage is resolved from the Bearer API key's organization.\n\nUsage data is cached: prior months refresh roughly every 24 hours, and the current month refreshes roughly hourly (through the last completed hour at `hour` granularity, or through yesterday at `day` granularity).\n",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "description": "Billing month as YYYY-MM. Defaults to the current month. Cannot be a future month or more than 12 months in the past. Example: 2026-06\n",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "granularity",
+            "in": "query",
+            "description": "Time window size. `hour` returns roughly 24x more rows than `day`.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "hour"
+              ],
+              "default": "day"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Maximum number of time windows (not line items) per page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque pagination cursor from a previous response's `next_page_token`. Valid only for the `month` and `granularity` that produced it.\n",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Billing usage report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingUsagePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "description": "Not authenticated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }

@@ -25,6 +25,7 @@ def _get_kwargs(
     }
 
     _kwargs["content"] = body.payload
+
     headers["Content-Type"] = "application/octet-stream"
 
     _kwargs["headers"] = headers

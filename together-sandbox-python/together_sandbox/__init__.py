@@ -24,6 +24,7 @@ Catching errors::
 
 from ._together_sandbox import TogetherSandbox
 from ._sandboxes import SandboxesNamespace
+from ._billing import BillingNamespace
 from ._snapshots import (
     SnapshotsNamespace,
     CreateSnapshotParams,
@@ -46,6 +47,7 @@ __all__ = [
     "Sandbox",
     "Page",
     "SandboxesNamespace",
+    "BillingNamespace",
     "SnapshotsNamespace",
     "CreateSnapshotParams",
     "CreateContextSnapshotParams",

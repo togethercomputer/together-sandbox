@@ -7,7 +7,7 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from typing_extensions import Self
+from dateutil.parser import isoparse
 
 if TYPE_CHECKING:
     from ..models.tags import Tags
@@ -93,7 +93,7 @@ class Snapshot:
         return field_dict
 
     @classmethod
-    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.tags import Tags
 
         d = dict(src_dict)
@@ -121,7 +121,7 @@ class Snapshot:
 
         memory = d.pop("memory")
 
-        created_at = datetime.datetime.fromisoformat(d.pop("created_at"))
+        created_at = isoparse(d.pop("created_at"))
 
         def _parse_retired_at(data: object) -> datetime.datetime | None:
             if data is None:
@@ -129,7 +129,7 @@ class Snapshot:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                retired_at_type_0 = datetime.datetime.fromisoformat(data)
+                retired_at_type_0 = isoparse(data)
 
                 return retired_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -138,7 +138,7 @@ class Snapshot:
 
         retired_at = _parse_retired_at(d.pop("retired_at"))
 
-        updated_at = datetime.datetime.fromisoformat(d.pop("updated_at"))
+        updated_at = isoparse(d.pop("updated_at"))
 
         snapshot = cls(
             id=id,

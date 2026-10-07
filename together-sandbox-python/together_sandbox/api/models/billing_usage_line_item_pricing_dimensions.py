@@ -1,63 +1,43 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-if TYPE_CHECKING:
-    from ..models.task_item import TaskItem
-
-
-T = TypeVar("T", bound="GetTaskResponse")
+T = TypeVar("T", bound="BillingUsageLineItemPricingDimensions")
 
 
 @_attrs_define
-class GetTaskResponse:
-    """
-    Attributes:
-        task (TaskItem):
-    """
+class BillingUsageLineItemPricingDimensions:
+    """Rate-determining dimensions as string key-value pairs. Varies by product."""
 
-    task: TaskItem
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+    additional_properties: dict[str, str] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        task = self.task.to_dict()
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update(
-            {
-                "task": task,
-            }
-        )
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.task_item import TaskItem
-
         d = dict(src_dict)
-        task = TaskItem.from_dict(d.pop("task"))
+        billing_usage_line_item_pricing_dimensions = cls()
 
-        get_task_response = cls(
-            task=task,
-        )
-
-        get_task_response.additional_properties = d
-        return get_task_response
+        billing_usage_line_item_pricing_dimensions.additional_properties = d
+        return billing_usage_line_item_pricing_dimensions
 
     @property
     def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
-    def __getitem__(self, key: str) -> Any:
+    def __getitem__(self, key: str) -> str:
         return self.additional_properties[key]
 
-    def __setitem__(self, key: str, value: Any) -> None:
+    def __setitem__(self, key: str, value: str) -> None:
         self.additional_properties[key] = value
 
     def __delitem__(self, key: str) -> None:

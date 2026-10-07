@@ -21,10 +21,12 @@ import {
   lsCommand as execsLsCommand,
   logsCommand as execsLogsCommand,
 } from "./commands/execs";
+import { usageCommand as billingUsageCommand } from "./commands/billing";
 
 let snapshotsYargs: ReturnType<typeof yargs>;
 let sandboxesYargs: ReturnType<typeof yargs>;
 let execsYargs: ReturnType<typeof yargs>;
+let billingYargs: ReturnType<typeof yargs>;
 
 const argv = hideBin(process.argv);
 
@@ -128,6 +130,17 @@ const cli = yargs(argv)
     },
     handler: () => {
       showHelpAndExit(sandboxesYargs);
+    },
+  })
+  .command({
+    command: "billing",
+    describe: "View billing usage",
+    builder: (yargs) => {
+      billingYargs = yargs.recommendCommands().command(billingUsageCommand);
+      return billingYargs;
+    },
+    handler: () => {
+      showHelpAndExit(billingYargs);
     },
   });
 

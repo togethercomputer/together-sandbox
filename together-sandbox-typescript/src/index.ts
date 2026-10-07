@@ -44,3 +44,4 @@ export type {
 } from "./Snapshots.js";
 export type { WatchOptions } from "./Sandbox.js";
 export { Page } from "./pagination.js";
+export type { UsageLineItem, UsageWindow } from "./Billing.js";
