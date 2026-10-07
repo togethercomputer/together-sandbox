@@ -12,20 +12,13 @@ export interface ListArgs {
   ci?: boolean;
 }
 
-export interface ListConfig<T, J = T> {
+export interface ListConfig<T> {
   /** Fetch a single page from the SDK, optionally resuming from a cursor. */
   fetchPage: (params: { limit?: number; cursor?: string }) => Promise<Page<T>>;
   /** Uppercase column headers. */
   headers: string[];
   /** Map one item to a row of cells (same order as `headers`). */
   toRow: (item: T) => string[];
-  /**
-   * Map one page's items to the records serialised for `--output json`.
-   * Defaults to the items as-is. Use this when the table's per-page item
-   * isn't the right JSON unit for filtering — e.g. flattening a nested
-   * collection so each filterable record is a top-level element of `data`.
-   */
-  toJson?: (items: T[]) => J[];
 }
 
 /**
@@ -43,8 +36,8 @@ export interface ListConfig<T, J = T> {
  *    page. JSON prints `{ data, nextCursor }`; the table prints to stdout with
  *    a `--cursor` hint on stderr when more pages remain.
  */
-export async function runList<T, J = T>(
-  config: ListConfig<T, J>,
+export async function runList<T>(
+  config: ListConfig<T>,
   args: ListArgs,
 ): Promise<void> {
   // Passing --cursor/--limit is an explicit request for one specific page: skip
@@ -73,9 +66,8 @@ export async function runList<T, J = T>(
   const nextCursor = page.nextCursor;
 
   if (args.output === "json") {
-    const data = config.toJson ? config.toJson(items) : items;
     process.stdout.write(
-      `${JSON.stringify({ data, nextCursor }, null, 2)}\n`,
+      `${JSON.stringify({ data: items, nextCursor }, null, 2)}\n`,
     );
     return;
   }
@@ -93,8 +85,8 @@ export async function runList<T, J = T>(
  * fixed from the first page so later rows stay aligned without buffering
  * everything. Falls back to streaming straight to stdout if no pager is found.
  */
-async function streamInteractive<T, J>(
-  config: ListConfig<T, J>,
+async function streamInteractive<T>(
+  config: ListConfig<T>,
   args: ListArgs,
   maxWidth?: number,
 ): Promise<void> {

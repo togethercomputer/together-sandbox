@@ -3,12 +3,9 @@ import {
   BillingNamespace,
   DEFAULT_BILLING_BASE_URL,
   getInferredApiKey,
-  Page,
   type UsageLineItem,
-  type UsageWindow,
 } from "together-sandbox";
-import { runList, type ListArgs } from "./_list";
-import { cell } from "./_table";
+import { cell, renderTable } from "./_table";
 import { examples } from "./_help";
 
 /**
@@ -17,36 +14,9 @@ import { examples } from "./_help";
  * documented as display-only and not a stable identifier, but it's the only
  * signal the API exposes to tell sandbox compute apart from other Together
  * AI products (inference, dedicated endpoints, etc.) in the same report.
- * Windows left with no matching line items are dropped.
  */
 function isSandboxProduct(item: UsageLineItem): boolean {
   return item.productName.toLowerCase().includes("sandbox");
-}
-
-function filterToSandboxProducts(windows: UsageWindow[]): UsageWindow[] {
-  return windows
-    .map((window) => ({
-      ...window,
-      lineItems: window.lineItems.filter(isSandboxProduct),
-    }))
-    .filter((window) => window.lineItems.length > 0);
-}
-
-/**
- * Wrap `billing.usage` so every page — including ones reached via
- * `getNextPage()` / async iteration — is pre-filtered to sandbox products
- * before `runList` or the interactive pager ever sees it.
- */
-function fetchSandboxUsagePage(
-  billing: BillingNamespace,
-  options: { month?: string; granularity?: "day" | "hour" },
-  params: { limit?: number; cursor?: string },
-): Promise<Page<UsageWindow>> {
-  const fetch = async (cursor?: string): Promise<Page<UsageWindow>> => {
-    const page = await billing.usage({ ...options, ...params, cursor });
-    return new Page(filterToSandboxProducts(page.data), page.nextCursor, fetch);
-  };
-  return fetch(params.cursor);
 }
 
 /**
@@ -65,21 +35,6 @@ function createBillingNamespace(): BillingNamespace {
   return new BillingNamespace(apiKey, DEFAULT_BILLING_BASE_URL);
 }
 
-/** Sum of `cost` across a window's line items, formatted to 2 decimal places. */
-function totalCost(window: UsageWindow): string {
-  const total = window.lineItems.reduce(
-    (sum, item) => sum + Number(item.cost),
-    0,
-  );
-  return total.toFixed(2);
-}
-
-/** Distinct product names in a window, joined for a compact table cell. */
-function products(window: UsageWindow): string {
-  const names = [...new Set(window.lineItems.map((item) => item.productName))];
-  return names.join(", ");
-}
-
 /** One billing line item with its window's time range inlined, for JSON output. */
 interface UsageLineItemRecord extends UsageLineItem {
   date: string;
@@ -88,25 +43,99 @@ interface UsageLineItemRecord extends UsageLineItem {
 }
 
 /**
- * Flatten windows into one record per line item. `-o json` emits these
- * instead of the nested `UsageWindow[]` so each element of `data` is a
- * self-contained, filterable record — e.g.
- * `together-sandbox billing usage -o json | jq '.data[] | select(.attributes.project_id == "...")'`.
+ * A date's aggregated sandbox usage: every window on that date is merged, and
+ * line items sharing the same product + pricing dimensions + attributes are
+ * summed into one, so an hourly report doesn't show the same product once
+ * per hour.
  */
-function toLineItemRecords(windows: UsageWindow[]): UsageLineItemRecord[] {
-  return windows.flatMap((window) =>
-    window.lineItems.map((item) => ({
-      date: window.date,
-      startTime: window.startTime,
-      endTime: window.endTime,
-      ...item,
-    })),
-  );
+interface DailyUsage {
+  date: string;
+  lineItems: UsageLineItemRecord[];
 }
 
-interface BillingUsageArgs extends ListArgs {
+/** Stable key for "the same line item" across windows, for summing. */
+function lineItemKey(item: UsageLineItem): string {
+  return JSON.stringify([
+    item.productName,
+    item.pricingDimensions,
+    item.attributes,
+  ]);
+}
+
+/**
+ * Add two decimal strings exactly, avoiding the float drift `Number(a) +
+ * Number(b)` would introduce on money values (e.g. costs, quantities).
+ * Scales both to the larger operand's decimal places and adds as integers.
+ */
+function addDecimalStrings(a: string, b: string): string {
+  const decimalsOf = (s: string) => s.split(".")[1]?.length ?? 0;
+  const scale = Math.max(decimalsOf(a), decimalsOf(b));
+  const toScaledInt = (s: string) => Math.round(Number(s) * 10 ** scale);
+  const sum = toScaledInt(a) + toScaledInt(b);
+  return (sum / 10 ** scale).toFixed(scale);
+}
+
+/**
+ * Walk every page of `billing.usage`, keep only sandbox line items, and
+ * aggregate them by date — merging same-day windows (relevant at `hour`
+ * granularity) and summing line items that share a product + pricing
+ * dimensions + attributes, rather than listing one row per window.
+ */
+async function fetchDailySandboxUsage(
+  billing: BillingNamespace,
+  options: { month?: string; granularity?: "day" | "hour" },
+): Promise<DailyUsage[]> {
+  const byDate = new Map<string, Map<string, UsageLineItemRecord>>();
+
+  const firstPage = await billing.usage(options);
+  for await (const window of firstPage) {
+    let byKey = byDate.get(window.date);
+    if (!byKey) {
+      byKey = new Map();
+      byDate.set(window.date, byKey);
+    }
+    for (const item of window.lineItems) {
+      if (!isSandboxProduct(item)) continue;
+      const key = lineItemKey(item);
+      const existing = byKey.get(key);
+      if (existing) {
+        existing.quantity = addDecimalStrings(existing.quantity, item.quantity);
+        existing.cost = addDecimalStrings(existing.cost, item.cost);
+        // Keep the earliest start / latest end across merged windows.
+        if (window.startTime < existing.startTime) existing.startTime = window.startTime;
+        if (window.endTime > existing.endTime) existing.endTime = window.endTime;
+      } else {
+        byKey.set(key, {
+          ...item,
+          date: window.date,
+          startTime: window.startTime,
+          endTime: window.endTime,
+        });
+      }
+    }
+  }
+
+  return [...byDate.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([date, byKey]) => ({ date, lineItems: [...byKey.values()] }))
+    .filter((day) => day.lineItems.length > 0);
+}
+
+/** Sum of `cost` across a day's line items. */
+function totalCost(day: DailyUsage): string {
+  return day.lineItems.reduce((sum, item) => addDecimalStrings(sum, item.cost), "0");
+}
+
+/** Distinct product names on a day, joined for a compact table cell. */
+function products(day: DailyUsage): string {
+  const names = [...new Set(day.lineItems.map((item) => item.productName))];
+  return names.join(", ");
+}
+
+interface BillingUsageArgs {
   month?: string;
   granularity?: string;
+  output?: string;
 }
 
 export const usageCommand: yargs.CommandModule<
@@ -127,17 +156,9 @@ export const usageCommand: yargs.CommandModule<
         type: "string",
         choices: ["day", "hour"] as const,
         default: "day",
-        describe: "Time window size; hour returns roughly 24x more rows",
-      })
-      .option("limit", {
-        type: "number",
-        describe: "Maximum number of time windows per page (1–1000)",
-      })
-      .option("cursor", {
-        type: "string",
         describe:
-          "Resume from a cursor (from a prior page); shows a single page and " +
-          "disables the interactive pager",
+          "Time window size fetched from the API; results are always " +
+          "aggregated by date regardless of granularity",
       })
       .option("output", {
         alias: "o",
@@ -146,36 +167,25 @@ export const usageCommand: yargs.CommandModule<
         default: "table",
         describe: "Output format",
       })
-      .option("ci", {
-        type: "boolean",
-        default: false,
-        describe: "Plain output, no interactive pager",
-      })
       .epilogue(
         examples([
           {
-            describe: "Current month, by day",
+            describe: "Current month, aggregated by date",
             command: "$0 billing usage",
           },
           {
-            describe: "A specific month, by hour",
-            command: "$0 billing usage --month 2026-06 --granularity hour",
+            describe: "A specific month",
+            command: "$0 billing usage --month 2026-06",
           },
           {
             describe:
-              "Fetch one specific page (the next cursor is printed on stderr)",
-            command: "$0 billing usage --limit 50 --cursor <cursor>",
-          },
-          {
-            describe:
-              "Machine-readable single page: { data, nextCursor }, one flat " +
-              "line item per element of data",
-            command: "$0 billing usage --ci -o json",
+              "Machine-readable output: one flat line item per element of data",
+            command: "$0 billing usage -o json",
           },
           {
             describe: "Filter line items by project with jq",
             command:
-              '$0 billing usage --ci -o json | jq \'.data[] | select(.attributes.project_id == "proj_example")\'',
+              '$0 billing usage -o json | jq \'.data[] | select(.attributes.project_id == "proj_example")\'',
           },
         ]),
       ) as unknown as yargs.Argv<BillingUsageArgs>,
@@ -183,28 +193,25 @@ export const usageCommand: yargs.CommandModule<
   handler: async (argv) => {
     try {
       const billing = createBillingNamespace();
-      await runList<UsageWindow, UsageLineItemRecord>(
-        {
-          fetchPage: (params) =>
-            fetchSandboxUsagePage(
-              billing,
-              {
-                month: argv.month,
-                granularity: argv.granularity as "day" | "hour" | undefined,
-              },
-              params,
-            ),
-          headers: ["DATE", "PRODUCTS", "LINE ITEMS", "COST (USD)"],
-          toRow: (window) => [
-            cell(window.date),
-            cell(products(window)),
-            cell(window.lineItems.length),
-            cell(totalCost(window)),
-          ],
-          toJson: toLineItemRecords,
-        },
-        argv,
-      );
+      const days = await fetchDailySandboxUsage(billing, {
+        month: argv.month,
+        granularity: argv.granularity as "day" | "hour" | undefined,
+      });
+
+      if (argv.output === "json") {
+        const data = days.flatMap((day) => day.lineItems);
+        process.stdout.write(`${JSON.stringify({ data }, null, 2)}\n`);
+      } else {
+        const rows = days.map((day) => [
+          cell(day.date),
+          cell(products(day)),
+          cell(day.lineItems.length),
+          cell(totalCost(day)),
+        ]);
+        process.stdout.write(
+          `${renderTable(["DATE", "PRODUCTS", "LINE ITEMS", "COST (USD)"], rows, process.stdout.isTTY ? process.stdout.columns : undefined)}\n`,
+        );
+      }
       process.exit(0);
     } catch (error) {
       console.error(
