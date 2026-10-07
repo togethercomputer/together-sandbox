@@ -11,6 +11,7 @@ from typing_extensions import Self
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
+    from ..models.create_sandbox_experimental import CreateSandboxExperimental
     from ..models.tags import Tags
     from ..models.termination_policy import TerminationPolicy
 
@@ -33,6 +34,7 @@ class CreateSandboxBody:
             disable automatic termination.
         tags (Tags | Unset): User-defined key-value labels (both keys and values are strings).
         termination_policy (TerminationPolicy | Unset): The policy applied when a sandbox terminates.
+        experimental (CreateSandboxExperimental | Unset): Experimental features. Their API may change at short notice.
     """
 
     snapshot_id: UUID | Unset = UNSET
@@ -42,6 +44,7 @@ class CreateSandboxBody:
     ttl: int | Unset = UNSET
     tags: Tags | Unset = UNSET
     termination_policy: TerminationPolicy | Unset = UNSET
+    experimental: CreateSandboxExperimental | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -65,6 +68,10 @@ class CreateSandboxBody:
         if not isinstance(self.termination_policy, Unset):
             termination_policy = self.termination_policy.to_dict()
 
+        experimental: dict[str, Any] | Unset = UNSET
+        if not isinstance(self.experimental, Unset):
+            experimental = self.experimental.to_dict()
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
@@ -82,11 +89,14 @@ class CreateSandboxBody:
             field_dict["tags"] = tags
         if termination_policy is not UNSET:
             field_dict["termination_policy"] = termination_policy
+        if experimental is not UNSET:
+            field_dict["experimental"] = experimental
 
         return field_dict
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        from ..models.create_sandbox_experimental import CreateSandboxExperimental
         from ..models.tags import Tags
         from ..models.termination_policy import TerminationPolicy
 
@@ -120,6 +130,13 @@ class CreateSandboxBody:
         else:
             termination_policy = TerminationPolicy.from_dict(_termination_policy)
 
+        _experimental = d.pop("experimental", UNSET)
+        experimental: CreateSandboxExperimental | Unset
+        if isinstance(_experimental, Unset):
+            experimental = UNSET
+        else:
+            experimental = CreateSandboxExperimental.from_dict(_experimental)
+
         create_sandbox_body = cls(
             snapshot_id=snapshot_id,
             snapshot_alias=snapshot_alias,
@@ -128,6 +145,7 @@ class CreateSandboxBody:
             ttl=ttl,
             tags=tags,
             termination_policy=termination_policy,
+            experimental=experimental,
         )
 
         create_sandbox_body.additional_properties = d

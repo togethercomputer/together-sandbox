@@ -57,6 +57,7 @@ export type Sandbox = {
      *
      */
     termination_policy: TerminationPolicy | null;
+    experimental?: SandboxExperimental;
     created_at: string;
     started_at: string | null;
     terminated_at: string | null;
@@ -71,6 +72,58 @@ export type Sandbox = {
  */
 export type TerminationPolicy = {
     snapshot: TerminationSnapshot;
+};
+
+/**
+ * Experimental features. Their API may change at short notice.
+ *
+ */
+export type SandboxExperimental = {
+    /**
+     * The network policy, or null when the sandbox has none.
+     *
+     */
+    network_policy: NetworkPolicy | null;
+};
+
+/**
+ * Experimental features. Their API may change at short notice.
+ *
+ */
+export type CreateSandboxExperimental = {
+    /**
+     * Who may reach the sandbox. Omit for no restriction.
+     *
+     */
+    network_policy?: NetworkPolicy;
+};
+
+/**
+ * Who may reach the sandbox through its URL. Without a network policy, a sandbox can be reached on every port. With one, every inbound request is blocked except those its `inbound_allowlist` admits: a request is admitted when a rule covers its port and its client. Rules can overlap; if any rule covering a request has `requires_token`, the request must present the token, even where another covering rule needs none. An empty allowlist admits nothing. Outbound rules are not supported yet.
+ *
+ * The sandbox's agent port (57468, which the SDKs and the agent URL use) is never filtered; the agent authenticates every request itself.
+ *
+ */
+export type NetworkPolicy = {
+    inbound_allowlist?: Array<AllowRule>;
+};
+
+export type AllowRule = {
+    /**
+     * The ports the rule admits requests to: ports, inclusive ranges `low-high`, or `*` for every port.
+     *
+     */
+    ports: Array<string>;
+    /**
+     * The clients the rule admits requests from: `*`, IPs, or CIDRs. Defaults to `["*"]`, every client.
+     *
+     */
+    from?: Array<string>;
+    /**
+     * Admit a request only if it presents the sandbox's agent token (`agent.token`) in the `X-Sandbox-Token` header. The header is removed before the request reaches the sandbox.
+     *
+     */
+    requires_token?: boolean;
 };
 
 /**
@@ -318,6 +371,7 @@ export type CreateSandboxData = {
          *
          */
         termination_policy?: TerminationPolicy;
+        experimental?: CreateSandboxExperimental;
     };
     path?: never;
     query?: never;

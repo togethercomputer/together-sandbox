@@ -24,6 +24,7 @@ from ._utils import (
     RetryConfig,
     _call_api,
     _resolve_connection,
+    build_experimental,
     build_termination_policy,
     build_termination_snapshot,
     deep_object_tags,
@@ -99,6 +100,7 @@ class SandboxesNamespace:
         ttl: int | None = None,
         tags: dict[str, str] | None = None,
         termination_policy: dict | None = None,
+        experimental: dict | None = None,
     ) -> Sandbox:
         """Create a sandbox and wait for it to be running.
 
@@ -120,6 +122,12 @@ class SandboxesNamespace:
                 sandbox created from the snapshot resumes with its processes
                 intact. Omit for an ephemeral sandbox (no snapshot, deleted on
                 termination).
+            experimental: Experimental features, whose API may change at
+                short notice: the API's ``experimental`` object, as is, e.g.
+                ``{"network_policy": {"inbound_allowlist": [{"ports": ["80"],
+                "from": ["10.0.0.0/8"]}, {"ports": ["3000"],
+                "requires_token": True}]}}``. See
+                ``docs/experimental.md``.
 
         """
         body = CreateSandboxBody(
@@ -130,6 +138,7 @@ class SandboxesNamespace:
             ttl=ttl if ttl is not None else UNSET,
             tags=Tags.from_dict(tags) if tags is not None else UNSET,
             termination_policy=build_termination_policy(termination_policy),
+            experimental=build_experimental(experimental),
         )
         sandbox_model: SandboxModel = await _call_api(
             "api.create_sandbox",

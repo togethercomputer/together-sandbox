@@ -334,3 +334,35 @@ class TestBuildTerminationSnapshot:
 
         body = build_termination_policy({"snapshot": {"memory": True}}).to_dict()
         assert body == {"snapshot": {"memory": True}}
+
+
+# ─── Experimental builders ────────────────────────────────────────────────────
+
+
+class TestBuildExperimental:
+    def test_experimental_is_sent_as_given(self):
+        from together_sandbox._utils import build_experimental
+
+        experimental = {
+            "network_policy": {
+                "inbound_allowlist": [
+                    {"ports": ["80", "8000-8100"], "from": ["10.0.0.0/8"], "requires_token": False},
+                    {"ports": ["3000"], "from": ["*"], "requires_token": True},
+                ]
+            }
+        }
+        assert build_experimental(experimental).to_dict() == experimental
+
+    def test_nothing_is_sent_without_experimental(self):
+        from together_sandbox._utils import build_experimental
+        from together_sandbox.api.types import UNSET
+
+        assert build_experimental(None) is UNSET
+
+    def test_a_rule_without_ports_is_rejected(self):
+        import pytest
+
+        from together_sandbox._utils import build_experimental
+
+        with pytest.raises(KeyError):
+            build_experimental({"network_policy": {"inbound_allowlist": [{"from": ["*"]}]}})

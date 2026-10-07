@@ -110,6 +110,8 @@ export class SandboxesNamespace {
             ttl: params.ttl,
             tags: params.tags,
             termination_policy: terminationPolicyBody(params.terminationPolicy) ?? undefined,
+            // Experimental features are sent exactly as the API takes them.
+            experimental: params.experimental,
           },
         }),
       this._retryConfig,

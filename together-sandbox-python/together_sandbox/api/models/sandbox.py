@@ -11,9 +11,11 @@ from typing_extensions import Self
 
 from ..models.sandbox_status import SandboxStatus
 from ..models.sandbox_status_reason import SandboxStatusReason
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.sandbox_agent import SandboxAgent
+    from ..models.sandbox_experimental import SandboxExperimental
     from ..models.tags import Tags
     from ..models.termination_policy import TerminationPolicy
 
@@ -46,6 +48,7 @@ class Sandbox:
         resized_at (datetime.datetime | None):
         recovery_at (datetime.datetime | None):
         updated_at (datetime.datetime):
+        experimental (SandboxExperimental | Unset): Experimental features. Their API may change at short notice.
     """
 
     id: UUID
@@ -66,6 +69,7 @@ class Sandbox:
     resized_at: datetime.datetime | None
     recovery_at: datetime.datetime | None
     updated_at: datetime.datetime
+    experimental: SandboxExperimental | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -129,6 +133,10 @@ class Sandbox:
 
         updated_at = self.updated_at.isoformat()
 
+        experimental: dict[str, Any] | Unset = UNSET
+        if not isinstance(self.experimental, Unset):
+            experimental = self.experimental.to_dict()
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -153,12 +161,15 @@ class Sandbox:
                 "updated_at": updated_at,
             }
         )
+        if experimental is not UNSET:
+            field_dict["experimental"] = experimental
 
         return field_dict
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         from ..models.sandbox_agent import SandboxAgent
+        from ..models.sandbox_experimental import SandboxExperimental
         from ..models.tags import Tags
         from ..models.termination_policy import TerminationPolicy
 
@@ -274,6 +285,13 @@ class Sandbox:
 
         updated_at = datetime.datetime.fromisoformat(d.pop("updated_at"))
 
+        _experimental = d.pop("experimental", UNSET)
+        experimental: SandboxExperimental | Unset
+        if isinstance(_experimental, Unset):
+            experimental = UNSET
+        else:
+            experimental = SandboxExperimental.from_dict(_experimental)
+
         sandbox = cls(
             id=id,
             organization_id=organization_id,
@@ -293,6 +311,7 @@ class Sandbox:
             resized_at=resized_at,
             recovery_at=recovery_at,
             updated_at=updated_at,
+            experimental=experimental,
         )
 
         sandbox.additional_properties = d
