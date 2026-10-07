@@ -44,3 +44,17 @@ export type {
 } from "./Snapshots.js";
 export type { WatchOptions } from "./Sandbox.js";
 export { Page } from "./pagination.js";
+
+/**
+ * @internal Not part of the supported public API. Exported only so the
+ * `together-sandbox` CLI can use it; it is not attached to {@link TogetherSandbox}
+ * because billing usage lives on a different host (the Together AI platform
+ * API) than the rest of this SDK. May change or move without a major version bump.
+ */
+export {
+  BillingNamespace,
+  DEFAULT_BILLING_BASE_URL,
+  type UsageLineItem,
+  type UsageWindow,
+} from "./Billing.js";
+export { getInferredApiKey } from "./configuration.js";
