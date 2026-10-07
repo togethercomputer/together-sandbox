@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.1.0...together-sandbox-workspace-v4.1.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* add network policy v2 ([d66b9be](https://github.com/togethercomputer/together-sandbox/commit/d66b9beece6e44fd3bfe62f1f0127962d9bf7a31))
+
 ## [4.1.0](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.0.4...together-sandbox-workspace-v4.1.0) (2026-10-01)
 
 
