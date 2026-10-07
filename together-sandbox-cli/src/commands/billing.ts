@@ -69,35 +69,49 @@ function roundUsd(value: string): string {
 }
 
 /**
- * Max days in a month. With `day` granularity a whole billing month fits in
- * one page of at most this many windows, so the CLI never needs to paginate.
+ * Max days in a month. With `day` granularity a whole billing month usually
+ * fits in one page of this many windows; any further pages are still followed.
  */
 const MAX_DAYS_PER_MONTH = 31;
 
 /**
- * Fetch a month of daily usage in a single page and sum the cost of each
- * date's sandbox line items into one total per day.
+ * Walk every page of a month's daily usage and sum the cost of each date's
+ * sandbox line items into one total per day. Totals are kept by date so a
+ * date split across pages is merged, and rounded only once all pages are in.
  */
 async function fetchDailySandboxUsage(
   billing: BillingNamespace,
   options: { month?: string },
 ): Promise<DailyUsage[]> {
-  const page = await billing.usage({
+  const byDate = new Map<string, DailyUsage>();
+
+  const firstPage = await billing.usage({
     ...options,
     granularity: "day",
     limit: MAX_DAYS_PER_MONTH,
   });
-  return page.data
-    .map((window) => ({
-      date: window.date,
-      startTime: window.startTime,
-      endTime: window.endTime,
-      cost: roundUsd(
-        window.lineItems
-          .filter(isSandboxProduct)
-          .reduce((sum, item) => addDecimalStrings(sum, item.cost), "0"),
-      ),
-    }))
+  for await (const window of firstPage) {
+    const cost = window.lineItems
+      .filter(isSandboxProduct)
+      .reduce((sum, item) => addDecimalStrings(sum, item.cost), "0");
+    const existing = byDate.get(window.date);
+    if (existing) {
+      existing.cost = addDecimalStrings(existing.cost, cost);
+      if (window.startTime < existing.startTime)
+        existing.startTime = window.startTime;
+      if (window.endTime > existing.endTime) existing.endTime = window.endTime;
+    } else {
+      byDate.set(window.date, {
+        date: window.date,
+        startTime: window.startTime,
+        endTime: window.endTime,
+        cost,
+      });
+    }
+  }
+
+  return [...byDate.values()]
+    .map((day) => ({ ...day, cost: roundUsd(day.cost) }))
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 

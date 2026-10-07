@@ -57,7 +57,7 @@ interface RawUsageWindow {
 }
 
 interface RawUsagePage {
-  object: "billing.usage_report";
+  object: "list";
   organization_id: string;
   billing_period: string;
   earliest_window_start: string | null;
@@ -130,8 +130,8 @@ export class BillingNamespace {
       if (options?.granularity !== undefined)
         query.set("granularity", options.granularity);
       if (options?.limit !== undefined)
-        query.set("page_size", String(options.limit));
-      if (cursor !== undefined) query.set("page_token", cursor);
+        query.set("limit", String(options.limit));
+      if (cursor !== undefined) query.set("after", cursor);
 
       const result = await withRetry<RawUsagePage>(
         "billing.getUsage",

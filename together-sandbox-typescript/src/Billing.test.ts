@@ -28,7 +28,7 @@ function makeRawWindow(overrides: Record<string, unknown> = {}) {
 
 function makeRawUsagePage(overrides: Record<string, unknown> = {}) {
   return {
-    object: "billing.usage_report",
+    object: "list",
     organization_id: "org_example",
     billing_period: "2026-06",
     earliest_window_start: "2026-06-01T00:00:00Z",
@@ -73,7 +73,7 @@ describe("BillingNamespace.usage", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe(
-      "https://api.together.ai/v1/billing/usage?month=2026-06&granularity=hour&page_size=50&page_token=cursor-1",
+      "https://api.together.ai/v1/billing/usage?month=2026-06&granularity=hour&limit=50&after=cursor-1",
     );
     expect(init.headers.Authorization).toBe("Bearer test-key");
   });
@@ -167,7 +167,7 @@ describe("BillingNamespace.usage", () => {
     await page.getNextPage();
 
     const [secondUrl] = fetchMock.mock.calls[1];
-    expect(secondUrl).toContain("page_token=next-token");
+    expect(secondUrl).toContain("after=next-token");
   });
 
   it("throws HttpError with the status and server message on failure", async () => {
