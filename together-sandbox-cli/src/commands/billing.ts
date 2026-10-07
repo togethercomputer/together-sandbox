@@ -4,7 +4,7 @@ import {
   DEFAULT_BILLING_BASE_URL,
   getInferredApiKey,
 } from "together-sandbox";
-import type { UsageWindow } from "together-sandbox";
+import type { UsageLineItem, UsageWindow } from "together-sandbox";
 import { runList, type ListArgs } from "./_list";
 import { cell } from "./_table";
 import { examples } from "./_help";
@@ -38,6 +38,30 @@ function totalCost(window: UsageWindow): string {
 function products(window: UsageWindow): string {
   const names = [...new Set(window.lineItems.map((item) => item.productName))];
   return names.join(", ");
+}
+
+/** One billing line item with its window's time range inlined, for JSON output. */
+interface UsageLineItemRecord extends UsageLineItem {
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
+/**
+ * Flatten windows into one record per line item. `-o json` emits these
+ * instead of the nested `UsageWindow[]` so each element of `data` is a
+ * self-contained, filterable record — e.g.
+ * `together-sandbox billing usage -o json | jq '.data[] | select(.attributes.project_id == "...")'`.
+ */
+function toLineItemRecords(windows: UsageWindow[]): UsageLineItemRecord[] {
+  return windows.flatMap((window) =>
+    window.lineItems.map((item) => ({
+      date: window.date,
+      startTime: window.startTime,
+      endTime: window.endTime,
+      ...item,
+    })),
+  );
 }
 
 interface BillingUsageArgs extends ListArgs {
@@ -102,8 +126,15 @@ export const usageCommand: yargs.CommandModule<
             command: "$0 billing usage --limit 50 --cursor <cursor>",
           },
           {
-            describe: "Machine-readable single page: { data, nextCursor }",
+            describe:
+              "Machine-readable single page: { data, nextCursor }, one flat " +
+              "line item per element of data",
             command: "$0 billing usage --ci -o json",
+          },
+          {
+            describe: "Filter line items by project with jq",
+            command:
+              '$0 billing usage --ci -o json | jq \'.data[] | select(.attributes.project_id == "proj_example")\'',
           },
         ]),
       ) as unknown as yargs.Argv<BillingUsageArgs>,
@@ -111,7 +142,7 @@ export const usageCommand: yargs.CommandModule<
   handler: async (argv) => {
     try {
       const billing = createBillingNamespace();
-      await runList<UsageWindow>(
+      await runList<UsageWindow, UsageLineItemRecord>(
         {
           fetchPage: (params) =>
             billing.usage({
@@ -126,6 +157,7 @@ export const usageCommand: yargs.CommandModule<
             cell(window.lineItems.length),
             cell(totalCost(window)),
           ],
+          toJson: toLineItemRecords,
         },
         argv,
       );
