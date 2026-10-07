@@ -3,11 +3,51 @@ import {
   BillingNamespace,
   DEFAULT_BILLING_BASE_URL,
   getInferredApiKey,
+  Page,
+  type UsageLineItem,
+  type UsageWindow,
 } from "together-sandbox";
-import type { UsageLineItem, UsageWindow } from "together-sandbox";
 import { runList, type ListArgs } from "./_list";
 import { cell } from "./_table";
 import { examples } from "./_help";
+
+/**
+ * This CLI is scoped to sandbox usage: only line items whose product name
+ * contains "sandbox" (case-insensitive) are shown. `product_name` is
+ * documented as display-only and not a stable identifier, but it's the only
+ * signal the API exposes to tell sandbox compute apart from other Together
+ * AI products (inference, dedicated endpoints, etc.) in the same report.
+ * Windows left with no matching line items are dropped.
+ */
+function isSandboxProduct(item: UsageLineItem): boolean {
+  return item.productName.toLowerCase().includes("sandbox");
+}
+
+function filterToSandboxProducts(windows: UsageWindow[]): UsageWindow[] {
+  return windows
+    .map((window) => ({
+      ...window,
+      lineItems: window.lineItems.filter(isSandboxProduct),
+    }))
+    .filter((window) => window.lineItems.length > 0);
+}
+
+/**
+ * Wrap `billing.usage` so every page — including ones reached via
+ * `getNextPage()` / async iteration — is pre-filtered to sandbox products
+ * before `runList` or the interactive pager ever sees it.
+ */
+function fetchSandboxUsagePage(
+  billing: BillingNamespace,
+  options: { month?: string; granularity?: "day" | "hour" },
+  params: { limit?: number; cursor?: string },
+): Promise<Page<UsageWindow>> {
+  const fetch = async (cursor?: string): Promise<Page<UsageWindow>> => {
+    const page = await billing.usage({ ...options, ...params, cursor });
+    return new Page(filterToSandboxProducts(page.data), page.nextCursor, fetch);
+  };
+  return fetch(params.cursor);
+}
 
 /**
  * Billing usage lives on the Together AI platform API, not the sandbox
@@ -74,7 +114,8 @@ export const usageCommand: yargs.CommandModule<
   BillingUsageArgs
 > = {
   command: "usage",
-  describe: "Show billing usage for a month, as cost-annotated line items.",
+  describe:
+    "Show sandbox billing usage for a month, as cost-annotated line items.",
   builder: (yargs) =>
     yargs
       .option("month", {
@@ -145,11 +186,14 @@ export const usageCommand: yargs.CommandModule<
       await runList<UsageWindow, UsageLineItemRecord>(
         {
           fetchPage: (params) =>
-            billing.usage({
-              ...params,
-              month: argv.month,
-              granularity: argv.granularity as "day" | "hour" | undefined,
-            }),
+            fetchSandboxUsagePage(
+              billing,
+              {
+                month: argv.month,
+                granularity: argv.granularity as "day" | "hour" | undefined,
+              },
+              params,
+            ),
           headers: ["DATE", "PRODUCTS", "LINE ITEMS", "COST (USD)"],
           toRow: (window) => [
             cell(window.date),
