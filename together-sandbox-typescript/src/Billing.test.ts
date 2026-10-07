@@ -35,8 +35,7 @@ function makeRawUsagePage(overrides: Record<string, unknown> = {}) {
     latest_window_end: "2026-07-01T00:00:00Z",
     currency: "USD",
     data: [makeRawWindow()],
-    has_more: false,
-    next_page_token: null,
+    next_cursor: null,
     ...overrides,
   };
 }
@@ -115,9 +114,29 @@ describe("BillingNamespace.usage", () => {
     ]);
   });
 
-  it("exposes next_page_token as the page's nextCursor", async () => {
+  it("treats a null next_cursor as the last page", async () => {
+    global.fetch = mockFetchJson(makeRawUsagePage()) as unknown as typeof fetch;
+
+    const ns = new BillingNamespace("test-key", "https://api.together.ai");
+    const page = await ns.usage();
+
+    expect(page.hasNextPage()).toBe(false);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it("treats a missing next_cursor as the last page", async () => {
+    const { next_cursor: _omit, ...raw } = makeRawUsagePage();
+    global.fetch = mockFetchJson(raw) as unknown as typeof fetch;
+
+    const ns = new BillingNamespace("test-key", "https://api.together.ai");
+    const page = await ns.usage();
+
+    expect(page.hasNextPage()).toBe(false);
+  });
+
+  it("exposes next_cursor as the page's nextCursor", async () => {
     global.fetch = mockFetchJson(
-      makeRawUsagePage({ has_more: true, next_page_token: "next-token" }),
+      makeRawUsagePage({ next_cursor: "next-token" }),
     ) as unknown as typeof fetch;
 
     const ns = new BillingNamespace("test-key", "https://api.together.ai");
@@ -134,12 +153,12 @@ describe("BillingNamespace.usage", () => {
         ok: true,
         status: 200,
         json: async () =>
-          makeRawUsagePage({ has_more: true, next_page_token: "next-token" }),
+          makeRawUsagePage({ next_cursor: "next-token" }),
       })
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => makeRawUsagePage({ has_more: false }),
+        json: async () => makeRawUsagePage(),
       });
     global.fetch = fetchMock as unknown as typeof fetch;
 

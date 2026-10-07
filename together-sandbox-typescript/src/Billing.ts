@@ -64,8 +64,7 @@ interface RawUsagePage {
   latest_window_end: string | null;
   currency: "USD";
   data: RawUsageWindow[];
-  has_more: boolean;
-  next_page_token: string | null;
+  next_cursor: string | null;
 }
 
 function toUsageWindow(window: RawUsageWindow): UsageWindow {
@@ -191,7 +190,9 @@ export class BillingNamespace {
 
       return new Page<UsageWindow>(
         result.data.map(toUsageWindow),
-        result.next_page_token,
+        // Normalize a missing cursor to `null` — `Page` treats anything other
+        // than `null` as "more pages", which would re-fetch forever.
+        result.next_cursor ?? null,
         fetchPage,
       );
     };

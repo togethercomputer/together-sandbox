@@ -1,4 +1,5 @@
 import type * as yargs from "yargs";
+import ora from "ora";
 import {
   BillingNamespace,
   DEFAULT_BILLING_BASE_URL,
@@ -35,31 +36,13 @@ function createBillingNamespace(): BillingNamespace {
   return new BillingNamespace(apiKey, DEFAULT_BILLING_BASE_URL);
 }
 
-/** One billing line item with its window's time range inlined, for JSON output. */
-interface UsageLineItemRecord extends UsageLineItem {
+/** A date's total sandbox cost (CPU + Memory combined). */
+interface DailyUsage {
   date: string;
   startTime: string;
   endTime: string;
-}
-
-/**
- * A date's aggregated sandbox usage: every window on that date is merged, and
- * line items sharing the same product + pricing dimensions + attributes are
- * summed into one, so an hourly report doesn't show the same product once
- * per hour.
- */
-interface DailyUsage {
-  date: string;
-  lineItems: UsageLineItemRecord[];
-}
-
-/** Stable key for "the same line item" across windows, for summing. */
-function lineItemKey(item: UsageLineItem): string {
-  return JSON.stringify([
-    item.productName,
-    item.pricingDimensions,
-    item.attributes,
-  ]);
+  /** Total cost in USD, rounded to 2 decimal places, as a decimal string. */
+  cost: string;
 }
 
 /**
@@ -76,65 +59,50 @@ function addDecimalStrings(a: string, b: string): string {
 }
 
 /**
- * Walk every page of `billing.usage`, keep only sandbox line items, and
- * aggregate them by date — merging same-day windows (relevant at `hour`
- * granularity) and summing line items that share a product + pricing
- * dimensions + attributes, rather than listing one row per window.
+ * Round a USD decimal string to cents. Sum exactly first (see
+ * {@link addDecimalStrings}) and round only the final total, so per-item
+ * rounding errors don't accumulate. `Number.EPSILON` nudges half-cent values
+ * like "1.005" (stored as 1.00499...) to round up as expected.
+ */
+function roundUsd(value: string): string {
+  return (Math.round((Number(value) + Number.EPSILON) * 100) / 100).toFixed(2);
+}
+
+/**
+ * Max days in a month. With `day` granularity a whole billing month fits in
+ * one page of at most this many windows, so the CLI never needs to paginate.
+ */
+const MAX_DAYS_PER_MONTH = 31;
+
+/**
+ * Fetch a month of daily usage in a single page and sum the cost of each
+ * date's sandbox line items into one total per day.
  */
 async function fetchDailySandboxUsage(
   billing: BillingNamespace,
-  options: { month?: string; granularity?: "day" | "hour" },
+  options: { month?: string },
 ): Promise<DailyUsage[]> {
-  const byDate = new Map<string, Map<string, UsageLineItemRecord>>();
-
-  const firstPage = await billing.usage(options);
-  for await (const window of firstPage) {
-    let byKey = byDate.get(window.date);
-    if (!byKey) {
-      byKey = new Map();
-      byDate.set(window.date, byKey);
-    }
-    for (const item of window.lineItems) {
-      if (!isSandboxProduct(item)) continue;
-      const key = lineItemKey(item);
-      const existing = byKey.get(key);
-      if (existing) {
-        existing.quantity = addDecimalStrings(existing.quantity, item.quantity);
-        existing.cost = addDecimalStrings(existing.cost, item.cost);
-        // Keep the earliest start / latest end across merged windows.
-        if (window.startTime < existing.startTime) existing.startTime = window.startTime;
-        if (window.endTime > existing.endTime) existing.endTime = window.endTime;
-      } else {
-        byKey.set(key, {
-          ...item,
-          date: window.date,
-          startTime: window.startTime,
-          endTime: window.endTime,
-        });
-      }
-    }
-  }
-
-  return [...byDate.entries()]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([date, byKey]) => ({ date, lineItems: [...byKey.values()] }))
-    .filter((day) => day.lineItems.length > 0);
-}
-
-/** Sum of `cost` across a day's line items. */
-function totalCost(day: DailyUsage): string {
-  return day.lineItems.reduce((sum, item) => addDecimalStrings(sum, item.cost), "0");
-}
-
-/** Distinct product names on a day, joined for a compact table cell. */
-function products(day: DailyUsage): string {
-  const names = [...new Set(day.lineItems.map((item) => item.productName))];
-  return names.join(", ");
+  const page = await billing.usage({
+    ...options,
+    granularity: "day",
+    limit: MAX_DAYS_PER_MONTH,
+  });
+  return page.data
+    .map((window) => ({
+      date: window.date,
+      startTime: window.startTime,
+      endTime: window.endTime,
+      cost: roundUsd(
+        window.lineItems
+          .filter(isSandboxProduct)
+          .reduce((sum, item) => addDecimalStrings(sum, item.cost), "0"),
+      ),
+    }))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 
 interface BillingUsageArgs {
   month?: string;
-  granularity?: string;
   output?: string;
 }
 
@@ -143,22 +111,13 @@ export const usageCommand: yargs.CommandModule<
   BillingUsageArgs
 > = {
   command: "usage",
-  describe:
-    "Show sandbox billing usage for a month, as cost-annotated line items.",
+  describe: "Show daily sandbox (CPU + Memory) billing cost for a month.",
   builder: (yargs) =>
     yargs
       .option("month", {
         type: "string",
         describe:
           "Billing month as YYYY-MM (default: current month; up to 12 months back)",
-      })
-      .option("granularity", {
-        type: "string",
-        choices: ["day", "hour"] as const,
-        default: "day",
-        describe:
-          "Time window size fetched from the API; results are always " +
-          "aggregated by date regardless of granularity",
       })
       .option("output", {
         alias: "o",
@@ -170,7 +129,7 @@ export const usageCommand: yargs.CommandModule<
       .epilogue(
         examples([
           {
-            describe: "Current month, aggregated by date",
+            describe: "Current month, one row per day",
             command: "$0 billing usage",
           },
           {
@@ -178,42 +137,37 @@ export const usageCommand: yargs.CommandModule<
             command: "$0 billing usage --month 2026-06",
           },
           {
-            describe:
-              "Machine-readable output: one flat line item per element of data",
+            describe: "Machine-readable output",
             command: "$0 billing usage -o json",
-          },
-          {
-            describe: "Filter line items by project with jq",
-            command:
-              '$0 billing usage -o json | jq \'.data[] | select(.attributes.project_id == "proj_example")\'',
           },
         ]),
       ) as unknown as yargs.Argv<BillingUsageArgs>,
 
   handler: async (argv) => {
+    // Spinner goes to stderr so stdout stays clean for piping (e.g. `-o json | jq`).
+    const spinner = ora({
+      text: "Fetching billing usage...",
+      stream: process.stderr,
+    });
     try {
       const billing = createBillingNamespace();
+      spinner.start();
       const days = await fetchDailySandboxUsage(billing, {
         month: argv.month,
-        granularity: argv.granularity as "day" | "hour" | undefined,
       });
+      spinner.stop();
 
       if (argv.output === "json") {
-        const data = days.flatMap((day) => day.lineItems);
-        process.stdout.write(`${JSON.stringify({ data }, null, 2)}\n`);
+        process.stdout.write(`${JSON.stringify({ data: days }, null, 2)}\n`);
       } else {
-        const rows = days.map((day) => [
-          cell(day.date),
-          cell(products(day)),
-          cell(day.lineItems.length),
-          cell(totalCost(day)),
-        ]);
+        const rows = days.map((day) => [cell(day.date), cell(day.cost)]);
         process.stdout.write(
-          `${renderTable(["DATE", "PRODUCTS", "LINE ITEMS", "COST (USD)"], rows, process.stdout.isTTY ? process.stdout.columns : undefined)}\n`,
+          `${renderTable(["DATE", "COST (USD)"], rows, process.stdout.isTTY ? process.stdout.columns : undefined)}\n`,
         );
       }
       process.exit(0);
     } catch (error) {
+      spinner.stop();
       console.error(
         error instanceof Error
           ? error.message
