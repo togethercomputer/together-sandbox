@@ -13,6 +13,7 @@ import {
 } from "./_exec";
 import { cell, renderTable } from "./_table";
 import { examples } from "./_help";
+import { exit } from "../utils/misc";
 
 // ─── Shared options for the commands that start a process ────────────────────
 
@@ -61,13 +62,13 @@ function specFrom(argv: ExecProcessArgs): ExecSpec {
   return { cmd, args, cwd: argv.cwd, env: parseEnv(argv.env), user: argv.user };
 }
 
-function fail(error: unknown): never {
+async function fail(error: unknown): Promise<never> {
   console.error(
     error instanceof Error
       ? error.message
       : `Unknown error: ${JSON.stringify(error)}`,
   );
-  process.exit(1);
+  return exit(1);
 }
 
 // ─── create ──────────────────────────────────────────────────────────────────
@@ -110,9 +111,9 @@ export const createCommand: yargs.CommandModule<
       const exec = await createExec(target, specFrom(argv), false);
       // Only the id on stdout, so `EXEC_ID=$(...)` works.
       process.stdout.write(`${exec.id}\n`);
-      process.exit(0);
+      await exit(0);
     } catch (error) {
-      fail(error);
+      await fail(error);
     }
   },
 };
@@ -171,9 +172,9 @@ export const runCommand: yargs.CommandModule<Record<string, never>, RunArgs> = {
         interactive: argv.interactive,
         tty: argv.tty,
       });
-      process.exit(exitCode);
+      await exit(exitCode);
     } catch (error) {
-      fail(error);
+      await fail(error);
     }
   },
 };
@@ -222,7 +223,7 @@ export const lsCommand: yargs.CommandModule<Record<string, never>, LsArgs> = {
 
       if (argv.output === "json") {
         process.stdout.write(`${JSON.stringify(execs, null, 2)}\n`);
-        process.exit(0);
+        await exit(0);
       }
 
       const rows = execs.map((e) => [
@@ -240,14 +241,14 @@ export const lsCommand: yargs.CommandModule<Record<string, never>, LsArgs> = {
       process.stdout.write(
         `${renderTable(["ID", "STATUS", "PTY", "EXIT", "COMMAND"], rows, maxWidth)}\n`,
       );
-      process.exit(0);
+      await exit(0);
     } catch (error) {
       console.error(
         error instanceof Error
           ? error.message
           : `Unknown error: ${JSON.stringify(error)}`,
       );
-      process.exit(1);
+      await exit(1);
     }
   },
 };
@@ -311,14 +312,14 @@ export const logsCommand: yargs.CommandModule<Record<string, never>, LogsArgs> =
             else process.stdout.write(frame.output);
           }
         }
-        process.exit(0);
+        await exit(0);
       } catch (error) {
         console.error(
           error instanceof Error
             ? error.message
             : `Unknown error: ${JSON.stringify(error)}`,
         );
-        process.exit(1);
+        await exit(1);
       }
     },
   };
