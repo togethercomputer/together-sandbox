@@ -15,6 +15,7 @@ import {
 import { parseKeyValues } from "./_exec";
 import { examples } from "./_help";
 import { withClientTag } from "../constants";
+import { exit } from "../utils/misc";
 
 function describeSnapshot(s: Snapshot): {
   title: string;
@@ -178,21 +179,14 @@ export const createCommand: yargs.CommandModule<
 
       const result = await sdk.snapshots.create(params);
       if (argv.ci) {
-        // Guarantee we have written the snapshot id as last output before letting process exit.
-        // Doing console.log and sync exit, can drop the last log
-        await new Promise<void>((resolve, reject) =>
-          process.stdout.write(
-            `${result.snapshotId}
-`,
-            (err) => (err ? reject(err) : resolve()),
-          ),
-        );
+        // `exit()` flushes stdout, so the id is guaranteed to be the last output.
+        process.stdout.write(`${result.snapshotId}\n`);
       } else {
         spinner.succeed(
           `Snapshot created: ${result.snapshotId}${result.alias ? " (" + result.alias + ")" : ""}`,
         );
       }
-      process.exit(0);
+      await exit(0);
     } catch (error) {
       if (!argv.ci) {
         spinner.fail();
@@ -203,7 +197,7 @@ export const createCommand: yargs.CommandModule<
           ? error.message
           : `Unknown error: ${JSON.stringify(error)}`,
       );
-      process.exit(1);
+      await exit(1);
     }
   },
 };
@@ -299,14 +293,14 @@ export const listCommand: yargs.CommandModule<
         },
         argv,
       );
-      process.exit(0);
+      await exit(0);
     } catch (error) {
       console.error(
         error instanceof Error
           ? error.message
           : `Unknown error: ${JSON.stringify(error)}`,
       );
-      process.exit(1);
+      await exit(1);
     }
   },
 };
@@ -358,14 +352,14 @@ export const getCommand: yargs.CommandModule<Record<string, never>, GetArgs> = {
       } else {
         process.stdout.write(`${renderDescribe(describeSnapshot(snapshot))}\n`);
       }
-      process.exit(0);
+      await exit(0);
     } catch (error) {
       console.error(
         error instanceof Error
           ? error.message
           : `Unknown error: ${JSON.stringify(error)}`,
       );
-      process.exit(1);
+      await exit(1);
     }
   },
 };
