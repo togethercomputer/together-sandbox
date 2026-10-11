@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from urllib.parse import quote
 
 import httpx
 import pytest
@@ -25,6 +26,21 @@ class FakeTransport(httpx.AsyncBaseTransport):
             self._status_code,
             headers={"Content-Type": "text/event-stream"},
             content=self._body,
+        )
+
+
+class RecordingTransport(httpx.AsyncBaseTransport):
+    """Record the request path while returning an empty SSE stream."""
+
+    def __init__(self) -> None:
+        self.raw_path: bytes | None = None
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        self.raw_path = request.url.raw_path
+        return httpx.Response(
+            200,
+            headers={"Content-Type": "text/event-stream"},
+            content=b"",
         )
 
 
@@ -87,3 +103,40 @@ async def test_stream_handles_sse_comments():
     async for event in facade.stream_list():
         results.append(event)
     assert results == [{"k": 1}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["/workspace/report#draft", "/workspace/report?draft"])
+async def test_watch_encodes_reserved_path_characters(path: str):
+    """watch() must keep URL-reserved characters inside the directory path."""
+    transport = RecordingTransport()
+    client = SandboxAuthClient(base_url="http://fake-sandbox", token="test-token")
+    client.set_async_httpx_client(
+        httpx.AsyncClient(transport=transport, base_url="http://fake-sandbox")
+    )
+
+    async for _ in Files(client).watch(path):
+        pass
+
+    assert transport.raw_path == (
+        b"/api/v1/stream/directories/watcher/"
+        + quote(path, safe="").encode()
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("exec_id", ["exec#draft", "exec?draft"])
+async def test_stream_output_encodes_reserved_id_characters(exec_id: str):
+    """stream_output() must keep URL-reserved characters inside the exec ID."""
+    transport = RecordingTransport()
+    client = SandboxAuthClient(base_url="http://fake-sandbox", token="test-token")
+    client.set_async_httpx_client(
+        httpx.AsyncClient(transport=transport, base_url="http://fake-sandbox")
+    )
+
+    async for _ in Execs(client).stream_output(exec_id):
+        pass
+
+    assert transport.raw_path == (
+        b"/api/v1/stream/execs/" + quote(exec_id, safe="").encode() + b"/io"
+    )
