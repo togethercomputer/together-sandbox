@@ -70,6 +70,24 @@ export class Sandbox {
         );
         return result.content;
       },
+      /**
+       * Read a file's raw bytes, without JSON/base64 wrapping. Use this for
+       * binary files (images, archives, etc.) instead of `read`, which returns
+       * text content and base64-encodes non-UTF-8 bytes.
+       */
+      readRaw: async (path: string): Promise<Uint8Array> => {
+        const result = await callApi(
+          "sandbox.files.readRaw",
+          () =>
+            sandboxApi.readFileRaw({
+              client,
+              path: { path },
+            }),
+          this._retryConfig,
+        );
+        const buffer = await result.arrayBuffer();
+        return new Uint8Array(buffer);
+      },
       create: async (path: string, content: string | Blob | File) => {
         const body =
           typeof content === "string"
