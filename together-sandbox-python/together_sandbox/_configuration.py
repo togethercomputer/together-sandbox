@@ -77,14 +77,19 @@ def is_erofs_enabled(base_url: str) -> bool:
 
     Two ways in. ``TOGETHER_EROFS_ENABLED=true`` opts a caller in explicitly,
     and a v2 control plane is opted in by where it points: EROFS is what v2
-    serves, so a base URL on an "api.bartender-v2…" host implies it.
+    serves, so a base URL on a v2 API host implies it — "api.v2.<region>…"
+    or the older "api.bartender-v2…".
+
+        https://api.v2.us.codesandbox.io        -> True
+        https://api.bartender-v2.codesandbox.io -> True
+        https://api.bartender.codesandbox.io    -> False, unless the env var is set
     """
     if os.environ.get("TOGETHER_EROFS_ENABLED") == "true":
         return True
 
     host = urlparse(base_url).hostname or ""
 
-    return host.startswith("api.bartender-v2")
+    return host.startswith(("api.v2.", "api.bartender-v2."))
 
 
 def get_host_architecture() -> str:
