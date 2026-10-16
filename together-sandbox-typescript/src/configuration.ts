@@ -54,17 +54,6 @@ export function isLocalEnvironment(apiBaseUrl: string): boolean {
 }
 
 /**
- * Whether a build should convert its image to EROFS, so a node mounts it
- * lazily from object storage instead of pulling and unpacking it.
- *
- * Two ways in. `TOGETHER_EROFS_ENABLED=true` opts a caller in explicitly, and
- * a v2 control plane is opted in by where it points: EROFS is what v2 serves,
- * so a base URL on an `api.bartender-v2…` host implies it.
- *
- *   https://api.bartender-v2.codesandbox.io -> true
- *   https://api.bartender.codesandbox.io    -> false, unless the env var is set
- */
-/**
  * Whether a build should produce a nydus-compressed image, which a nydus
  * snapshotter mounts lazily.
  *
@@ -73,7 +62,8 @@ export function isLocalEnvironment(apiBaseUrl: string): boolean {
  * it points — nydus is what it has always consumed.
  *
  *   https://api.bartender.codesandbox.io    -> true
- *   https://api.bartender-v2.codesandbox.io -> false (that one serves EROFS)
+ *   https://api.v2.us.codesandbox.io        -> false (v2 serves EROFS)
+ *   https://api.bartender-v2.codesandbox.io -> false (v2 serves EROFS)
  *   https://api.codesandbox.dev             -> false (devbox nodes unpack OCI
  *                                              layers and reject nydus blobs)
  */
@@ -90,13 +80,27 @@ export function isNydusEnabled(apiBaseUrl: string): boolean {
   }
 }
 
+/**
+ * Whether a build should convert its image to EROFS, so a node mounts it
+ * lazily from object storage instead of pulling and unpacking it.
+ *
+ * Two ways in. `TOGETHER_EROFS_ENABLED=true` opts a caller in explicitly, and
+ * a v2 control plane is opted in by where it points: EROFS is what v2 serves,
+ * so a base URL on a v2 API host implies it — `api.v2.<region>…` or the older
+ * `api.bartender-v2…`.
+ *
+ *   https://api.v2.us.codesandbox.io        -> true
+ *   https://api.bartender-v2.codesandbox.io -> true
+ *   https://api.bartender.codesandbox.io    -> false, unless the env var is set
+ */
 export function isErofsEnabled(apiBaseUrl: string): boolean {
   if (process.env.TOGETHER_EROFS_ENABLED === "true") {
     return true;
   }
 
   try {
-    return new URL(apiBaseUrl).hostname.startsWith("api.bartender-v2");
+    const host = new URL(apiBaseUrl).hostname;
+    return host.startsWith("api.v2.") || host.startsWith("api.bartender-v2.");
   } catch {
     // An unparseable base URL is someone else's error to report; it is not a
     // reason to convert.
