@@ -7,7 +7,7 @@ export function getInferredBaseUrl() {
     return process.env.TOGETHER_BASE_URL;
   }
 
-  return "https://api.bartender.codesandbox.io";
+  return "https://api.v2.us.codesandbox.io";
 }
 
 /**
@@ -15,6 +15,7 @@ export function getInferredBaseUrl() {
  * `builder` subdomain of the same registrable domain, so any API hostname on a
  * given domain resolves to that domain's single builder host.
  *
+ *   https://api.v2.us.codesandbox.io       -> https://builder.codesandbox.io
  *   https://api.bartender.codesandbox.io   -> https://builder.codesandbox.io
  *   https://api2.bartender.codesandbox.dev -> https://builder.codesandbox.dev
  *   https://api.codesandbox.dev            -> https://builder.codesandbox.dev
