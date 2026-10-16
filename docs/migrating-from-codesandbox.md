@@ -613,7 +613,7 @@ async function reattach(sdk: TogetherSandbox, id: string): Promise<Sandbox> {
   );
   const apiClient = createApiClient(
     createApiConfig({
-      baseUrl: `${process.env.TOGETHER_BASE_URL ?? "https://api.bartender.codesandbox.io"}/v1`,
+      baseUrl: `${process.env.TOGETHER_BASE_URL ?? "https://api.v2.us.codesandbox.io"}/v1`,
       headers: { Authorization: `Bearer ${process.env.TOGETHER_API_KEY}` },
     }),
   );

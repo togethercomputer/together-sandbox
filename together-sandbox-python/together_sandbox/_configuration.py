@@ -4,7 +4,7 @@ import os
 import platform
 from urllib.parse import urlparse, urlunparse
 
-DEFAULT_BASE_URL = "https://api.bartender.codesandbox.io"
+DEFAULT_BASE_URL = "https://api.v2.us.codesandbox.io"
 
 
 def get_inferred_base_url() -> str:
@@ -17,6 +17,7 @@ def get_builder_url(base_url: str) -> str:
     "builder" subdomain of the same registrable domain, so any API hostname on a
     given domain resolves to that domain's single builder host.
 
+        https://api.v2.us.codesandbox.io       -> https://builder.codesandbox.io
         https://api.bartender.codesandbox.io   -> https://builder.codesandbox.io
         https://api2.bartender.codesandbox.dev -> https://builder.codesandbox.dev
         https://api.codesandbox.dev            -> https://builder.codesandbox.dev
