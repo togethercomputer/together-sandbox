@@ -19,6 +19,7 @@ from .sandbox.client import AuthenticatedClient as SandboxClient
 
 # ── Sandbox API endpoint functions (detailed variants) ───────────────────────
 from .sandbox.api.files.read_file import asyncio_detailed as read_file_api
+from .sandbox.api.files.read_file_raw import asyncio_detailed as read_file_raw_api
 from .sandbox.api.files.create_file import asyncio_detailed as create_file_api
 from .sandbox.api.files.delete_file import asyncio_detailed as delete_file_api
 from .sandbox.api.files.get_file_stat import asyncio_detailed as get_file_stat_api
@@ -89,6 +90,21 @@ class Files:
             context=f"for path {path!r}",
         )
         return result.content
+
+    async def read_raw(self, path: str) -> bytes:
+        """
+        Read a file's raw bytes, without JSON/base64 wrapping.
+
+        Use this for binary files (images, archives, etc.) instead of `read`,
+        which returns text content and base64-encodes non-UTF-8 bytes.
+        """
+        result = await _call_api(
+            "sandbox.read_file_raw",
+            lambda: read_file_raw_api(path, client=self._client),
+            self._retry,
+            context=f"for path {path!r}",
+        )
+        return result.payload.read()
 
     async def create(self, path: str, content: bytes | str) -> str:
         """

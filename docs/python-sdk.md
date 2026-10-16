@@ -312,6 +312,16 @@ Read the content of a file.
 content = await sandbox.files.read("/src/main.py")
 ```
 
+#### `files.read_raw(path) -> bytes`
+
+Read a file's raw bytes, without JSON/base64 wrapping. Use this for binary
+files (images, archives, etc.) instead of `read`, which returns text content
+and base64-encodes non-UTF-8 bytes.
+
+```python
+data = await sandbox.files.read_raw("/assets/logo.png")
+```
+
 #### `files.create(path, content) -> str`
 
 Create or overwrite a file. Content can be `str` (encoded as UTF-8) or `bytes`.
