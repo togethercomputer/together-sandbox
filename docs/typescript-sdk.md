@@ -315,6 +315,16 @@ Read the content of a file.
 const content = await sandbox.files.read("/src/index.ts");
 ```
 
+#### `files.readRaw(path): Promise<Uint8Array>`
+
+Read a file's raw bytes, without JSON/base64 wrapping. Use this for binary
+files (images, archives, etc.) instead of `read`, which returns text content
+and base64-encodes non-UTF-8 bytes.
+
+```typescript
+const bytes = await sandbox.files.readRaw("/assets/logo.png");
+```
+
 #### `files.create(path, content): Promise<string>`
 
 Create or overwrite a file. Content can be a `string`, `Blob`, or `File`.

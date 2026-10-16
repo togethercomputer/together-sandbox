@@ -39,6 +39,17 @@ class TestSandboxFilesystem:
 
         assert base64.b64decode(result) == binary_data
 
+    async def test_write_and_read_raw_binary_file(self, sandbox: Sandbox):
+        """Test creating a binary file and reading it back via read_raw."""
+        binary_data = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+        test_path = "/test-binary-raw.bin"
+
+        await sandbox.files.create(test_path, binary_data)
+
+        result = await sandbox.files.read_raw(test_path)
+
+        assert result == binary_data
+
     async def test_write_and_read_unicode_file(self, sandbox: Sandbox):
         """Test creating and reading a file with Unicode characters."""
         unicode_content = "Hello 世界 🌍 Привет"
