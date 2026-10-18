@@ -552,6 +552,48 @@ export type CreateFileResponses = {
 
 export type CreateFileResponse = CreateFileResponses[keyof CreateFileResponses];
 
+export type ReadFileRawData = {
+    body?: never;
+    path: {
+        /**
+         * File path
+         */
+        path: string;
+    };
+    query?: never;
+    url: '/api/v1/file_raw/{path}';
+};
+
+export type ReadFileRawErrors = {
+    /**
+     * Bad Request - Path is required or invalid path
+     */
+    400: _Error;
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+    /**
+     * File not found
+     */
+    404: _Error;
+    /**
+     * Unexpected Error
+     */
+    default: _Error;
+};
+
+export type ReadFileRawError = ReadFileRawErrors[keyof ReadFileRawErrors];
+
+export type ReadFileRawResponses = {
+    /**
+     * Raw binary file content
+     */
+    200: Blob | File;
+};
+
+export type ReadFileRawResponse = ReadFileRawResponses[keyof ReadFileRawResponses];
+
 export type GetFileStatData = {
     body?: never;
     path: {

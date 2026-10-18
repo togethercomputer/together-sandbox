@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ConnectToExecWebSocketData, ConnectToExecWebSocketErrors, ConnectToExecWebSocketResponses, CreateDirectoryData, CreateDirectoryErrors, CreateDirectoryResponses, CreateExecData, CreateExecErrors, CreateExecResponses, CreateFileData, CreateFileErrors, CreateFileResponses, CreateWatcherData, CreateWatcherErrors, CreateWatcherResponses, DeleteDirectoryData, DeleteDirectoryErrors, DeleteDirectoryResponses, DeleteExecData, DeleteExecErrors, DeleteExecResponses, DeleteFileData, DeleteFileErrors, DeleteFileResponses, ExecExecStdinData, ExecExecStdinErrors, ExecExecStdinResponses, ExecuteTaskActionData, ExecuteTaskActionErrors, ExecuteTaskActionResponses, GetExecData, GetExecErrors, GetExecOutputData, GetExecOutputErrors, GetExecOutputResponses, GetExecResponses, GetFileStatData, GetFileStatErrors, GetFileStatResponses, GetTaskData, GetTaskErrors, GetTaskResponses, ListDirectoryData, ListDirectoryErrors, ListDirectoryResponses, ListExecsData, ListExecsErrors, ListExecsResponses, ListPortsData, ListPortsErrors, ListPortsResponses, ListSetupTasksData, ListSetupTasksErrors, ListSetupTasksResponses, ListTasksData, ListTasksErrors, ListTasksResponses, PerformFileActionData, PerformFileActionErrors, PerformFileActionResponses, ReadFileData, ReadFileErrors, ReadFileResponses, StartExecData, StartExecErrors, StartExecResponses, StreamExecOutputData, StreamExecOutputErrors, StreamExecOutputResponses, StreamExecsListData, StreamExecsListErrors, StreamExecsListResponses, StreamPortsListData, StreamPortsListErrors, StreamPortsListResponses } from './types.gen';
+import type { ConnectToExecWebSocketData, ConnectToExecWebSocketErrors, ConnectToExecWebSocketResponses, CreateDirectoryData, CreateDirectoryErrors, CreateDirectoryResponses, CreateExecData, CreateExecErrors, CreateExecResponses, CreateFileData, CreateFileErrors, CreateFileResponses, CreateWatcherData, CreateWatcherErrors, CreateWatcherResponses, DeleteDirectoryData, DeleteDirectoryErrors, DeleteDirectoryResponses, DeleteExecData, DeleteExecErrors, DeleteExecResponses, DeleteFileData, DeleteFileErrors, DeleteFileResponses, ExecExecStdinData, ExecExecStdinErrors, ExecExecStdinResponses, ExecuteTaskActionData, ExecuteTaskActionErrors, ExecuteTaskActionResponses, GetExecData, GetExecErrors, GetExecOutputData, GetExecOutputErrors, GetExecOutputResponses, GetExecResponses, GetFileStatData, GetFileStatErrors, GetFileStatResponses, GetTaskData, GetTaskErrors, GetTaskResponses, ListDirectoryData, ListDirectoryErrors, ListDirectoryResponses, ListExecsData, ListExecsErrors, ListExecsResponses, ListPortsData, ListPortsErrors, ListPortsResponses, ListSetupTasksData, ListSetupTasksErrors, ListSetupTasksResponses, ListTasksData, ListTasksErrors, ListTasksResponses, PerformFileActionData, PerformFileActionErrors, PerformFileActionResponses, ReadFileData, ReadFileErrors, ReadFileRawData, ReadFileRawErrors, ReadFileRawResponses, ReadFileResponses, StartExecData, StartExecErrors, StartExecResponses, StreamExecOutputData, StreamExecOutputErrors, StreamExecOutputResponses, StreamExecsListData, StreamExecsListErrors, StreamExecsListResponses, StreamPortsListData, StreamPortsListErrors, StreamPortsListResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -92,6 +92,23 @@ export const createFile = <ThrowOnError extends boolean = false>(options: Option
             'Content-Type': 'application/octet-stream',
             ...options.headers
         }
+    });
+};
+
+/**
+ * Read raw file content
+ * Reads the content of a file at the specified path as a raw binary stream, without JSON or base64 wrapping.
+ */
+export const readFileRaw = <ThrowOnError extends boolean = false>(options: Options<ReadFileRawData, ThrowOnError>) => {
+    return (options.client ?? client).get<ReadFileRawResponses, ReadFileRawErrors, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
+        url: '/api/v1/file_raw/{path}',
+        ...options
     });
 };
 
