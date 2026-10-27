@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.2](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.1.1...together-sandbox-workspace-v4.1.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* **security:** bump certifi to 2026.10.19 (CVE-2026-111943) ([#149](https://github.com/togethercomputer/together-sandbox/issues/149)) ([0d215b3](https://github.com/togethercomputer/together-sandbox/commit/0d215b37301657c726290948b00f581af0eab360))
+
 ## [4.1.1](https://github.com/togethercomputer/together-sandbox/compare/together-sandbox-workspace-v4.1.0...together-sandbox-workspace-v4.1.1) (2026-10-07)
 
 
