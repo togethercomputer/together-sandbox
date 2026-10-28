@@ -402,3 +402,41 @@ export function camelCaseKeys<T extends Record<string, unknown>>(
     ]),
   ) as CamelCasedProperties<T>;
 }
+
+/**
+ * Open a server-sent events stream that closes its connection as soon as the
+ * consumer stops reading.
+ *
+ * The generated SSE client only cancels its response reader when its abort
+ * signal fires. Breaking out of `for await` merely releases the reader lock,
+ * so without this the HTTP connection to the sandbox agent stays open until
+ * the process exits, and a sandbox with such a dangling stream cannot be
+ * terminated on bartender v2 (`sandboxes.terminate` then waits until the
+ * gateway times out).
+ *
+ * `open` receives the signal to pass to the generated call. The returned
+ * generator aborts that signal (closing the connection) when the consumer
+ * returns early, throws, or reads it to the end.
+ */
+export async function autoClosingStream<T>(
+  open: (signal: AbortSignal) => Promise<{ stream: AsyncIterable<T> }>,
+): Promise<AsyncGenerator<T, void, undefined>> {
+  const controller = new AbortController();
+  const { stream } = await open(controller.signal);
+  const iterator = stream[Symbol.asyncIterator]();
+  async function* consume(): AsyncGenerator<T, void, undefined> {
+    try {
+      while (true) {
+        const next = await iterator.next();
+        if (next.done) return;
+        yield next.value;
+      }
+    } finally {
+      // Abort before returning the inner generator: its abort listener (which
+      // cancels the reader) is removed in its own cleanup.
+      controller.abort();
+      await iterator.return?.();
+    }
+  }
+  return consume();
+}

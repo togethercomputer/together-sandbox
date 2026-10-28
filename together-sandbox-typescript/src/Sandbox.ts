@@ -10,7 +10,11 @@ import type {
 } from "./types.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { TogetherSandbox } from "./TogetherSandbox.js";
-import { callApi, terminationSnapshotBody } from "./utils.js";
+import {
+  autoClosingStream,
+  callApi,
+  terminationSnapshotBody,
+} from "./utils.js";
 import { describeLifecycleFailure } from "./lifecycle.js";
 
 /**
@@ -136,18 +140,19 @@ export class Sandbox {
         return result;
       },
       watch: async (path: string, options?: WatchOptions) => {
-        const result = await sandboxApi.createWatcher({
-          client,
-          path: { path },
-          query: options
-            ? {
-                recursive: options.recursive,
-                ignorePatterns: options.ignorePatterns,
-              }
-            : undefined,
-        });
-
-        return result.stream;
+        return autoClosingStream((signal) =>
+          sandboxApi.createWatcher({
+            client,
+            path: { path },
+            query: options
+              ? {
+                  recursive: options.recursive,
+                  ignorePatterns: options.ignorePatterns,
+                }
+              : undefined,
+            signal,
+          }),
+        );
       },
     };
   }
@@ -259,12 +264,14 @@ export class Sandbox {
         );
       },
       streamOutput: async (id: string, lastSequence?: number) => {
-        const result = await sandboxApi.streamExecOutput({
-          client,
-          path: { id },
-          query: lastSequence !== undefined ? { lastSequence } : undefined,
-        });
-        return result.stream;
+        return autoClosingStream((signal) =>
+          sandboxApi.streamExecOutput({
+            client,
+            path: { id },
+            query: lastSequence !== undefined ? { lastSequence } : undefined,
+            signal,
+          }),
+        );
       },
       exec: async (
         command: string,
@@ -335,10 +342,9 @@ export class Sandbox {
         return result;
       },
       streamList: async () => {
-        const result = await sandboxApi.streamExecsList({
-          client,
-        });
-        return result.stream;
+        return autoClosingStream((signal) =>
+          sandboxApi.streamExecsList({ client, signal }),
+        );
       },
     };
   }
@@ -359,10 +365,9 @@ export class Sandbox {
         return result.ports;
       },
       streamList: async () => {
-        const result = await sandboxApi.streamPortsList({
-          client,
-        });
-        return result.stream;
+        return autoClosingStream((signal) =>
+          sandboxApi.streamPortsList({ client, signal }),
+        );
       },
     };
   }

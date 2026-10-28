@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  autoClosingStream,
   callApi,
   terminationPolicyBody,
   terminationSnapshotBody,
@@ -1113,5 +1114,73 @@ describe("terminationPolicyBody", () => {
     ).toEqual({
       snapshot: { memory: true, aliases: ["a"], ttl: undefined, tags: undefined },
     });
+  });
+});
+
+describe("autoClosingStream", () => {
+  // Mimics the generated SSE client: it only cancels its reader when the
+  // signal aborts, and removes that listener in its own cleanup.
+  function fakeSseStream(events: string[]) {
+    const state = {
+      signal: undefined as AbortSignal | undefined,
+      abortedAtCleanup: false,
+      cleanedUp: false,
+    };
+    const open = async (signal: AbortSignal) => {
+      state.signal = signal;
+      async function* stream() {
+        try {
+          for (const event of events) yield event;
+        } finally {
+          state.abortedAtCleanup = signal.aborted;
+          state.cleanedUp = true;
+        }
+      }
+      return { stream: stream() };
+    };
+    return { open, state };
+  }
+
+  it("yields every event and aborts after reading to the end", async () => {
+    const { open, state } = fakeSseStream(["a", "b", "c"]);
+    const seen: string[] = [];
+    for await (const event of await autoClosingStream(open)) seen.push(event);
+    expect(seen).toEqual(["a", "b", "c"]);
+    expect(state.signal?.aborted).toBe(true);
+    expect(state.cleanedUp).toBe(true);
+  });
+
+  it("aborts before the inner stream cleans up when the consumer breaks early", async () => {
+    const { open, state } = fakeSseStream(["a", "b", "c"]);
+    const seen: string[] = [];
+    for await (const event of await autoClosingStream(open)) {
+      seen.push(event);
+      if (event === "b") break;
+    }
+    expect(seen).toEqual(["a", "b"]);
+    expect(state.cleanedUp).toBe(true);
+    expect(state.abortedAtCleanup).toBe(true);
+  });
+
+  it("aborts when the consumer throws", async () => {
+    const { open, state } = fakeSseStream(["a", "b"]);
+    await expect(
+      (async () => {
+        for await (const event of await autoClosingStream(open)) {
+          if (event === "a") throw new Error("boom");
+        }
+      })(),
+    ).rejects.toThrow("boom");
+    expect(state.cleanedUp).toBe(true);
+    expect(state.abortedAtCleanup).toBe(true);
+  });
+
+  it("is not aborted while the consumer is still reading", async () => {
+    const { open, state } = fakeSseStream(["a", "b"]);
+    const stream = await autoClosingStream(open);
+    expect((await stream.next()).value).toBe("a");
+    expect(state.signal?.aborted).toBe(false);
+    await stream.return();
+    expect(state.signal?.aborted).toBe(true);
   });
 });
