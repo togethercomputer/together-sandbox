@@ -2,6 +2,7 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
 import { examples } from "./commands/_help";
+import { exit } from "./utils/misc";
 
 import {
   createCommand,
@@ -65,7 +66,7 @@ const ROOT_EPILOGUE = examples(
  */
 function showHelpAndExit(instance: ReturnType<typeof yargs>): void {
   instance.showHelp("log");
-  process.exit(1);
+  void exit(1);
 }
 
 const cli = yargs(argv)

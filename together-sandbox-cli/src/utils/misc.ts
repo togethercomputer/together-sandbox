@@ -41,3 +41,27 @@ export function base32Encode(
 
   return output;
 }
+
+/**
+ * Exit once stdout and stderr have flushed.
+ *
+ * On macOS (and anywhere else stdout is an async pipe) `process.exit()` drops
+ * whatever is still queued, so piped output is cut off at the pipe buffer
+ * size (64 KB). An empty write is queued behind any pending data, so its
+ * callback fires once everything before it has been handed to the OS.
+ */
+export async function exit(code: number): Promise<never> {
+  await Promise.all(
+    [process.stdout, process.stderr].map(
+      (stream) =>
+        new Promise<void>((resolve) => {
+          if (stream.destroyed || !stream.writable) return resolve();
+          // The reader may have gone away (`| head`): an EPIPE here would
+          // otherwise surface as an uncaught 'error' event.
+          stream.on("error", () => resolve());
+          stream.write("", () => resolve());
+        }),
+    ),
+  );
+  process.exit(code);
+}
