@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   callApi,
+  previewUrl,
   terminationPolicyBody,
   terminationSnapshotBody,
   withRetry,
 } from "./utils.js";
-import type { RetryContext } from "./types.js";
+import type { RetryContext, SandboxInfo } from "./types.js";
 import { HttpError } from "./errors.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1113,5 +1114,59 @@ describe("terminationPolicyBody", () => {
     ).toEqual({
       snapshot: { memory: true, aliases: ["a"], ttl: undefined, tags: undefined },
     });
+  });
+});
+
+// ─── previewUrl ───────────────────────────────────────────────────────────
+
+function vmInfoWithAgentUrl(url: string | null): SandboxInfo {
+  return {
+    agent: { version: "1.0.0", token: "tok", url },
+  } as SandboxInfo;
+}
+
+describe("previewUrl", () => {
+  it("swaps the agent route for a port-prefixed host", () => {
+    const vmInfo = vmInfoWithAgentUrl(
+      "https://agent.v2.codesandbox.dev/nodes/node01/sandboxes/abc-123",
+    );
+
+    expect(previewUrl(vmInfo, 8080)).toBe(
+      "https://abc-123-8080-node01.v2.codesandbox.dev",
+    );
+  });
+
+  it("preserves the scheme", () => {
+    const vmInfo = vmInfoWithAgentUrl(
+      "http://agent.v2.codesandbox.dev/nodes/node01/sandboxes/abc-123",
+    );
+
+    expect(previewUrl(vmInfo, 3000)).toBe(
+      "http://abc-123-3000-node01.v2.codesandbox.dev",
+    );
+  });
+
+  it("handles node IDs and sandbox IDs that contain dashes", () => {
+    const vmInfo = vmInfoWithAgentUrl(
+      "https://agent.v2.codesandbox.dev/nodes/na-us-ce-01-w7/sandboxes/4273a3f4-f07a-4693-9e16-9f82c83b80da",
+    );
+
+    expect(previewUrl(vmInfo, 3000)).toBe(
+      "https://4273a3f4-f07a-4693-9e16-9f82c83b80da-3000-na-us-ce-01-w7.v2.codesandbox.dev",
+    );
+  });
+
+  it("throws when the sandbox has no agent URL yet", () => {
+    expect(() => previewUrl(vmInfoWithAgentUrl(null), 8080)).toThrow(
+      "Sandbox has no agent URL yet",
+    );
+  });
+
+  it("throws when the agent URL is not in the expected shape", () => {
+    const vmInfo = vmInfoWithAgentUrl("https://example.com/not-an-agent-url");
+
+    expect(() => previewUrl(vmInfo, 8080)).toThrow(
+      "Unexpected agent URL shape",
+    );
   });
 });

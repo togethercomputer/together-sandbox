@@ -3,6 +3,7 @@ import type {
   TerminationSnapshotParams,
   RetryConfig,
   RetryContext,
+  SandboxInfo,
 } from "./types";
 import { HttpError, isApiErrorShape, isSandboxErrorShape } from "./errors.js";
 
@@ -401,4 +402,39 @@ export function camelCaseKeys<T extends Record<string, unknown>>(
       value,
     ]),
   ) as CamelCasedProperties<T>;
+}
+
+// ─── Preview URLs ──────────────────────────────────────────────────────────
+
+// Matches the agent URL Bartender reports for a running sandbox:
+// `https://agent.<domain>/nodes/<node-id>/sandboxes/<sandbox-id>`. Captures the
+// scheme, domain, node ID and sandbox ID so a preview URL for another port can be
+// built from the same three values, addressed at the sandbox's own host instead of
+// the agent route (which only reaches the fixed in-sandbox agent port).
+const AGENT_URL_PATTERN =
+  /^(https?):\/\/agent\.([^/]+)\/nodes\/([^/]+)\/sandboxes\/([^/]+)\/?$/;
+
+/**
+ * Builds the URL a client should use to reach `port` inside the sandbox
+ * described by `vmInfo`, derived from its agent URL.
+ *
+ * Throws if the sandbox is not running (no agent URL yet) or its agent URL is
+ * not in the expected `https://agent.<domain>/nodes/<node-id>/sandboxes/<id>`
+ * shape.
+ */
+export function previewUrl(vmInfo: SandboxInfo, port: number): string {
+  const agentUrl = vmInfo.agent.url;
+  if (!agentUrl) {
+    throw new Error(
+      "Sandbox has no agent URL yet — it must be running to have a preview URL",
+    );
+  }
+
+  const match = agentUrl.match(AGENT_URL_PATTERN);
+  if (!match) {
+    throw new Error(`Unexpected agent URL shape: ${agentUrl}`);
+  }
+  const [, scheme, domain, nodeId, sandboxId] = match;
+
+  return `${scheme}://${sandboxId}-${port}-${nodeId}.${domain}`;
 }
