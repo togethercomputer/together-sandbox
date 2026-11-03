@@ -532,3 +532,37 @@ def _resolve_connection(sandbox: SandboxModel) -> tuple[str, str]:
     if not agent or not agent.url or not agent.token:
         raise RuntimeError("Sandbox has no agent connection details")
     return agent.url, agent.token
+
+
+# Matches the agent URL Bartender reports for a running sandbox:
+# `https://agent.<domain>/nodes/<node-id>/sandboxes/<sandbox-id>`. Captures the
+# scheme, domain, node ID and sandbox ID so a preview URL for another port can be
+# built from the same three values, addressed at the sandbox's own host instead of
+# the agent route (which only reaches the fixed in-sandbox agent port).
+_AGENT_URL_PATTERN = re.compile(
+    r"^(https?)://agent\.([^/]+)/nodes/([^/]+)/sandboxes/([^/]+)/?$"
+)
+
+
+def _preview_url(sandbox: SandboxModel, port: int) -> str:
+    """
+    Build the URL a client should use to reach ``port`` inside ``sandbox``,
+    derived from its agent URL.
+
+    Raises:
+        RuntimeError: the sandbox is not running (no agent URL yet), or its
+            agent URL is not in the expected
+            ``https://agent.<domain>/nodes/<node-id>/sandboxes/<id>`` shape.
+    """
+    agent_url = sandbox.agent.url if sandbox.agent else None
+    if not agent_url:
+        raise RuntimeError(
+            "Sandbox has no agent URL yet — it must be running to have a preview URL"
+        )
+
+    match = _AGENT_URL_PATTERN.match(agent_url)
+    if not match:
+        raise RuntimeError(f"Unexpected agent URL shape: {agent_url}")
+    scheme, domain, node_id, sandbox_id = match.groups()
+
+    return f"{scheme}://{sandbox_id}-{port}-{node_id}.{domain}"
