@@ -550,10 +550,15 @@ def _preview_url(sandbox: SandboxModel, port: int) -> str:
     derived from its agent URL.
 
     Raises:
-        RuntimeError: the sandbox is not running (no agent URL yet), or its
-            agent URL is not in the expected
-            ``https://agent.<domain>/nodes/<node-id>/sandboxes/<id>`` shape.
+        RuntimeError: ``port`` is not a valid TCP port (an integer from 1 to
+            65535, the same range ``PortInfo`` enforces), the sandbox is not
+            running (no agent URL yet), or its agent URL is not in the
+            expected ``https://agent.<domain>/nodes/<node-id>/sandboxes/<id>``
+            shape.
     """
+    if isinstance(port, bool) or not isinstance(port, int) or not (1 <= port <= 65535):
+        raise RuntimeError(f"Invalid port {port!r}: must be an integer from 1 to 65535")
+
     agent_url = sandbox.agent.url if sandbox.agent else None
     if not agent_url:
         raise RuntimeError(

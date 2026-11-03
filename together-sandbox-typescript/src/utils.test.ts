@@ -1169,4 +1169,25 @@ describe("previewUrl", () => {
       "Unexpected agent URL shape",
     );
   });
+
+  it.each([0, -1, 65536, 1.5, NaN])(
+    "throws for an out-of-range or non-integer port (%s)",
+    (port) => {
+      const vmInfo = vmInfoWithAgentUrl(
+        "https://agent.v2.codesandbox.dev/nodes/node01/sandboxes/abc-123",
+      );
+
+      expect(() => previewUrl(vmInfo, port)).toThrow("Invalid port");
+    },
+  );
+
+  it.each([1, 65535])("accepts the boundary ports (%s)", (port) => {
+    const vmInfo = vmInfoWithAgentUrl(
+      "https://agent.v2.codesandbox.dev/nodes/node01/sandboxes/abc-123",
+    );
+
+    expect(previewUrl(vmInfo, port)).toBe(
+      `https://abc-123-${port}-node01.v2.codesandbox.dev`,
+    );
+  });
 });

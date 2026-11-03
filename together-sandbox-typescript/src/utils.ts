@@ -418,11 +418,18 @@ const AGENT_URL_PATTERN =
  * Builds the URL a client should use to reach `port` inside the sandbox
  * described by `vmInfo`, derived from its agent URL.
  *
- * Throws if the sandbox is not running (no agent URL yet) or its agent URL is
- * not in the expected `https://agent.<domain>/nodes/<node-id>/sandboxes/<id>`
- * shape.
+ * Throws if `port` is not a valid TCP port (an integer from 1 to 65535, the
+ * same range `PortInfo` enforces), if the sandbox is not running (no agent
+ * URL yet), or if its agent URL is not in the expected
+ * `https://agent.<domain>/nodes/<node-id>/sandboxes/<id>` shape.
  */
 export function previewUrl(vmInfo: SandboxInfo, port: number): string {
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(
+      `Invalid port ${port}: must be an integer from 1 to 65535`,
+    );
+  }
+
   const agentUrl = vmInfo.agent.url;
   if (!agentUrl) {
     throw new Error(
