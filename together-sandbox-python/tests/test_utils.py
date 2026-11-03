@@ -60,6 +60,80 @@ class TestResolveConnection:
         with pytest.raises(RuntimeError, match="no agent connection details"):
             _resolve_connection(sandbox)
 
+
+# ─── _preview_url tests ───────────────────────────────────────────────────────
+
+
+class TestPreviewUrl:
+    def test_swaps_the_agent_route_for_a_port_prefixed_host(self):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(
+            agent_url="https://agent.v2.codesandbox.dev/nodes/node01/sandboxes/abc-123"
+        )
+        assert _preview_url(sandbox, 8080) == (
+            "https://abc-123-8080-node01.v2.codesandbox.dev"
+        )
+
+    def test_preserves_the_scheme(self):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(
+            agent_url="http://agent.v2.codesandbox.dev/nodes/node01/sandboxes/abc-123"
+        )
+        assert _preview_url(sandbox, 3000) == (
+            "http://abc-123-3000-node01.v2.codesandbox.dev"
+        )
+
+    def test_handles_node_and_sandbox_ids_with_dashes(self):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(
+            agent_url=(
+                "https://agent.v2.codesandbox.dev/nodes/na-us-ce-01-w7"
+                "/sandboxes/4273a3f4-f07a-4693-9e16-9f82c83b80da"
+            )
+        )
+        assert _preview_url(sandbox, 3000) == (
+            "https://4273a3f4-f07a-4693-9e16-9f82c83b80da-3000-na-us-ce-01-w7"
+            ".v2.codesandbox.dev"
+        )
+
+    def test_raises_if_agent_url_missing(self):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(agent_url=None)
+        with pytest.raises(RuntimeError, match="no agent URL yet"):
+            _preview_url(sandbox, 8080)
+
+    def test_raises_if_agent_url_has_unexpected_shape(self):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(agent_url="https://example.com/not-an-agent-url")
+        with pytest.raises(RuntimeError, match="Unexpected agent URL shape"):
+            _preview_url(sandbox, 8080)
+
+    @pytest.mark.parametrize("port", [0, -1, 65536, 1.5, True])
+    def test_raises_for_an_out_of_range_or_non_integer_port(self, port):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(
+            agent_url="https://agent.v2.codesandbox.dev/nodes/node01/sandboxes/abc-123"
+        )
+        with pytest.raises(RuntimeError, match="Invalid port"):
+            _preview_url(sandbox, port)
+
+    @pytest.mark.parametrize("port", [1, 65535])
+    def test_accepts_the_boundary_ports(self, port):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(
+            agent_url="https://agent.v2.codesandbox.dev/nodes/node01/sandboxes/abc-123"
+        )
+        assert _preview_url(sandbox, port) == (
+            f"https://abc-123-{port}-node01.v2.codesandbox.dev"
+        )
+
 # ─── SandboxesNamespace.create ───────────────────────────────────────────────
 
 
