@@ -113,6 +113,27 @@ class TestPreviewUrl:
         with pytest.raises(RuntimeError, match="Unexpected agent URL shape"):
             _preview_url(sandbox, 8080)
 
+    @pytest.mark.parametrize("port", [0, -1, 65536, 1.5, True])
+    def test_raises_for_an_out_of_range_or_non_integer_port(self, port):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(
+            agent_url="https://agent.v2.codesandbox.dev/nodes/node01/sandboxes/abc-123"
+        )
+        with pytest.raises(RuntimeError, match="Invalid port"):
+            _preview_url(sandbox, port)
+
+    @pytest.mark.parametrize("port", [1, 65535])
+    def test_accepts_the_boundary_ports(self, port):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(
+            agent_url="https://agent.v2.codesandbox.dev/nodes/node01/sandboxes/abc-123"
+        )
+        assert _preview_url(sandbox, port) == (
+            f"https://abc-123-{port}-node01.v2.codesandbox.dev"
+        )
+
 # ─── SandboxesNamespace.create ───────────────────────────────────────────────
 
 
