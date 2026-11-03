@@ -1,0 +1,8 @@
+[project]
+name = "run-agent-python-sdk"
+version = "0.1.0"
+description = "Run the OpenClaw or Hermes agent in a sandbox, using a Together model"
+requires-python = ">=3.11"
+dependencies = [
+    "together-sandbox>=4.0.1",
+]

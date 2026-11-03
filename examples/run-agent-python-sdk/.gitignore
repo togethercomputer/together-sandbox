@@ -1,0 +1,9 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+
+# Virtual environments
+.venv
+
+# Local secrets
+.env
