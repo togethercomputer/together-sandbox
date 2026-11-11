@@ -28,7 +28,7 @@ class TogetherSandbox:
 
     Args:
         api_key: Together AI API key. Falls back to ``TOGETHER_API_KEY`` env var.
-        base_url: Management API base URL. Defaults to ``https://api.bartender.codesandbox.io``.
+        base_url: Management API base URL. Defaults to ``https://api.v2.us.codesandbox.io``.
         retry: Optional retry configuration. When provided, all API calls will
             automatically retry on transient failures (HTTP 408/429/500/502/503/504
             and network errors). See :class:`~together_sandbox._utils.RetryConfig`.

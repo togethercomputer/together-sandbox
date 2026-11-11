@@ -37,6 +37,9 @@ export interface RemoteImageBuilderOptions {
 /**
  * Options for a single remote build invocation.
  */
+/** What a build does beyond pushing the image, to speed up sandbox starts. */
+export type Optimization = "none" | "nydus" | "erofs";
+
 export interface RemoteBuildOptions {
   /** Local directory to use as the Docker build context. */
   contextDir: string;
@@ -50,8 +53,20 @@ export interface RemoteBuildOptions {
   dockerfile?: string;
   /** Optional build arguments. */
   buildArgs?: Record<string, string>;
-  /** Produce a nydus-compressed image (default `true`). */
-  nydus?: boolean;
+  /**
+   * What the build does beyond pushing the image (default `"none"`):
+   *
+   * - `"none"` — pushed and nothing further.
+   * - `"nydus"` — nydus-compressed, so a nydus snapshotter can start a
+   *   container before the layers have finished downloading.
+   * - `"erofs"` — an EROFS rootfs written to object storage, which a node
+   *   mounts and reads on demand instead of pulling; the build then returns a
+   *   reference ending in `.erofs`.
+   *
+   * One field because these are alternatives: there is no such thing as a
+   * build that is two of them.
+   */
+  optimization?: Optimization;
   /**
    * Groups builds that share a registry-backed layer cache. Omit to let the
    * server default it to the image name without its tag.
@@ -101,7 +116,7 @@ export class RemoteImageBuilderClient {
    */
   async build(opts: RemoteBuildOptions): Promise<string> {
     const dockerfile = opts.dockerfile ?? "Dockerfile";
-    const nydus = opts.nydus ?? true;
+    const optimization = opts.optimization ?? "none";
 
     // ── Collect .dockerignore exclusions ────────────────────────────────────
     const dockerignorePath = path.join(opts.contextDir, ".dockerignore");
@@ -141,7 +156,7 @@ export class RemoteImageBuilderClient {
         form.append("image_name", opts.imageName);
         form.append("dockerfile", dockerfile);
         form.append("build_args", JSON.stringify(opts.buildArgs ?? {}));
-        form.append("nydus_convert", nydus ? "true" : "false");
+        form.append("optimization", optimization);
         // Omitted, not empty, so the server-side default still applies.
         if (opts.cacheKey) form.append("cache_key", opts.cacheKey);
         form.append(
