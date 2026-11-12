@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import base64
+import json
+from typing import Any
 
-import httpx
 import pytest
 
 from together_sandbox._sandbox import Files
@@ -14,45 +15,64 @@ from together_sandbox.sandbox.client import AuthenticatedClient
 
 BINARY = b"\x89PNG\r\n\x1a\n\x00\xff\xfe"
 
+# ─── Helpers ─────────────────────────────────────────────────────────────────
+#
+# The generated client is built on httpx or httpx2 depending on the
+# openapi-python-client version used to generate it, so these tests stub the
+# async client instead of using either library's MockTransport.
 
-def make_files(handler) -> tuple[Files, list[httpx.Request]]:
-    requests: list[httpx.Request] = []
 
-    def record(request: httpx.Request) -> httpx.Response:
-        requests.append(request)
-        return handler(request)
+class FakeResponse:
+    def __init__(self, status_code: int, content: bytes, content_type: str) -> None:
+        self.status_code = status_code
+        self.content = content
+        self.headers = {"content-type": content_type}
 
-    client = AuthenticatedClient(
-        base_url="http://agent.test",
-        token="token",
-        httpx_args={"transport": httpx.MockTransport(record)},
-    )
-    return Files(client, retry=RetryConfig(max_attempts=1)), requests
+    def json(self) -> Any:
+        return json.loads(self.content)
+
+
+class FakeAsyncClient:
+    def __init__(self, response: FakeResponse) -> None:
+        self.response = response
+        self.requests: list[dict[str, Any]] = []
+
+    async def request(self, **kwargs: Any) -> FakeResponse:
+        self.requests.append(kwargs)
+        return self.response
+
+
+def octet_stream_response(content: bytes) -> FakeResponse:
+    return FakeResponse(200, content, "application/octet-stream")
+
+
+def json_response(status_code: int, body: Any) -> FakeResponse:
+    return FakeResponse(status_code, json.dumps(body).encode(), "application/json")
+
+
+def make_files(response: FakeResponse) -> tuple[Files, FakeAsyncClient]:
+    fake = FakeAsyncClient(response)
+    client = AuthenticatedClient(base_url="http://agent.test", token="token")
+    client.set_async_httpx_client(fake)  # type: ignore[arg-type]
+    return Files(client, retry=RetryConfig(max_attempts=1)), fake
+
+
+# ─── read_raw ────────────────────────────────────────────────────────────────
 
 
 async def test_read_raw_requests_octet_stream_from_read_endpoint():
-    files, requests = make_files(
-        lambda _: httpx.Response(
-            200,
-            content=BINARY,
-            headers={"Content-Type": "application/octet-stream"},
-        )
-    )
+    files, fake = make_files(octet_stream_response(BINARY))
 
     result = await files.read_raw("/assets/logo.png")
 
     assert result == BINARY
-    assert requests[0].method == "GET"
-    assert requests[0].url.raw_path == b"/api/v1/files/%2Fassets%2Flogo.png"
-    assert requests[0].headers["Accept"] == "application/octet-stream"
+    assert fake.requests[0]["method"] == "get"
+    assert fake.requests[0]["url"] == "/api/v1/files/%2Fassets%2Flogo.png"
+    assert fake.requests[0]["headers"]["Accept"] == "application/octet-stream"
 
 
 async def test_read_raw_returns_empty_bytes_for_empty_file():
-    files, _ = make_files(
-        lambda _: httpx.Response(
-            200, content=b"", headers={"Content-Type": "application/octet-stream"}
-        )
-    )
+    files, _ = make_files(octet_stream_response(b""))
 
     assert await files.read_raw("/empty.bin") == b""
 
@@ -68,10 +88,7 @@ async def test_read_raw_decodes_json_from_agents_without_negotiation(
     content, encoding, expected
 ):
     files, _ = make_files(
-        lambda _: httpx.Response(
-            200,
-            json={"path": "/file", "content": content, "encoding": encoding},
-        )
+        json_response(200, {"path": "/file", "content": content, "encoding": encoding})
     )
 
     assert await files.read_raw("/file") == expected
@@ -79,7 +96,7 @@ async def test_read_raw_decodes_json_from_agents_without_negotiation(
 
 async def test_read_raw_raises_http_error_on_not_found():
     files, _ = make_files(
-        lambda _: httpx.Response(404, json={"code": 404, "message": "File not found"})
+        json_response(404, {"code": 404, "message": "File not found"})
     )
 
     with pytest.raises(HttpError) as exc_info:
@@ -89,12 +106,14 @@ async def test_read_raw_raises_http_error_on_not_found():
     assert "File not found" in str(exc_info.value)
 
 
+# ─── read ────────────────────────────────────────────────────────────────────
+
+
 async def test_read_sends_no_octet_stream_accept_header():
-    files, requests = make_files(
-        lambda _: httpx.Response(
-            200, json={"path": "/file", "content": "text", "encoding": "utf-8"}
-        )
+    files, fake = make_files(
+        json_response(200, {"path": "/file", "content": "text", "encoding": "utf-8"})
     )
 
     assert await files.read("/file") == "text"
-    assert "application/octet-stream" not in requests[0].headers.get("Accept", "")
+    headers = fake.requests[0].get("headers", {})
+    assert "application/octet-stream" not in headers.get("Accept", "")
