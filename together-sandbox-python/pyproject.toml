@@ -21,7 +21,8 @@ license = { text = "MIT" }
 
 [project.optional-dependencies]
 dev = [
-    "openapi-python-client>=0.28.0",
+    # Keep in sync with requirements-codegen.txt
+    "openapi-python-client==0.28.3",
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-timeout>=2.0.0",

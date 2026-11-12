@@ -30,7 +30,7 @@ jobs:
         working-directory: ${{ github.workspace }}
 
       - name: Install openapi-python-client
-        run: pip install openapi-python-client
+        run: pip install -r ${{ github.workspace }}/together-sandbox-python/requirements-codegen.txt
 
       - name: Generate SDKs
         run: bash generate.sh
@@ -132,7 +132,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install openapi-python-client
-        run: pip install openapi-python-client
+        run: pip install -r ${{ github.workspace }}/together-sandbox-python/requirements-codegen.txt
 
       - name: Generate SDKs
         run: bash generate.sh
@@ -168,13 +168,23 @@ jobs:
           python-version: "3.12"
 
       - name: Install build tooling
-        run: pip install openapi-python-client build
+        run: pip install -r ${{ github.workspace }}/together-sandbox-python/requirements-codegen.txt build
 
       - name: Generate SDKs
         run: bash generate.sh
 
       - name: Build Python distributions
         run: python -m build
+        working-directory: together-sandbox-python
+
+      - name: Smoke-test wheel in a clean environment
+        # Install the wheel with only its declared dependencies and import it from
+        # outside the source tree, so an undeclared import fails here instead of
+        # for users after release.
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install dist/*.whl
+          cd /tmp && /tmp/smoke/bin/python -c "import together_sandbox"
         working-directory: together-sandbox-python
 
       - name: Publish to PyPI

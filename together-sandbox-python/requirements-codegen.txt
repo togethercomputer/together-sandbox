@@ -1,0 +1,6 @@
+# Generator for the Python clients in together_sandbox/api and together_sandbox/sandbox.
+# Pinned exactly: CI and the PyPI release regenerate these clients, so an unpinned
+# generator can ship code the SDK doesn't support (0.30.0 switched to httpx2, which
+# is not a declared dependency). Upgrade deliberately and keep pyproject.toml's dev
+# extra in sync.
+openapi-python-client==0.28.3

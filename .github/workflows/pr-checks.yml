@@ -101,7 +101,7 @@ jobs:
         working-directory: ${{ github.workspace }}
 
       - name: Install openapi-python-client
-        run: pip install openapi-python-client
+        run: pip install -r ${{ github.workspace }}/together-sandbox-python/requirements-codegen.txt
 
       - name: Generate SDKs
         run: bash generate.sh
@@ -112,6 +112,20 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ -v --ignore=tests/e2e
+
+      - name: Build wheel
+        run: |
+          pip install build
+          python -m build --wheel
+
+      - name: Smoke-test wheel in a clean environment
+        # Install the wheel with only its declared dependencies and import it from
+        # outside the source tree, so an undeclared import fails here instead of
+        # for users after release.
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install dist/*.whl
+          cd /tmp && /tmp/smoke/bin/python -c "import together_sandbox"
 
   build-dry-run:
     runs-on: ubuntu-latest
@@ -134,7 +148,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install openapi-python-client
-        run: pip install openapi-python-client
+        run: pip install -r ${{ github.workspace }}/together-sandbox-python/requirements-codegen.txt
 
       - name: Generate SDKs
         run: bash generate.sh

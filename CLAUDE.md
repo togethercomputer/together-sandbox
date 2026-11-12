@@ -37,6 +37,16 @@ This patches `api-openapi.json` (promotes inline schemas to named refs for the
 Python generator), then runs `npm run generate` in the TypeScript package and
 `bash generate.sh` in the Python package.
 
+The Python generator version is pinned in
+`together-sandbox-python/requirements-codegen.txt` (install it with
+`pip install -r together-sandbox-python/requirements-codegen.txt`). CI and the
+PyPI release regenerate the clients, so never install `openapi-python-client`
+unpinned. Newer versions can change the generated code's dependencies (0.30.0
+switched to `httpx2`, which the SDK doesn't declare). To upgrade, bump the pin
+there and in `pyproject.toml`'s dev extra, then regenerate. The "Smoke-test wheel
+in a clean environment" CI step (on every PR and before publishing to PyPI)
+fails if the built wheel imports a package not declared in `pyproject.toml`.
+
 ## Environment variables
 
 | Variable            | Purpose                                                |

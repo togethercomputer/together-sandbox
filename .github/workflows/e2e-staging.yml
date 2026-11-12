@@ -35,7 +35,7 @@ jobs:
         run: npm ci
 
       - name: Install openapi-python-client
-        run: pip install openapi-python-client
+        run: pip install -r ${{ github.workspace }}/together-sandbox-python/requirements-codegen.txt
 
       - name: Generate SDKs
         run: bash generate.sh
