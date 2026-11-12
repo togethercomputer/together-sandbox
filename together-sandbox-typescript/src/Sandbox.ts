@@ -70,6 +70,30 @@ export class Sandbox {
         );
         return result.content;
       },
+      /**
+       * Read a file's raw bytes, without JSON/base64 wrapping. Use this for
+       * binary files (images, archives, etc.) instead of `read`, which returns
+       * text content and base64-encodes non-UTF-8 bytes.
+       */
+      readRaw: async (path: string): Promise<Uint8Array> => {
+        // Same endpoint as `read`, but `Accept: application/octet-stream`
+        // asks the agent for the raw bytes instead of the JSON response.
+        const result = await callApi<unknown>(
+          "sandbox.files.readRaw",
+          () =>
+            sandboxApi.readFile({
+              client,
+              path: { path },
+              headers: { Accept: "application/octet-stream" },
+            }),
+          this._retryConfig,
+        );
+        if (result instanceof Blob) {
+          return new Uint8Array(await result.arrayBuffer());
+        }
+        // Older agents ignore the Accept header and always return JSON
+        return decodeFileReadResponse(result as sandboxApi.FileReadResponse);
+      },
       create: async (path: string, content: string | Blob | File) => {
         const body =
           typeof content === "string"
@@ -447,4 +471,13 @@ export class Sandbox {
     const sdk = new TogetherSandbox(config);
     await sdk.sandboxes.terminate(sandboxId, options);
   }
+}
+
+function decodeFileReadResponse(
+  result: sandboxApi.FileReadResponse,
+): Uint8Array {
+  if (result.encoding === "base64") {
+    return Uint8Array.from(atob(result.content), (c) => c.charCodeAt(0));
+  }
+  return new TextEncoder().encode(result.content);
 }
