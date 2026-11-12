@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+from http import HTTPStatus
 from typing import Any, AsyncIterator, TypedDict
 from types import TracebackType
 
@@ -19,7 +21,10 @@ from .sandbox.client import AuthenticatedClient as SandboxClient
 
 # ── Sandbox API endpoint functions (detailed variants) ───────────────────────
 from .sandbox.api.files.read_file import asyncio_detailed as read_file_api
-from .sandbox.api.files.read_file_raw import asyncio_detailed as read_file_raw_api
+from .sandbox.api.files.read_file import (
+    _get_kwargs as read_file_kwargs,
+    _parse_response as read_file_parse_response,
+)
 from .sandbox.api.files.create_file import asyncio_detailed as create_file_api
 from .sandbox.api.files.delete_file import asyncio_detailed as delete_file_api
 from .sandbox.api.files.get_file_stat import asyncio_detailed as get_file_stat_api
@@ -50,11 +55,13 @@ from .sandbox.models.create_exec_request_env import CreateExecRequestEnv
 from .sandbox.models.file_action_request import FileActionRequest
 from .sandbox.models.file_action_request_action import FileActionRequestAction
 from .sandbox.models.file_info import FileInfo
+from .sandbox.models.file_read_response import FileReadResponse
+from .sandbox.models.file_read_response_encoding import FileReadResponseEncoding
 from .sandbox.models.exec_stdin_type import ExecStdinType
 from .sandbox.models.exec_stdin import ExecStdin
 from .sandbox.models.exec_stdout import ExecStdout
 from .sandbox.models.exec_start import ExecStart
-from .sandbox.types import UNSET, File, Unset
+from .sandbox.types import UNSET, File, Response, Unset
 
 # The management API and the in-VM sandbox API are generated as separate
 # clients, each with its own Unset sentinel class. Methods on this class mostly
@@ -69,6 +76,12 @@ from ._streaming import stream_sse_json
 # ── Utils ─────────────────────────────────────────────────────
 from ._utils import RetryConfig, _call_api, build_termination_snapshot
 from ._lifecycle import describe_lifecycle_failure
+
+
+def _decode_file_read_response(result: FileReadResponse) -> bytes:
+    if result.encoding == FileReadResponseEncoding.BASE64:
+        return base64.b64decode(result.content)
+    return result.content.encode("utf-8")
 
 
 class Files:
@@ -98,13 +111,37 @@ class Files:
         Use this for binary files (images, archives, etc.) instead of `read`,
         which returns text content and base64-encodes non-UTF-8 bytes.
         """
-        result = await _call_api(
+        return await _call_api(
             "sandbox.read_file_raw",
-            lambda: read_file_raw_api(path, client=self._client),
+            lambda: self._read_file_raw(path),
             self._retry,
             context=f"for path {path!r}",
         )
-        return result.payload.read()
+
+    async def _read_file_raw(self, path: str) -> Response[Any]:
+        # Same endpoint as `read`, but `Accept: application/octet-stream` asks
+        # the agent for the raw bytes instead of the JSON FileReadResponse.
+        kwargs = read_file_kwargs(path)
+        kwargs["headers"] = {"Accept": "application/octet-stream"}
+        response = await self._client.get_async_httpx_client().request(**kwargs)
+
+        parsed: Any
+        if response.status_code != 200:
+            parsed = read_file_parse_response(client=self._client, response=response)
+        elif response.headers.get("content-type", "").startswith("application/json"):
+            # Older agents ignore the Accept header and always return JSON
+            parsed = _decode_file_read_response(
+                FileReadResponse.from_dict(response.json())
+            )
+        else:
+            parsed = response.content
+
+        return Response(
+            status_code=HTTPStatus(response.status_code),
+            content=response.content,
+            headers=response.headers,
+            parsed=parsed,
+        )
 
     async def create(self, path: str, content: bytes | str) -> str:
         """
