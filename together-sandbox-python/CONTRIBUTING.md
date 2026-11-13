@@ -22,7 +22,7 @@ and writes the output to:
 ## Prerequisites
 
 1. Together AI API key
-2. Python 3.10 or higher
+2. Python 3.11 or higher
 3. Install dev dependencies:
 
 ```bash

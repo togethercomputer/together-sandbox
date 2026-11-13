@@ -30,7 +30,7 @@ jobs:
         working-directory: ${{ github.workspace }}
 
       - name: Install openapi-python-client
-        run: pip install openapi-python-client
+        run: pip install -r ${{ github.workspace }}/together-sandbox-python/requirements-codegen.txt
 
       - name: Generate SDKs
         run: bash generate.sh
@@ -132,7 +132,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install openapi-python-client
-        run: pip install openapi-python-client
+        run: pip install -r ${{ github.workspace }}/together-sandbox-python/requirements-codegen.txt
 
       - name: Generate SDKs
         run: bash generate.sh
@@ -165,16 +165,33 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          # The last version listed is the default `python`: 3.11, the minimum
+          # supported version. 3.12 is also installed for the wheel smoke test.
+          python-version: |
+            3.12
+            3.11
 
       - name: Install build tooling
-        run: pip install openapi-python-client build
+        run: pip install -r ${{ github.workspace }}/together-sandbox-python/requirements-codegen.txt build
 
       - name: Generate SDKs
         run: bash generate.sh
 
       - name: Build Python distributions
         run: python -m build
+        working-directory: together-sandbox-python
+
+      - name: Smoke-test wheel in a clean environment
+        # Install the wheel with only its declared dependencies and import it from
+        # outside the source tree, on the minimum supported Python (3.11) and on
+        # 3.12, so an undeclared import or a too-new language feature fails here
+        # instead of for users after release.
+        run: |
+          for py in python3.11 python3.12; do
+            "$py" -m venv "/tmp/smoke-$py"
+            "/tmp/smoke-$py/bin/pip" install dist/*.whl
+            (cd /tmp && "/tmp/smoke-$py/bin/python" -c "import together_sandbox")
+          done
         working-directory: together-sandbox-python
 
       - name: Publish to PyPI

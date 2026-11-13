@@ -6,7 +6,7 @@
 pip install together-sandbox
 ```
 
-Requires Python 3.10+.
+Requires Python 3.11+.
 
 ---
 

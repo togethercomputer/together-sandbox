@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class SandboxStatusReason(str, Enum):
+class SandboxStatusReason(StrEnum):
     AUTOTERMINATED = "autoterminated"
     CLUSTER_LOST = "cluster_lost"
     COLD_STARTED = "cold_started"

@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class ExecStdinType(str, Enum):
+class ExecStdinType(StrEnum):
     RESIZE = "resize"
     STDIN = "stdin"
 

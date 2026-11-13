@@ -12,8 +12,6 @@ T = TypeVar("T", bound="ErrorErrorsItemDetails")
 
 @_attrs_define
 class ErrorErrorsItemDetails:
-    """ """
-
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
