@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class SandboxStatus(str, Enum):
+class SandboxStatus(StrEnum):
     FAILED_TO_START = "failed_to_start"
     RECOVERING = "recovering"
     RUNNING = "running"

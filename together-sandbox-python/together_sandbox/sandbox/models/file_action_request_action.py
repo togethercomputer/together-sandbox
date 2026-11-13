@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class FileActionRequestAction(str, Enum):
+class FileActionRequestAction(StrEnum):
     COPY = "copy"
     MOVE = "move"
 

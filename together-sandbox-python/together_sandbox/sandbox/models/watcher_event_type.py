@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class WatcherEventType(str, Enum):
+class WatcherEventType(StrEnum):
     ADD = "ADD"
     CHANGE = "CHANGE"
     CONNECTED = "connected"

@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class CreateSnapshotBodyArchitecture(str, Enum):
+class CreateSnapshotBodyArchitecture(StrEnum):
     AMD64 = "amd64"
     ARM64 = "arm64"
 

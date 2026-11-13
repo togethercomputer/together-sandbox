@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class TaskActionType(str, Enum):
+class TaskActionType(StrEnum):
     RESTART = "restart"
     START = "start"
     STOP = "stop"

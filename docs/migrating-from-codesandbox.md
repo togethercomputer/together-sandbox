@@ -48,7 +48,7 @@ decision rather than a one-to-one rewrite.
 
 | CodeSandbox SDK | Together Sandbox | Notes |
 | --- | --- | --- |
-| `npm i @codesandbox/sdk` | `npm i together-sandbox` / `pip install together-sandbox` | The Python SDK is new (async only, Python 3.10+). |
+| `npm i @codesandbox/sdk` | `npm i together-sandbox` / `pip install together-sandbox` | The Python SDK is new (async only, Python 3.11+). |
 | `new CodeSandbox(apiKey?, opts)` | `new TogetherSandbox({ apiKey?, baseUrl?, retry? })` | |
 | `CSB_API_KEY` | `TOGETHER_API_KEY` | CodeSandbox keys do not work. |
 | `CSB_BASE_URL` / `opts.baseUrl` | `TOGETHER_BASE_URL` / `baseUrl` | Pass the host only; the SDK appends `/v1`. |
@@ -167,7 +167,7 @@ decision rather than a one-to-one rewrite.
 ### Install and configure
 
 - **TypeScript:** replace `@codesandbox/sdk` with `together-sandbox`.
-- **Python:** add `together-sandbox` (Python 3.10+).
+- **Python:** add `together-sandbox` (Python 3.11+).
 - **Credentials:** get a Together API key. Rename `CSB_API_KEY` →
   `TOGETHER_API_KEY` and `CSB_BASE_URL` → `TOGETHER_BASE_URL` everywhere: code,
   `.env` files, CI secrets and deployment manifests.

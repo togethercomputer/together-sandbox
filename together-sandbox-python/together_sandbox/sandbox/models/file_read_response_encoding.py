@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class FileReadResponseEncoding(str, Enum):
+class FileReadResponseEncoding(StrEnum):
     BASE64 = "base64"
     UTF_8 = "utf-8"
 

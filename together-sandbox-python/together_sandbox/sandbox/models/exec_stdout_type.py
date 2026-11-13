@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class ExecStdoutType(str, Enum):
+class ExecStdoutType(StrEnum):
     STDERR = "stderr"
     STDOUT = "stdout"
 
