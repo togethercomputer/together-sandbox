@@ -11,14 +11,14 @@ afterEach(() => {
 });
 
 describe("getInferredBaseUrl", () => {
-  it("defaults to the v2 API", () => {
+  it("defaults to the v1 API", () => {
     vi.stubEnv("TOGETHER_BASE_URL", "");
-    expect(getInferredBaseUrl()).toBe("https://api.v2.us.codesandbox.io");
+    expect(getInferredBaseUrl()).toBe("https://api.bartender.codesandbox.io");
   });
 
   it("prefers TOGETHER_BASE_URL", () => {
-    vi.stubEnv("TOGETHER_BASE_URL", "https://api.bartender.codesandbox.io");
-    expect(getInferredBaseUrl()).toBe("https://api.bartender.codesandbox.io");
+    vi.stubEnv("TOGETHER_BASE_URL", "https://api.v2.us.codesandbox.io");
+    expect(getInferredBaseUrl()).toBe("https://api.v2.us.codesandbox.io");
   });
 });
 

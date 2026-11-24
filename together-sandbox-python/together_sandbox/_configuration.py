@@ -4,7 +4,7 @@ import os
 import platform
 from urllib.parse import urlparse, urlunparse
 
-DEFAULT_BASE_URL = "https://api.v2.us.codesandbox.io"
+DEFAULT_BASE_URL = "https://api.bartender.codesandbox.io"
 
 
 def get_inferred_base_url() -> str:

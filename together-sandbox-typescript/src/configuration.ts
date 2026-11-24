@@ -7,7 +7,7 @@ export function getInferredBaseUrl() {
     return process.env.TOGETHER_BASE_URL;
   }
 
-  return "https://api.v2.us.codesandbox.io";
+  return "https://api.bartender.codesandbox.io";
 }
 
 /**

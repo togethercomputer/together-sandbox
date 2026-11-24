@@ -11,14 +11,14 @@ from together_sandbox._configuration import (
 )
 
 
-def test_default_base_url_is_v2(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_default_base_url_is_v1(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("TOGETHER_BASE_URL", raising=False)
-    assert get_inferred_base_url() == "https://api.v2.us.codesandbox.io"
+    assert get_inferred_base_url() == "https://api.bartender.codesandbox.io"
 
 
 def test_base_url_env_wins(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("TOGETHER_BASE_URL", "https://api.bartender.codesandbox.io")
-    assert get_inferred_base_url() == "https://api.bartender.codesandbox.io"
+    monkeypatch.setenv("TOGETHER_BASE_URL", "https://api.v2.us.codesandbox.io")
+    assert get_inferred_base_url() == "https://api.v2.us.codesandbox.io"
 
 
 @pytest.mark.parametrize(
