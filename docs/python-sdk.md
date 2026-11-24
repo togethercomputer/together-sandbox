@@ -47,13 +47,13 @@ asyncio.run(main())
 The main entry point for the SDK.
 
 ```python
-sdk = TogetherSandbox(api_key=None, base_url="https://api.bartender.codesandbox.io")
+sdk = TogetherSandbox(api_key=None, base_url="https://api.v2.us.codesandbox.io")
 ```
 
 | Parameter  | Type                  | Description                                                                                                                |
 | ---------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `api_key`  | `str \| None`         | Together AI API key. Falls back to the `TOGETHER_API_KEY` env var.                                                         |
-| `base_url` | `str`                 | Management API base URL. Defaults to `https://api.bartender.codesandbox.io`. Override via the `TOGETHER_BASE_URL` env var. |
+| `base_url` | `str`                 | Management API base URL. Defaults to `https://api.v2.us.codesandbox.io`. Override via the `TOGETHER_BASE_URL` env var. |
 | `retry`    | `RetryConfig \| None` | Retry configuration for transient failures. See [Retry](#retry) below.                                                     |
 
 `TogetherSandbox` supports use as an async context manager:
