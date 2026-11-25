@@ -50,6 +50,26 @@ class TestResolveConnection:
         assert url == "https://agent.example.com"
         assert token == "agent-tok"
 
+    def test_swaps_the_agent_port_in_the_current_agent_url_format(self):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(
+            agent_url=(
+                "https://4273a3f4-f07a-4693-9e16-9f82c83b80da-57468"
+                ".na-us-ce-01.cluster.csb.app"
+            )
+        )
+        assert _preview_url(sandbox, 3000) == (
+            "https://4273a3f4-f07a-4693-9e16-9f82c83b80da-3000"
+            ".na-us-ce-01.cluster.csb.app"
+        )
+
+    def test_handles_a_trailing_slash_in_the_current_agent_url_format(self):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(agent_url="http://abc-123-57468.csb.app/")
+        assert _preview_url(sandbox, 8080) == "http://abc-123-8080.csb.app"
+
     def test_raises_if_agent_url_missing(self):
         sandbox = _make_sandbox_model(agent_url=None)
         with pytest.raises(RuntimeError, match="no agent connection details"):
@@ -98,6 +118,26 @@ class TestPreviewUrl:
             "https://4273a3f4-f07a-4693-9e16-9f82c83b80da-3000-na-us-ce-01-w7"
             ".v2.codesandbox.dev"
         )
+
+    def test_swaps_the_agent_port_in_the_current_agent_url_format(self):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(
+            agent_url=(
+                "https://4273a3f4-f07a-4693-9e16-9f82c83b80da-57468"
+                ".na-us-ce-01.cluster.csb.app"
+            )
+        )
+        assert _preview_url(sandbox, 3000) == (
+            "https://4273a3f4-f07a-4693-9e16-9f82c83b80da-3000"
+            ".na-us-ce-01.cluster.csb.app"
+        )
+
+    def test_handles_a_trailing_slash_in_the_current_agent_url_format(self):
+        from together_sandbox._utils import _preview_url
+
+        sandbox = _make_sandbox_model(agent_url="http://abc-123-57468.csb.app/")
+        assert _preview_url(sandbox, 8080) == "http://abc-123-8080.csb.app"
 
     def test_raises_if_agent_url_missing(self):
         from together_sandbox._utils import _preview_url

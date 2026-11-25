@@ -1156,6 +1156,22 @@ describe("previewUrl", () => {
     );
   });
 
+  it("swaps the agent port in the current port-prefixed agent URL format", () => {
+    const vmInfo = vmInfoWithAgentUrl(
+      "https://4273a3f4-f07a-4693-9e16-9f82c83b80da-57468.na-us-ce-01.cluster.csb.app",
+    );
+
+    expect(previewUrl(vmInfo, 3000)).toBe(
+      "https://4273a3f4-f07a-4693-9e16-9f82c83b80da-3000.na-us-ce-01.cluster.csb.app",
+    );
+  });
+
+  it("handles a trailing slash in the current agent URL format", () => {
+    const vmInfo = vmInfoWithAgentUrl("http://abc-123-57468.csb.app/");
+
+    expect(previewUrl(vmInfo, 8080)).toBe("http://abc-123-8080.csb.app");
+  });
+
   it("throws when the sandbox has no agent URL yet", () => {
     expect(() => previewUrl(vmInfoWithAgentUrl(null), 8080)).toThrow(
       "Sandbox has no agent URL yet",

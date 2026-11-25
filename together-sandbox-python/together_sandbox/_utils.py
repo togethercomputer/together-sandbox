@@ -543,6 +543,11 @@ _AGENT_URL_PATTERN = re.compile(
     r"^(https?)://agent\.([^/]+)/nodes/([^/]+)/sandboxes/([^/]+)/?$"
 )
 
+# Matches the current agent URL format, which addresses the agent port on the
+# sandbox's own host: `https://<sandbox-id>-<agent-port>.<domain>`. Captures the
+# scheme, sandbox ID and domain so the agent port can be swapped for another.
+_PORT_HOST_AGENT_URL_PATTERN = re.compile(r"^(https?)://([^/.]+)-\d+\.([^/]+)/?$")
+
 
 def _preview_url(sandbox: SandboxModel, port: int) -> str:
     """
@@ -552,9 +557,9 @@ def _preview_url(sandbox: SandboxModel, port: int) -> str:
     Raises:
         RuntimeError: ``port`` is not a valid TCP port (an integer from 1 to
             65535, the same range ``PortInfo`` enforces), the sandbox is not
-            running (no agent URL yet), or its agent URL is not in the
-            expected ``https://agent.<domain>/nodes/<node-id>/sandboxes/<id>``
-            shape.
+            running (no agent URL yet), or its agent URL is in neither the
+            ``https://agent.<domain>/nodes/<node-id>/sandboxes/<id>`` nor the
+            ``https://<id>-<agent-port>.<domain>`` shape.
     """
     if isinstance(port, bool) or not isinstance(port, int) or not (1 <= port <= 65535):
         raise RuntimeError(f"Invalid port {port!r}: must be an integer from 1 to 65535")
@@ -566,8 +571,13 @@ def _preview_url(sandbox: SandboxModel, port: int) -> str:
         )
 
     match = _AGENT_URL_PATTERN.match(agent_url)
-    if not match:
-        raise RuntimeError(f"Unexpected agent URL shape: {agent_url}")
-    scheme, domain, node_id, sandbox_id = match.groups()
+    if match:
+        scheme, domain, node_id, sandbox_id = match.groups()
+        return f"{scheme}://{sandbox_id}-{port}-{node_id}.{domain}"
 
-    return f"{scheme}://{sandbox_id}-{port}-{node_id}.{domain}"
+    match = _PORT_HOST_AGENT_URL_PATTERN.match(agent_url)
+    if match:
+        scheme, sandbox_id, domain = match.groups()
+        return f"{scheme}://{sandbox_id}-{port}.{domain}"
+
+    raise RuntimeError(f"Unexpected agent URL shape: {agent_url}")

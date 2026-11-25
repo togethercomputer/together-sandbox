@@ -414,14 +414,20 @@ export function camelCaseKeys<T extends Record<string, unknown>>(
 const AGENT_URL_PATTERN =
   /^(https?):\/\/agent\.([^/]+)\/nodes\/([^/]+)\/sandboxes\/([^/]+)\/?$/;
 
+// Matches the current agent URL format, which addresses the agent port on the
+// sandbox's own host: `https://<sandbox-id>-<agent-port>.<domain>`. Captures the
+// scheme, sandbox ID and domain so the agent port can be swapped for another.
+const PORT_HOST_AGENT_URL_PATTERN = /^(https?):\/\/([^/.]+)-\d+\.([^/]+)\/?$/;
+
 /**
  * Builds the URL a client should use to reach `port` inside the sandbox
  * described by `vmInfo`, derived from its agent URL.
  *
  * Throws if `port` is not a valid TCP port (an integer from 1 to 65535, the
  * same range `PortInfo` enforces), if the sandbox is not running (no agent
- * URL yet), or if its agent URL is not in the expected
- * `https://agent.<domain>/nodes/<node-id>/sandboxes/<id>` shape.
+ * URL yet), or if its agent URL is in neither the
+ * `https://agent.<domain>/nodes/<node-id>/sandboxes/<id>` nor the
+ * `https://<id>-<agent-port>.<domain>` shape.
  */
 export function previewUrl(vmInfo: SandboxInfo, port: number): string {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -438,10 +444,16 @@ export function previewUrl(vmInfo: SandboxInfo, port: number): string {
   }
 
   const match = agentUrl.match(AGENT_URL_PATTERN);
-  if (!match) {
-    throw new Error(`Unexpected agent URL shape: ${agentUrl}`);
+  if (match) {
+    const [, scheme, domain, nodeId, sandboxId] = match;
+    return `${scheme}://${sandboxId}-${port}-${nodeId}.${domain}`;
   }
-  const [, scheme, domain, nodeId, sandboxId] = match;
 
-  return `${scheme}://${sandboxId}-${port}-${nodeId}.${domain}`;
+  const portHostMatch = agentUrl.match(PORT_HOST_AGENT_URL_PATTERN);
+  if (portHostMatch) {
+    const [, scheme, sandboxId, domain] = portHostMatch;
+    return `${scheme}://${sandboxId}-${port}.${domain}`;
+  }
+
+  throw new Error(`Unexpected agent URL shape: ${agentUrl}`);
 }
