@@ -74,7 +74,7 @@ from .api.types import UNSET as API_UNSET, Unset as ApiUnset
 from ._streaming import stream_sse_json
 
 # ── Utils ─────────────────────────────────────────────────────
-from ._utils import RetryConfig, _call_api, build_termination_snapshot
+from ._utils import RetryConfig, _call_api, _preview_url, build_termination_snapshot
 from ._lifecycle import describe_lifecycle_failure
 
 
@@ -519,10 +519,12 @@ class Ports:
     def __init__(
         self,
         sandbox_client: SandboxClient,
+        vm_info: SandboxModel,
         *,
         retry: RetryConfig | None = None,
     ) -> None:
         self._client = sandbox_client
+        self._vm_info = vm_info
         self._retry = retry
 
     async def list(self):
@@ -540,6 +542,17 @@ class Ports:
             self._client.get_async_httpx_client(),
             "/api/v1/stream/ports",
         )
+
+    def get_url(self, port: int) -> str:
+        """
+        The URL a client should use to reach ``port`` inside this sandbox,
+        derived from its agent URL.
+
+        Raises:
+            RuntimeError: the sandbox is not running, or its agent URL is not
+                in the expected shape.
+        """
+        return _preview_url(self._vm_info, port)
 
 
 # ─── Directories facade ──────────────────────────────────────────────────────
@@ -663,8 +676,8 @@ class Sandbox:
 
     @property
     def ports(self) -> Ports:
-        """Port discovery (list, stream_list)."""
-        return Ports(self._sandbox_client, retry=self._retry)
+        """Port discovery (list, stream_list, get_url)."""
+        return Ports(self._sandbox_client, self._vm_info, retry=self._retry)
 
     # ── Lifecycle methods ─────────────────────────────────────────────────────
 

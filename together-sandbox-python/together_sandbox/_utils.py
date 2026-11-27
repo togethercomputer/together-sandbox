@@ -532,3 +532,52 @@ def _resolve_connection(sandbox: SandboxModel) -> tuple[str, str]:
     if not agent or not agent.url or not agent.token:
         raise RuntimeError("Sandbox has no agent connection details")
     return agent.url, agent.token
+
+
+# Matches the agent URL Bartender reports for a running sandbox:
+# `https://agent.<domain>/nodes/<node-id>/sandboxes/<sandbox-id>`. Captures the
+# scheme, domain, node ID and sandbox ID so a preview URL for another port can be
+# built from the same three values, addressed at the sandbox's own host instead of
+# the agent route (which only reaches the fixed in-sandbox agent port).
+_AGENT_URL_PATTERN = re.compile(
+    r"^(https?)://agent\.([^/]+)/nodes/([^/]+)/sandboxes/([^/]+)/?$"
+)
+
+# Matches the current agent URL format, which addresses the agent port on the
+# sandbox's own host: `https://<sandbox-id>-<agent-port>.<domain>`. Captures the
+# scheme, sandbox ID and domain so the agent port can be swapped for another.
+_PORT_HOST_AGENT_URL_PATTERN = re.compile(r"^(https?)://([^/.]+)-\d+\.([^/]+)/?$")
+
+
+def _preview_url(sandbox: SandboxModel, port: int) -> str:
+    """
+    Build the URL a client should use to reach ``port`` inside ``sandbox``,
+    derived from its agent URL.
+
+    Raises:
+        RuntimeError: ``port`` is not a valid TCP port (an integer from 1 to
+            65535, the same range ``PortInfo`` enforces), the sandbox is not
+            running (no agent URL yet), or its agent URL is in neither the
+            ``https://agent.<domain>/nodes/<node-id>/sandboxes/<id>`` nor the
+            ``https://<id>-<agent-port>.<domain>`` shape.
+    """
+    if isinstance(port, bool) or not isinstance(port, int) or not (1 <= port <= 65535):
+        raise RuntimeError(f"Invalid port {port!r}: must be an integer from 1 to 65535")
+
+    agent_url = sandbox.agent.url if sandbox.agent else None
+    if not agent_url:
+        raise RuntimeError(
+            "Sandbox has no agent URL yet — it must be running to have a preview URL"
+        )
+
+    match = _AGENT_URL_PATTERN.match(agent_url)
+    if match:
+        scheme, domain, node_id, sandbox_id = match.groups()
+        return f"{scheme}://{sandbox_id}-{port}-{node_id}.{domain}"
+
+    match = _PORT_HOST_AGENT_URL_PATTERN.match(agent_url)
+    if match:
+        scheme, sandbox_id, domain = match.groups()
+        return f"{scheme}://{sandbox_id}-{port}.{domain}"
+
+    raise RuntimeError(f"Unexpected agent URL shape: {agent_url}")

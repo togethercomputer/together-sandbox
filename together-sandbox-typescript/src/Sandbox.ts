@@ -10,7 +10,7 @@ import type {
 } from "./types.js";
 import { type Client as ApiClient } from "./api-clients/api/client/index.js";
 import { TogetherSandbox } from "./TogetherSandbox.js";
-import { callApi, terminationSnapshotBody } from "./utils.js";
+import { callApi, previewUrl, terminationSnapshotBody } from "./utils.js";
 import { describeLifecycleFailure } from "./lifecycle.js";
 
 /**
@@ -367,7 +367,7 @@ export class Sandbox {
     };
   }
 
-  /** Port operations (list, streamList). */
+  /** Port operations (list, streamList, getUrl). */
   get ports() {
     const client = this._sandboxClient;
     return {
@@ -388,6 +388,7 @@ export class Sandbox {
         });
         return result.stream;
       },
+      getUrl: (port: number) => previewUrl(this.vmInfo, port),
     };
   }
 

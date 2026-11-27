@@ -3,6 +3,7 @@ import type {
   TerminationSnapshotParams,
   RetryConfig,
   RetryContext,
+  SandboxInfo,
 } from "./types";
 import { HttpError, isApiErrorShape, isSandboxErrorShape } from "./errors.js";
 
@@ -401,4 +402,58 @@ export function camelCaseKeys<T extends Record<string, unknown>>(
       value,
     ]),
   ) as CamelCasedProperties<T>;
+}
+
+// ─── Preview URLs ──────────────────────────────────────────────────────────
+
+// Matches the agent URL Bartender reports for a running sandbox:
+// `https://agent.<domain>/nodes/<node-id>/sandboxes/<sandbox-id>`. Captures the
+// scheme, domain, node ID and sandbox ID so a preview URL for another port can be
+// built from the same three values, addressed at the sandbox's own host instead of
+// the agent route (which only reaches the fixed in-sandbox agent port).
+const AGENT_URL_PATTERN =
+  /^(https?):\/\/agent\.([^/]+)\/nodes\/([^/]+)\/sandboxes\/([^/]+)\/?$/;
+
+// Matches the current agent URL format, which addresses the agent port on the
+// sandbox's own host: `https://<sandbox-id>-<agent-port>.<domain>`. Captures the
+// scheme, sandbox ID and domain so the agent port can be swapped for another.
+const PORT_HOST_AGENT_URL_PATTERN = /^(https?):\/\/([^/.]+)-\d+\.([^/]+)\/?$/;
+
+/**
+ * Builds the URL a client should use to reach `port` inside the sandbox
+ * described by `vmInfo`, derived from its agent URL.
+ *
+ * Throws if `port` is not a valid TCP port (an integer from 1 to 65535, the
+ * same range `PortInfo` enforces), if the sandbox is not running (no agent
+ * URL yet), or if its agent URL is in neither the
+ * `https://agent.<domain>/nodes/<node-id>/sandboxes/<id>` nor the
+ * `https://<id>-<agent-port>.<domain>` shape.
+ */
+export function previewUrl(vmInfo: SandboxInfo, port: number): string {
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(
+      `Invalid port ${port}: must be an integer from 1 to 65535`,
+    );
+  }
+
+  const agentUrl = vmInfo.agent.url;
+  if (!agentUrl) {
+    throw new Error(
+      "Sandbox has no agent URL yet — it must be running to have a preview URL",
+    );
+  }
+
+  const match = agentUrl.match(AGENT_URL_PATTERN);
+  if (match) {
+    const [, scheme, domain, nodeId, sandboxId] = match;
+    return `${scheme}://${sandboxId}-${port}-${nodeId}.${domain}`;
+  }
+
+  const portHostMatch = agentUrl.match(PORT_HOST_AGENT_URL_PATTERN);
+  if (portHostMatch) {
+    const [, scheme, sandboxId, domain] = portHostMatch;
+    return `${scheme}://${sandboxId}-${port}.${domain}`;
+  }
+
+  throw new Error(`Unexpected agent URL shape: ${agentUrl}`);
 }
