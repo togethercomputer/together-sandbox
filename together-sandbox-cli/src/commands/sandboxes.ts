@@ -24,6 +24,7 @@ import {
 import { examples } from "./_help";
 import { formatInboundAllowlist, parseExperimental } from "./_experimental";
 import { withClientTag } from "../constants";
+import { exit } from "../utils/misc";
 
 /** The statuses a sandbox can report, for `--status` validation. */
 const SANDBOX_STATUSES = [
@@ -265,14 +266,14 @@ export const listCommand: yargs.CommandModule<
         },
         argv,
       );
-      process.exit(0);
+      await exit(0);
     } catch (error) {
       console.error(
         error instanceof Error
           ? error.message
           : `Unknown error: ${JSON.stringify(error)}`,
       );
-      process.exit(1);
+      await exit(1);
     }
   },
 };
@@ -321,14 +322,14 @@ export const getCommand: yargs.CommandModule<Record<string, never>, GetArgs> = {
       } else {
         process.stdout.write(`${renderDescribe(describeSandbox(sandbox))}\n`);
       }
-      process.exit(0);
+      await exit(0);
     } catch (error) {
       console.error(
         error instanceof Error
           ? error.message
           : `Unknown error: ${JSON.stringify(error)}`,
       );
-      process.exit(1);
+      await exit(1);
     }
   },
 };
@@ -480,14 +481,14 @@ export const createCommand: yargs.CommandModule<
         buildCreateParams(argv, argv.ref),
       );
       console.log(`created sandbox ${sandbox.id} (running)`);
-      process.exit(0);
+      await exit(0);
     } catch (error) {
       console.error(
         error instanceof Error
           ? error.message
           : `Unknown error: ${JSON.stringify(error)}`,
       );
-      process.exit(1);
+      await exit(1);
     }
   },
 };
@@ -609,14 +610,14 @@ export const terminateCommand: yargs.CommandModule<
         snapshot === undefined ? {} : { snapshot },
       );
       console.log(`sandbox ${argv.id} terminated`);
-      process.exit(0);
+      await exit(0);
     } catch (error) {
       console.error(
         error instanceof Error
           ? error.message
           : `Unknown error: ${JSON.stringify(error)}`,
       );
-      process.exit(1);
+      await exit(1);
     }
   },
 };
@@ -738,7 +739,7 @@ export const runCommand: yargs.CommandModule<Record<string, never>, RunArgs> = {
         await sdk.sandboxes.terminate(sandboxId);
         process.stderr.write(`terminated sandbox ${sandboxId}\n`);
       }
-      process.exit(exitCode);
+      await exit(exitCode);
     } catch (error) {
       // Best-effort cleanup if --rm and the sandbox was created.
       if (argv.rm && sandboxId) {
@@ -754,7 +755,7 @@ export const runCommand: yargs.CommandModule<Record<string, never>, RunArgs> = {
           ? error.message
           : `Unknown error: ${JSON.stringify(error)}`,
       );
-      process.exit(1);
+      await exit(1);
     }
   },
 };
