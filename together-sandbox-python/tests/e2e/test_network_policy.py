@@ -9,7 +9,6 @@ and the proxy in front of its ports.
 from __future__ import annotations
 
 import asyncio
-import re
 
 import httpx
 import pytest
@@ -18,9 +17,6 @@ from together_sandbox import Sandbox, TogetherSandbox
 from together_sandbox.errors import HttpError
 
 from .helpers import get_snapshot_id
-
-# The agent's port, which the agent URL points at.
-AGENT_PORT = 57468
 
 OPEN_PORT = 8080  # allowed to everyone
 TOKEN_PORT = 8081  # allowed with the agent token
@@ -42,12 +38,8 @@ POLICY = {
 
 
 def port_url(sandbox: Sandbox, port: int) -> str:
-    """The preview URL of a sandbox port, derived from its agent URL."""
-    agent_url = sandbox.vm_info.agent.url
-    assert agent_url, "a running sandbox has an agent URL"
-    url, n = re.subn(rf"-{AGENT_PORT}\.", f"-{port}.", agent_url, count=1)
-    assert n == 1, f"unexpected agent URL {agent_url!r}"
-    return url.rstrip("/") + "/"
+    """The preview URL of a sandbox port, from the SDK."""
+    return sandbox.ports.get_url(port) + "/"
 
 
 async def start_servers(sandbox: Sandbox, ports: list[int]) -> None:
